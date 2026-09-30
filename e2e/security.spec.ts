@@ -9,7 +9,7 @@ test.describe('Security', () => {
   });
 
   test('should display security page', async ({ page }) => {
-    await expect(page.locator('h2.page-title')).toHaveText('Security');
+    await expect(page.locator('h2.page-title')).toHaveText('Security & Privacy');
   });
 
   test('should run security scan', async ({ page }) => {

@@ -201,6 +201,97 @@ export async function setupElectronMock(page: Page): Promise<void> {
     };
 
     (window as unknown as { electronAPI: typeof mockAPI }).electronAPI = mockAPI;
+
+    // Advanced feature pages use the `winoptimizer` namespace.
+    const mockWinoptimizer = {
+      drivers: {
+        scan: () =>
+          Promise.resolve({ drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() }),
+        createRestorePoint: () => Promise.resolve({ success: true, message: 'ok' }),
+        install: () => Promise.resolve({ success: true, message: 'ok' }),
+        rollback: () => Promise.resolve({ success: true, message: 'ok' }),
+      },
+      network: {
+        fix: () =>
+          Promise.resolve({
+            fixes: [],
+            connectivityTest: { success: true, latency: 12, downloadSpeed: 0 },
+            timestamp: new Date(),
+          }),
+        test: () => Promise.resolve({ success: true, latency: 12, downloadSpeed: 0 }),
+        fixError0x00000709: () => Promise.resolve({ success: true, message: 'ok' }),
+      },
+      drift: {
+        check: () => Promise.resolve({ events: [] }),
+        reapply: () => Promise.resolve({ success: true }),
+        reapplyAll: () => Promise.resolve({ success: true }),
+        status: () =>
+          Promise.resolve({ isMonitoring: false, lastCheck: new Date(), driftEvents: [], tweaksAtRisk: 0 }),
+        startMonitoring: () => Promise.resolve({ success: true }),
+        stopMonitoring: () => Promise.resolve({ success: true }),
+      },
+      audit: {
+        run: () =>
+          Promise.resolve({
+            checks: [],
+            totalChecks: 0,
+            passedCount: 0,
+            warningCount: 0,
+            criticalCount: 0,
+            score: 100,
+            timestamp: new Date(),
+          }),
+      },
+      benchmark: {
+        run: () =>
+          Promise.resolve({
+            results: [],
+            totalScore: 0,
+            systemInfo: { cpu: '', memory: 0, disk: '', gpu: '' },
+            timestamp: new Date(),
+          }),
+        exportMarkdown: () => Promise.resolve('# report'),
+      },
+      privacy: {
+        getSettings: () => Promise.resolve([]),
+        applySetting: () => Promise.resolve({ success: true, message: 'ok' }),
+        applyAll: () => Promise.resolve({ success: true, message: 'ok' }),
+      },
+      security: {
+        getActions: () => Promise.resolve([]),
+        runAction: () => Promise.resolve({ success: true, message: 'ok' }),
+      },
+      dns: {
+        benchmark: () => Promise.resolve([]),
+        set: () => Promise.resolve({ success: true, message: 'ok' }),
+      },
+      bundles: {
+        get: () => Promise.resolve([]),
+        checkInstalled: () => Promise.resolve([]),
+        install: () => Promise.resolve({ success: true, message: 'ok' }),
+        installMultiple: () => Promise.resolve({ success: true, message: 'ok' }),
+        uninstall: () => Promise.resolve({ success: true, message: 'ok' }),
+      },
+      cleaning: {
+        getSchedules: () => Promise.resolve([]),
+        getDefaultSchedules: () => Promise.resolve([]),
+        createSchedule: (schedule: unknown) => Promise.resolve(schedule),
+        updateSchedule: () => Promise.resolve(null),
+        deleteSchedule: () => Promise.resolve(true),
+        runNow: () => Promise.resolve({ success: true, message: 'ok', filesDeleted: 0, spaceFreed: 0 }),
+        getHistory: () => Promise.resolve([]),
+      },
+      sourceUpdater: {
+        check: () => Promise.resolve({ report: {}, formatted: '' }),
+        pending: () => Promise.resolve({ pending: [], formatted: '' }),
+        import: () => Promise.resolve({ success: true, imported: 0, failed: 0, errors: [] }),
+        importAll: () => Promise.resolve({ success: true, imported: 0, failed: 0, errors: [] }),
+        reject: () => Promise.resolve({ success: true }),
+        rejectAll: () => Promise.resolve({ success: true }),
+      },
+    };
+
+    (window as unknown as { winoptimizer: typeof mockWinoptimizer }).winoptimizer = mockWinoptimizer;
   }, {
     systemInfo: mockSystemInfo,
     junkFiles: mockJunkFiles,

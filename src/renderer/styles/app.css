@@ -1,0 +1,20 @@
+/* ============================================
+   FORCH.iA WinOptimizer — App Stylesheet Entry
+   Built with FORCH.i by Paulo Velasco
+   ------------------------------------------------------------
+   All @import rules MUST come first (CSS spec); the Tailwind
+   @config directive is declared afterwards so it never
+   invalidates the design-system stylesheet imports.
+   ============================================ */
+
+@import 'tailwindcss';
+
+/* Design tokens (CSS custom properties — single source of truth) */
+@import './tokens.css';
+
+/* Component + layout styles */
+@import './components.css';
+@import './layout.css';
+
+/* Bind the design tokens to Tailwind's utility generator */
+@config "../../../tailwind.config.ts";

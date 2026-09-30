@@ -33,16 +33,17 @@ export async function importUpdates(
         u.status = 'imported';
         result.imported++;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       result.failed += catalogUpdates.length;
-      result.errors.push(`Error importando ${catalog}: ${err.message}`);
+      result.errors.push(`Error importando ${catalog}: ${message}`);
     }
   }
 
   // Update last-check
   const lastCheck = loadLastCheck();
   lastCheck.pendingUpdates = lastCheck.pendingUpdates.filter(
-    u => !updates.find(x => x.id === u.id)
+    (u) => !updates.find((x) => x.id === u.id)
   );
   saveLastCheck(lastCheck);
 
@@ -52,13 +53,13 @@ export async function importUpdates(
 
 export async function importAllPending(): Promise<ImportResult> {
   const lastCheck = loadLastCheck();
-  const pending = lastCheck.pendingUpdates.filter(u => u.status === 'pending');
+  const pending = lastCheck.pendingUpdates.filter((u) => u.status === 'pending');
   return importUpdates(pending, { autoImport: true });
 }
 
 export function rejectUpdate(updateId: string): void {
   const lastCheck = loadLastCheck();
-  const update = lastCheck.pendingUpdates.find(u => u.id === updateId);
+  const update = lastCheck.pendingUpdates.find((u) => u.id === updateId);
   if (update) {
     update.status = 'rejected';
     saveLastCheck(lastCheck);

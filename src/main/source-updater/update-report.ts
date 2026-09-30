@@ -11,7 +11,7 @@ export function formatReport(report: UpdateReport): string {
   lines.push('');
 
   if (report.newItems.length > 0) {
-    lines.push(`  📦 NUEVOS (${report.newItems.length}):`);
+    lines.push(`  NUEVOS (${report.newItems.length}):`);
     for (const item of report.newItems) {
       lines.push(`    • [${item.sourceName}] ${item.item.name} (${item.catalog})`);
     }
@@ -19,7 +19,7 @@ export function formatReport(report: UpdateReport): string {
   }
 
   if (report.modifiedItems.length > 0) {
-    lines.push(`  📝 MODIFICADOS (${report.modifiedItems.length}):`);
+    lines.push(`  MODIFICADOS (${report.modifiedItems.length}):`);
     for (const item of report.modifiedItems) {
       lines.push(`    • [${item.sourceName}] ${item.item.name} (${item.catalog})`);
     }
@@ -27,7 +27,7 @@ export function formatReport(report: UpdateReport): string {
   }
 
   if (report.removedItems.length > 0) {
-    lines.push(`  🗑️  ELIMINADOS (${report.removedItems.length}):`);
+    lines.push(`  ELIMINADOS (${report.removedItems.length}):`);
     for (const item of report.removedItems) {
       lines.push(`    • [${item.sourceName}] ${item.item.name} (${item.catalog})`);
     }
@@ -35,15 +35,19 @@ export function formatReport(report: UpdateReport): string {
   }
 
   if (report.errors.length > 0) {
-    lines.push(`  ⚠️  ERRORES (${report.errors.length}):`);
+    lines.push(`  ERRORES (${report.errors.length}):`);
     for (const err of report.errors) {
       lines.push(`    • ${err}`);
     }
     lines.push('');
   }
 
-  if (report.newItems.length === 0 && report.modifiedItems.length === 0 && report.removedItems.length === 0) {
-    lines.push('  ✅ Todo está al día. No se encontraron cambios.');
+  if (
+    report.newItems.length === 0 &&
+    report.modifiedItems.length === 0 &&
+    report.removedItems.length === 0
+  ) {
+    lines.push('  Todo está al día. No se encontraron cambios.');
     lines.push('');
   }
 
@@ -53,7 +57,7 @@ export function formatReport(report: UpdateReport): string {
 
 export function getPendingUpdates(): PendingUpdate[] {
   const lastCheck = loadLastCheck();
-  return lastCheck.pendingUpdates.filter(u => u.status === 'pending');
+  return lastCheck.pendingUpdates.filter((u) => u.status === 'pending');
 }
 
 export function formatPendingForDisplay(): string {
@@ -61,7 +65,7 @@ export function formatPendingForDisplay(): string {
   if (pending.length === 0) return 'No hay actualizaciones pendientes.';
 
   const lines: string[] = [];
-  lines.push(`📋 ${pending.length} actualización(es) pendiente(s):`);
+  lines.push(`${pending.length} actualización(es) pendiente(s):`);
   lines.push('');
 
   const byCatalog = new Map<string, PendingUpdate[]>();
@@ -71,9 +75,9 @@ export function formatPendingForDisplay(): string {
   }
 
   for (const [catalog, items] of byCatalog) {
-  lines.push(`  ${catalog.toUpperCase()} (${items.length}):`);
+    lines.push(`  ${catalog.toUpperCase()} (${items.length}):`);
     for (const item of items) {
-      const icon = item.type === 'new' ? '📦' : item.type === 'modified' ? '📝' : '🗑️';
+      const icon = item.type === 'new' ? '[+]' : item.type === 'modified' ? '[~]' : '[-]';
       lines.push(`    ${icon} ${item.item.name} — ${item.sourceName}`);
     }
     lines.push('');

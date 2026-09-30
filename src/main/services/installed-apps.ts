@@ -83,8 +83,9 @@ const PROTECTED_APPS = [
 export async function getInstalledApps(): Promise<InstalledApp[]> {
   const apps: InstalledApp[] = [];
 
-  // Scan HKLM (64-bit)
-  const hklmResult = await runPowerShell(`
+  try {
+    // Scan HKLM (64-bit)
+    const hklmResult = await runPowerShell(`
     $paths = @(
       'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
       'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
@@ -228,6 +229,9 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
   }
 
   return apps;
+  } catch {
+    return apps;
+  }
 }
 
 export async function uninstallApp(_appId: string, uninstallString: string): Promise<{

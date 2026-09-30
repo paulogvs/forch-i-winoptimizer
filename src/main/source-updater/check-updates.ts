@@ -1,38 +1,36 @@
-import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Source, SourcesConfig, LastCheck, UpdateReport, GitHubRepoInfo } from './types';
+import { getCatalogStorageDir, getStorageDir, resolveBundledPath } from './paths';
 
 const GITHUB_API = 'https://api.github.com';
 
-function getSourcesPath(): string {
-  const userData = app.getPath('userData');
-  const dir = path.join(userData, 'forch-i-winoptimizer');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
 export function loadSources(): SourcesConfig {
-  const sourcesPath = path.join(getSourcesPath(), 'sources.json');
+  const sourcesPath = path.join(getStorageDir(), 'sources.json');
   if (fs.existsSync(sourcesPath)) {
-    return JSON.parse(fs.readFileSync(sourcesPath, 'utf-8'));
+    return JSON.parse(fs.readFileSync(sourcesPath, 'utf-8')) as SourcesConfig;
   }
-  // Fallback to bundled
-  const bundled = path.join(__dirname, '..', 'sources', 'sources.json');
-  return JSON.parse(fs.readFileSync(bundled, 'utf-8'));
+  const bundled = resolveBundledPath('sources', 'sources.json');
+  if (!bundled) {
+    throw new Error('sources.json not found (neither in userData nor bundled).');
+  }
+  return JSON.parse(fs.readFileSync(bundled, 'utf-8')) as SourcesConfig;
 }
 
 export function loadLastCheck(): LastCheck {
-  const checkPath = path.join(getSourcesPath(), 'last-check.json');
+  const checkPath = path.join(getStorageDir(), 'last-check.json');
   if (fs.existsSync(checkPath)) {
-    return JSON.parse(fs.readFileSync(checkPath, 'utf-8'));
+    return JSON.parse(fs.readFileSync(checkPath, 'utf-8')) as LastCheck;
   }
-  const bundled = path.join(__dirname, '..', 'sources', 'last-check.json');
-  return JSON.parse(fs.readFileSync(bundled, 'utf-8'));
+  const bundled = resolveBundledPath('sources', 'last-check.json');
+  if (bundled) {
+    return JSON.parse(fs.readFileSync(bundled, 'utf-8')) as LastCheck;
+  }
+  return { lastCheck: null, sources: {}, pendingUpdates: [] };
 }
 
 export function saveLastCheck(data: LastCheck): void {
-  const checkPath = path.join(getSourcesPath(), 'last-check.json');
+  const checkPath = path.join(getStorageDir(), 'last-check.json');
   fs.writeFileSync(checkPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
@@ -40,10 +38,10 @@ async function fetchRepoInfo(source: Source): Promise<GitHubRepoInfo | null> {
   try {
     const repoPath = source.url.replace('https://github.com/', '');
     const res = await fetch(`${GITHUB_API}/repos/${repoPath}`, {
-      headers: { 'Accept': 'application/vnd.github.v3+json' },
+      headers: { Accept: 'application/vnd.github.v3+json' },
     });
     if (!res.ok) return null;
-    return await res.json();
+    return (await res.json()) as GitHubRepoInfo;
   } catch {
     return null;
   }
@@ -64,16 +62,19 @@ async function fetchCatalogFromRepo(source: Source, catalog: string): Promise<un
     for (const p of possiblePaths) {
       const url = `${GITHUB_API}/repos/${repoPath}/contents/${p}?ref=${branch}`;
       const res = await fetch(url, {
-        headers: { 'Accept': 'application/vnd.github.v3.raw' },
+        headers: { Accept: 'application/vnd.github.v3.raw' },
       });
       if (res.ok) {
         const text = await res.text();
         try {
-          const data = JSON.parse(text);
+          const data = JSON.parse(text) as unknown;
           // Extract array from common catalog formats
-          if (Array.isArray(data)) return data;
-          const key = Object.keys(data).find(k => Array.isArray(data[k]));
-          if (key) return data[key] as unknown[];
+          if (Array.isArray(data)) return data as unknown[];
+          if (data && typeof data === 'object') {
+            const record = data as Record<string, unknown>;
+            const key = Object.keys(record).find((k) => Array.isArray(record[k]));
+            if (key) return record[key] as unknown[];
+          }
         } catch {
           continue;
         }
@@ -98,7 +99,7 @@ export async function checkAllSources(): Promise<UpdateReport> {
   const sources = loadSources();
   const lastCheck = loadLastCheck();
 
-  for (const source of sources.sources.filter(s => s.enabled)) {
+  for (const source of sources.sources.filter((s) => s.enabled)) {
     try {
       const repoInfo = await fetchRepoInfo(source);
       if (!repoInfo) {
@@ -110,7 +111,7 @@ export async function checkAllSources(): Promise<UpdateReport> {
 
       // Check if repo has new commits since last check
       const prevCommit = lastCheck.sources[source.id]?.lastCommit;
-      const hasNewCommits = !prevCommit || repoInfo.pushed_at > (lastCheck.sources[source.id]?.lastCheck || '');
+      const hasNewCommits = !prevCommit || repoInfo.pushed_at > (prevCommit ?? '');
 
       if (hasNewCommits) {
         // Fetch catalogs from repo
@@ -119,21 +120,21 @@ export async function checkAllSources(): Promise<UpdateReport> {
           if (!remoteItems) continue;
 
           // Load local catalog
-          const localCatalogPath = path.join(getSourcesPath(), 'catalogs', `${catalog}.json`);
+          const localCatalogPath = path.join(getCatalogStorageDir(), `${catalog}.json`);
           let localItems: unknown[] = [];
           if (fs.existsSync(localCatalogPath)) {
-            const localData = JSON.parse(fs.readFileSync(localCatalogPath, 'utf-8'));
-            const key = Object.keys(localData).find(k => Array.isArray(localData[k]));
+            const localData = JSON.parse(fs.readFileSync(localCatalogPath, 'utf-8')) as Record<string, unknown>;
+            const key = Object.keys(localData).find((k) => Array.isArray(localData[k]));
             if (key) localItems = localData[key] as unknown[];
           }
 
           // Diff
-          const localIds = new Set(localItems.map((i: any) => i.id));
-          const remoteIds = new Set(remoteItems.map((i: any) => i.id));
+          const localIds = new Set(localItems.map((i) => (i as { id: string }).id));
+          const remoteIds = new Set(remoteItems.map((i) => (i as { id: string }).id));
 
           // New items
           for (const item of remoteItems) {
-            const itemAny = item as any;
+            const itemAny = item as { id: string; name: string };
             if (!localIds.has(itemAny.id)) {
               report.newItems.push({
                 id: `${source.id}-${catalog}-${itemAny.id}`,
@@ -150,7 +151,7 @@ export async function checkAllSources(): Promise<UpdateReport> {
 
           // Removed items
           for (const item of localItems) {
-            const itemAny = item as any;
+            const itemAny = item as { id: string; name: string };
             if (!remoteIds.has(itemAny.id)) {
               report.removedItems.push({
                 id: `${source.id}-${catalog}-${itemAny.id}`,
@@ -172,8 +173,9 @@ export async function checkAllSources(): Promise<UpdateReport> {
           lastCheck: new Date().toISOString(),
         };
       }
-    } catch (err: any) {
-      report.errors.push(`Error en ${source.name}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      report.errors.push(`Error en ${source.name}: ${message}`);
     }
   }
 

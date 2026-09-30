@@ -1,13 +1,14 @@
 {
   "name": "forch-i-winoptimizer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Windows optimizer built with FORCH.iA ecosystem",
   "author": "Paulo Velasco",
   "license": "MIT",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.main.json && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write .",
@@ -63,7 +64,9 @@
     },
     "files": [
       "dist/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "catalogs/**/*",
+      "sources/**/*"
     ],
     "win": {
       "target": [

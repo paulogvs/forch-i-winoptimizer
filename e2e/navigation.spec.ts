@@ -37,7 +37,7 @@ test.describe('Navigation', () => {
 
   test('should navigate to security', async ({ page }) => {
     await page.click('.sidebar >> text=Security');
-    await expect(page.locator('h2.page-title')).toHaveText('Security');
+    await expect(page.locator('h2.page-title')).toHaveText('Security & Privacy');
   });
 
   test('should navigate to settings', async ({ page }) => {

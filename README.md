@@ -18,10 +18,17 @@ A modern, fast, and beautiful Windows optimizer built with the FORCH.iA ecosyste
 - **Dashboard** — Real-time system metrics (CPU, RAM, Disk) with quick actions
 - **Cleaner** — Scan and remove junk files, temp files, caches, and more
 - **Boost** — One-click optimizations for startup apps, services, and memory
+- **Drivers** — Driver Updater: hardware scan, manufacturer detection, restore point, install & rollback
+- **Network** — Network Fixer: TCP/IP + Winsock + firewall reset, SMBv1 / `0x00000709` fix, connectivity test
+- **Audit** — System Audit: 33 checks across 6 categories with a health score
+- **Benchmark** — Performance metrics with before/after comparison and Markdown export
+- **Bundles** — Bulk app installation by category via `winget`
+- **Cleaning** — Scheduled cleaning (daily/weekly/monthly) with history
 - **Tools** — Registry cleaner, disk defragmenter, privacy eraser, and more
 - **Statistics** — Historical charts and trends with CSV export
-- **Security** — Security scan with recommendations and auto-fix
+- **Security** — Security & Privacy scan, privacy hardening, and DNS benchmark
 - **Settings** — Full customization with dark/light mode
+- **Source Monitor** — Pull new tweaks/apps/services from the 4 base repositories (`@forchi` → "vamos a buscar actualizaciones")
 
 ## Tech Stack
 
@@ -48,7 +55,7 @@ A modern, fast, and beautiful Windows optimizer built with the FORCH.iA ecosyste
 
 ```bash
 # Clone the repository
-git clone https://github.com/forchia-ecosystem/forch-i-winoptimizer.git
+git clone https://github.com/paulogvs/forch-i-winoptimizer.git
 cd forch-i-winoptimizer
 
 # Install dependencies
@@ -57,6 +64,22 @@ pnpm install
 # Start development server
 pnpm run electron:dev
 ```
+
+## Distribution (Windows)
+
+The app ships in **two formats**, both produced by `electron-builder`:
+
+| Format | Target | Best for |
+|--------|--------|----------|
+| **Installer** | NSIS (`.exe`) | Everyday use — Start Menu/Desktop shortcuts, clean uninstall |
+| **Portable** | Portable (`.exe`) | USB drives, shared PCs, no-install use |
+
+```bash
+# Build the renderer + main process, then package installer + portable
+pnpm run electron:build
+```
+
+Artifacts are written to `release/`.
 
 ### Build for Production
 

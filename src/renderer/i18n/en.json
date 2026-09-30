@@ -1,0 +1,141 @@
+{
+  "app": {
+    "name": "FORCH.iA WinOptimizer",
+    "version": "v0.1.0"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "cleaner": "Cleaner",
+    "boost": "Boost",
+    "tools": "Tools",
+    "security": "Security",
+    "statistics": "Statistics",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "cpuUsage": "CPU Usage",
+    "memory": "Memory",
+    "disk": "Disk",
+    "gpuInfo": "GPU Information",
+    "systemInfo": "System Information",
+    "quickActions": "Quick Actions",
+    "refresh": "Refresh",
+    "uptime": "Uptime",
+    "hostname": "Hostname",
+    "username": "Username",
+    "windowsVersion": "Windows Version",
+    "lastBoot": "Last Boot",
+    "cores": "cores",
+    "used": "used",
+    "free": "free",
+    "total": "total"
+  },
+  "cleaner": {
+    "title": "Cleaner",
+    "scan": "Scan",
+    "deleteSelected": "Delete Selected",
+    "scanning": "Scanning...",
+    "noFiles": "No junk files found",
+    "filesFound": "files found",
+    "totalSize": "Total size",
+    "safeToDelete": "Safe to delete",
+    "caution": "Caution",
+    "category": {
+      "temp": "Temporary Files",
+      "cache": "Cache",
+      "logs": "Logs",
+      "thumbnails": "Thumbnails",
+      "recycle-bin": "Recycle Bin",
+      "browser-cache": "Browser Cache",
+      "windows-update": "Windows Update"
+    }
+  },
+  "boost": {
+    "title": "Boost",
+    "optimize": "Optimize",
+    "services": "Services",
+    "startupApps": "Startup Apps",
+    "impact": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "protection": {
+      "safe": "Safe",
+      "caution": "Caution",
+      "protected": "Protected"
+    },
+    "recommendedAction": {
+      "keep": "Keep",
+      "disable": "Disable",
+      "manual": "Manual"
+    }
+  },
+  "tools": {
+    "title": "Tools",
+    "openTemp": "Open Temp Folder",
+    "openMsconfig": "Open System Configuration",
+    "openTaskManager": "Open Task Manager",
+    "openRegistry": "Open Registry Editor",
+    "openServices": "Open Services"
+  },
+  "security": {
+    "title": "Security",
+    "firewall": "Firewall",
+    "defender": "Windows Defender",
+    "uac": "User Account Control",
+    "updates": "Windows Updates",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "status": "Status"
+  },
+  "statistics": {
+    "title": "Statistics",
+    "cpu": "CPU Usage",
+    "memory": "Memory Usage",
+    "disk": "Disk Usage",
+    "history": "History"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "updates": "Updates",
+    "about": "About",
+    "checkUpdates": "Check for Updates",
+    "currentVersion": "Current Version",
+    "availableUpdate": "Update Available",
+    "noUpdate": "You are up to date",
+    "spanish": "Español",
+    "english": "English",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeBlue": "Blue",
+    "themeGreen": "Green",
+    "themeOrange": "Orange"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "save": "Save",
+    "delete": "Delete",
+    "search": "Search",
+    "all": "All",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK"
+  },
+  "notifications": {
+    "scanComplete": "Scan complete",
+    "filesDeleted": "files deleted",
+    "optimizationComplete": "Optimization complete",
+    "updateAvailable": "Update available",
+    "errorOccurred": "An error occurred"
+  }
+}

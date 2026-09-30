@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { registerIpcHandlers } from './ipc';
 import { setupAutoUpdater } from './updater';
+import { WINDOW_BACKGROUND } from '../shared/theme';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -12,7 +13,7 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     frame: false,
-    backgroundColor: '#0A0E1A',
+    backgroundColor: WINDOW_BACKGROUND,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
