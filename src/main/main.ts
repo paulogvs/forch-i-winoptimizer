@@ -77,7 +77,7 @@ ipcMain.handle('dialog:confirm', async (_event, options: { title: string; messag
     cancelId: 0,
     title: options.title,
     message: options.message,
-    detail: options.detail,
+    ...(options.detail !== undefined && { detail: options.detail }),
   });
   return result.response === 1;
 });

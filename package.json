@@ -16,16 +16,24 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "electron:pack": "npm run build && electron-builder --dir"
   },
   "dependencies": {
+    "electron-updater": "^6.1.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -38,6 +46,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
     "jsdom": "^24.1.0",
+    "playwright": "^1.44.0",
     "postcss": "^8.4.39",
     "prettier": "^3.3.2",
     "tailwindcss": "^4.0.0",
@@ -57,12 +66,26 @@
       "assets/**/*"
     ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "assets/icons/icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FORCH.iA WinOptimizer"
+    },
+    "portable": {
+      "artifactName": "FORCH.iA-WinOptimizer-Portable-${version}.exe"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "paulogvs",
+      "repo": "forch-i-winoptimizer"
     }
   }
 }

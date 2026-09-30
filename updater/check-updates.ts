@@ -49,7 +49,7 @@ async function fetchRepoInfo(source: Source): Promise<GitHubRepoInfo | null> {
   }
 }
 
-async function fetchCatalogFromRepo(source: Source, catalog: string): Promise<unknown[]> | null> {
+async function fetchCatalogFromRepo(source: Source, catalog: string): Promise<unknown[] | null> {
   try {
     const repoPath = source.url.replace('https://github.com/', '');
     const branch = 'main';

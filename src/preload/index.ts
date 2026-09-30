@@ -15,12 +15,15 @@ const api = {
 
   // Installed apps
   getInstalledApps: () => ipcRenderer.invoke('apps:get-installed'),
-  uninstallApp: (appId: string) => ipcRenderer.invoke('apps:uninstall', appId),
+  uninstallApp: (appId: string, uninstallString: string) =>
+    ipcRenderer.invoke('apps:uninstall', appId, uninstallString),
 
   // System services
   getSystemServices: () => ipcRenderer.invoke('services:get-all'),
   toggleService: (serviceId: string, enabled: boolean) =>
     ipcRenderer.invoke('services:toggle', serviceId, enabled),
+  setServiceStartType: (serviceId: string, startType: 'automatic' | 'manual' | 'disabled') =>
+    ipcRenderer.invoke('services:set-start-type', serviceId, startType),
 
   // Updater
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
@@ -31,6 +34,11 @@ const api = {
     const handler = (_event: IpcRendererEvent, info: unknown) => callback(info);
     ipcRenderer.on('update:available', handler);
     return () => ipcRenderer.removeListener('update:available', handler);
+  },
+  onUpdateProgress: (callback: (percent: number) => void) => {
+    const handler = (_event: IpcRendererEvent, percent: number) => callback(percent);
+    ipcRenderer.on('updater:progress', handler);
+    return () => ipcRenderer.removeListener('updater:progress', handler);
   },
 };
 

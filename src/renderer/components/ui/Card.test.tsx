@@ -25,6 +25,6 @@ describe('Card', () => {
 
   it('applies hoverable class', () => {
     render(<Card hoverable>Content</Card>);
-    expect(screen.getByText('Content').parentElement?.parentElement).toHaveClass('card-hover');
+    expect(screen.getByText('Content').parentElement).toHaveClass('card-hover');
   });
 });

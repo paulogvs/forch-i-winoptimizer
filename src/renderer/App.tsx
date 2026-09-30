@@ -52,6 +52,7 @@ const App: React.FC = () => {
       theme={theme}
       onThemeToggle={handleThemeToggle}
       onSearch={handleSearch}
+      searchQuery={searchQuery}
       version="0.1.0"
       windowsVersion="Windows 11"
       lastScan={lastScan}

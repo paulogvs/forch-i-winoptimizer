@@ -10,6 +10,7 @@ interface LayoutProps {
   theme: Theme;
   onThemeToggle: () => void;
   onSearch: (query: string) => void;
+  searchQuery: string;
   version: string;
   windowsVersion: string;
   lastScan: Date | null;
@@ -22,6 +23,7 @@ export const Layout: React.FC<LayoutProps> = ({
   theme,
   onThemeToggle,
   onSearch,
+  searchQuery,
   version,
   windowsVersion,
   lastScan,
@@ -31,7 +33,7 @@ export const Layout: React.FC<LayoutProps> = ({
     <div className="app-shell">
       <Sidebar currentPage={currentPage} onNavigate={onNavigate} />
       <div className="main-area">
-        <Header theme={theme} onThemeToggle={onThemeToggle} onSearch={onSearch} />
+        <Header theme={theme} onThemeToggle={onThemeToggle} onSearch={onSearch} searchQuery={searchQuery} />
         <main className="main-content">{children}</main>
         <StatusBar version={version} windowsVersion={windowsVersion} lastScan={lastScan} />
       </div>

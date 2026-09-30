@@ -1,0 +1,59 @@
+import { test, expect } from '@playwright/test';
+import { setupElectronMock } from './setup';
+
+test.describe('Navigation', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupElectronMock(page);
+    await page.goto('/');
+  });
+
+  test('should display sidebar', async ({ page }) => {
+    await expect(page.locator('.sidebar')).toBeVisible();
+  });
+
+  test('should display all nav items', async ({ page }) => {
+    await expect(page.locator('.sidebar >> text=Dashboard')).toBeVisible();
+    await expect(page.locator('.sidebar >> text=Cleaner')).toBeVisible();
+    await expect(page.locator('.sidebar >> text=Boost')).toBeVisible();
+    await expect(page.locator('.sidebar >> text=Tools')).toBeVisible();
+    await expect(page.locator('.sidebar >> text=Security')).toBeVisible();
+    await expect(page.locator('.sidebar >> text=Settings')).toBeVisible();
+  });
+
+  test('should navigate to cleaner', async ({ page }) => {
+    await page.click('.sidebar >> text=Cleaner');
+    await expect(page.locator('h2.page-title')).toHaveText('Cleaner');
+  });
+
+  test('should navigate to boost', async ({ page }) => {
+    await page.click('.sidebar >> text=Boost');
+    await expect(page.locator('h2.page-title')).toHaveText('Boost');
+  });
+
+  test('should navigate to tools', async ({ page }) => {
+    await page.click('.sidebar >> text=Tools');
+    await expect(page.locator('h2.page-title')).toHaveText('Tools');
+  });
+
+  test('should navigate to security', async ({ page }) => {
+    await page.click('.sidebar >> text=Security');
+    await expect(page.locator('h2.page-title')).toHaveText('Security');
+  });
+
+  test('should navigate to settings', async ({ page }) => {
+    await page.click('.sidebar >> text=Settings');
+    await expect(page.locator('h2.page-title')).toHaveText('Settings');
+  });
+
+  test('should display brand badge', async ({ page }) => {
+    await expect(page.locator('text=Built with FORCH.i by Paulo Velasco')).toBeVisible();
+  });
+
+  test('should display status bar', async ({ page }) => {
+    await expect(page.locator('.status-bar')).toBeVisible();
+  });
+
+  test('should display version in status bar', async ({ page }) => {
+    await expect(page.locator('text=v0.1.0')).toBeVisible();
+  });
+});

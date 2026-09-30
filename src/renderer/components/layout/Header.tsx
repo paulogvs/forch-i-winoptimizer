@@ -5,9 +5,10 @@ interface HeaderProps {
   theme: Theme;
   onThemeToggle: () => void;
   onSearch: (query: string) => void;
+  searchQuery: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch }) => {
+export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, searchQuery }) => {
   return (
     <header className="header">
       <div className="header-left">
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch }
             type="search"
             className="input"
             placeholder="Search..."
+            value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
             aria-label="Search"
           />

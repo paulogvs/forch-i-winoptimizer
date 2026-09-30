@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { registerIpcHandlers } from './ipc';
+import { setupAutoUpdater } from './updater';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -40,8 +41,9 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpcHandlers();
+  registerIpcHandlers(mainWindow);
   createWindow();
+  setupAutoUpdater(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

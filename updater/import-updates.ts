@@ -1,7 +1,4 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { app } from 'electron';
-import { PendingUpdate, LastCheck } from './types';
+import { PendingUpdate } from './types';
 import { loadLocalCatalog, saveLocalCatalog, mergeCatalogs } from './diff-catalogs';
 import { loadLastCheck, saveLastCheck } from './check-updates';
 
@@ -14,7 +11,7 @@ export interface ImportResult {
 
 export async function importUpdates(
   updates: PendingUpdate[],
-  options: { autoImport?: boolean } = {}
+  _options: { autoImport?: boolean } = {}
 ): Promise<ImportResult> {
   const result: ImportResult = { success: true, imported: 0, failed: 0, errors: [] };
 
