@@ -1,0 +1,171 @@
+{
+  "version": "0.1.0",
+  "lastUpdated": "2026-09-30",
+  "apps": [
+    {
+      "id": "3dbuilder",
+      "name": "3D Builder",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de impresión 3D preinstalada. Segura de remover si no usas impresión 3D.",
+      "uninstallString": "Microsoft.3DBuilder",
+      "size": "~120 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingweather",
+      "name": "MSN Weather",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de clima preinstalada.",
+      "uninstallString": "Microsoft.BingWeather",
+      "size": "~80 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "clipchamp",
+      "name": "Clipchamp",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Editor de video básico preinstalado.",
+      "uninstallString": "Clipchamp.Clipchamp",
+      "size": "~200 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "cortana",
+      "name": "Cortana",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "Asistente virtual de Microsoft. Puede afectar búsqueda en Start.",
+      "uninstallString": "Microsoft.549981C3F5F10",
+      "size": "~150 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "getstarted",
+      name": "Tips / Get Started",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de consejos y tutoriales de Windows.",
+      "uninstallString": "Microsoft.Getstarted",
+      "size": "~60 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "officehub",
+      "name": "Microsoft Office Hub",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Hub de Office preinstalado.",
+      "uninstallString": "Microsoft.MicrosoftOfficeHub",
+      "size": "~40 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "mixedreality",
+      "name": "Mixed Reality Portal",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Portal de realidad mixta. Solo útil con headset VR.",
+      "uninstallString": "Microsoft.MixedReality.Portal",
+      "size": "~180 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "onenote",
+      "name": "OneNote for Windows 10",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "Versión UWP de OneNote. Si usas OneNote Desktop, es segura de remover.",
+      "uninstallString": "Microsoft.Office.OneNote",
+      "size": "~250 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "people",
+      "name": "Microsoft People",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de contactos preinstalada.",
+      "uninstallString": "Microsoft.People",
+      "size": "~50 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "skype",
+      "name": "Skype App",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Skype preinstalado (versión UWP).",
+      "uninstallString": "Microsoft.SkypeApp",
+      "size": "~100 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "solitaire",
+      "name": "Microsoft Solitaire Collection",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Colección de juegos de cartas.",
+      "uninstallString": "Microsoft.MicrosoftSolitaireCollection",
+      "size": "~150 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "sticky-notes",
+      "name": "Microsoft Sticky Notes",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Notas adhesivas digitales.",
+      "uninstallString": "Microsoft.MicrosoftStickyNotes",
+      "size": "~30 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "todo",
+      "name": "Microsoft To Do",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de tareas preinstalada.",
+      "uninstallString": "Microsoft.Todos",
+      "size": "~80 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "xbox",
+      "name": "Xbox App",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "App de Xbox. Remover puede afectar Game Bar y grabación.",
+      "uninstallString": "Microsoft.XboxApp",
+      "size": "~200 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "yourphone",
+      "name": "Your Phone / Phone Link",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "App para conectar el teléfono. Remover puede afectar integración móvil.",
+      "uninstallString": "Microsoft.YourPhone",
+      "size": "~120 MB",
+      "source": "winutil"
+    }
+  ]
+}

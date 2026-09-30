@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-30",
+  "sources": [
+    {
+      "id": "github-releases",
+      "name": "GitHub Releases",
+      "type": "github",
+      "url": "https://api.github.com/repos/forchia-ecosystem/forch-i-winoptimizer/releases/latest",
+      "enabled": true,
+      "priority": 1
+    }
+  ],
+  "updateIntervalHours": 24,
+  "autoDownload": false,
+  "autoInstall": false
+}

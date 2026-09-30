@@ -1,0 +1,100 @@
+{
+  "version": "0.1.0",
+  "lastUpdated": "2026-09-30",
+  "rules": [
+    {
+      "id": "temp-files",
+      "name": "Archivos Temporales",
+      "category": "temp",
+      "protection": "safe",
+      "paths": [
+        "%TEMP%",
+        "C:\\Windows\\Temp",
+        "C:\\Windows\\Prefetch"
+      ],
+      "patterns": ["*.tmp", "*.temp", "*.log", "*.old", "*.bak"],
+      "description": "Archivos temporales del sistema y usuario."
+    },
+    {
+      "id": "browser-cache",
+      "name": "Caché de Navegadores",
+      "category": "cache",
+      "protection": "safe",
+      "paths": [
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache",
+        "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\cache2"
+      ],
+      "patterns": ["*"],
+      "description": "Caché de Chrome, Edge y Firefox."
+    },
+    {
+      "id": "windows-update-cache",
+      "name": "Caché de Windows Update",
+      "category": "system",
+      "protection": "caution",
+      "paths": [
+        "C:\\Windows\\SoftwareDistribution\\Download"
+      ],
+      "patterns": ["*"],
+      "description": "Descargas de actualizaciones de Windows. Requiere parar servicios."
+    },
+    {
+      "id": "recycle-bin",
+      "name": "Papelera de Reciclaje",
+      "category": "system",
+      "protection": "safe",
+      "paths": [
+        "C:\\$Recycle.Bin"
+      ],
+      "patterns": ["*"],
+      "description": "Contenido de la papelera de reciclaje."
+    },
+    {
+      "id": "crash-dumps",
+      "name": "Volcados de Memoria (Crash Dumps)",
+      "category": "system",
+      "protection": "safe",
+      "paths": [
+        "%LOCALAPPDATA%\\CrashDumps",
+        "C:\\Windows\\Minidump",
+        "C:\\Windows\\MEMORY.DMP"
+      ],
+      "patterns": ["*.dmp"],
+      "description": "Archivos de volcado de memoria tras crashes."
+    },
+    {
+      "id": "thumbnail-cache",
+      "name": "Caché de Miniaturas",
+      "category": "cache",
+      "protection": "safe",
+      "paths": [
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer"
+      ],
+      "patterns": ["thumbcache_*.db", "iconcache_*.db"],
+      "description": "Caché de miniaturas del Explorador."
+    },
+    {
+      "id": "delivery-optimization",
+      "name": "Optimización de Entrega",
+      "category": "system",
+      "protection": "caution",
+      "paths": [
+        "C:\\Windows\\SoftwareDistribution\\DeliveryOptimization"
+      ],
+      "patterns": ["*"],
+      "description": "Archivos de optimización de entrega de Windows Update."
+    },
+    {
+      "id": "windows-old",
+      "name": "Windows.old",
+      "category": "system",
+      "protection": "caution",
+      "paths": [
+        "C:\\Windows.old"
+      ],
+      "patterns": ["*"],
+      "description": "Instalación anterior de Windows. Solo aparece tras actualización mayor."
+    }
+  ]
+}

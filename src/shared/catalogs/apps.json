@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-30",
+  "apps": [
+    {
+      "id": "google-chrome",
+      "name": "Google Chrome",
+      "publisher": "Google LLC",
+      "category": "browser",
+      "uninstallString": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --uninstall",
+      "registryKey": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Google Chrome"
+    },
+    {
+      "id": "firefox",
+      "name": "Mozilla Firefox",
+      "publisher": "Mozilla Corporation",
+      "category": "browser",
+      "uninstallString": "\"C:\\Program Files\\Mozilla Firefox\\uninstall\\helper.exe\"",
+      "registryKey": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Mozilla Firefox"
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "publisher": "Discord Inc.",
+      "category": "communication",
+      "uninstallString": "\"C:\\Users\\%USERNAME%\\AppData\\Local\\Discord\\Update.exe\" --processStart Discord.exe --processStart-args --uninstall",
+      "registryKey": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Discord"
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify",
+      "publisher": "Spotify AB",
+      "category": "media",
+      "uninstallString": "\"C:\\Users\\%USERNAME%\\AppData\\Roaming\\Spotify\\Spotify.exe\" /uninstall",
+      "registryKey": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Spotify"
+    },
+    {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "publisher": "Microsoft Corporation",
+      "category": "development",
+      "uninstallString": "\"C:\\Users\\%USERNAME%\\AppData\\Local\\Programs\\Microsoft VS Code\\unins000.exe\"",
+      "registryKey": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{EA457B21-F73E-494C-ACAB-524FDE069978}_is1"
+    },
+    {
+      "id": "steam",
+      "name": "Steam",
+      "publisher": "Valve Corporation",
+      "category": "gaming",
+      "uninstallString": "\"C:\\Program Files (x86)\\Steam\\uninstall.exe\"",
+      "registryKey": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam"
+    },
+    {
+      "id": "zoom",
+      "name": "Zoom",
+      "publisher": "Zoom Video Communications",
+      "category": "communication",
+      "uninstallString": "\"C:\\Users\\%USERNAME%\\AppData\\Roaming\\Zoom\\bin\\Zoom.exe\" /uninstall",
+      "registryKey": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Zoom"
+    },
+    {
+      "id": "teams",
+      "name": "Microsoft Teams",
+      "publisher": "Microsoft Corporation",
+      "category": "communication",
+      "uninstallString": "\"C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Teams\\Update.exe\" --processStart Teams.exe --processStart-args --uninstall",
+      "registryKey": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Teams"
+    }
+  ]
+}

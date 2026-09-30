@@ -1,0 +1,109 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-30",
+  "rules": [
+    {
+      "id": "temp-files",
+      "name": "Temporary Files",
+      "description": "Windows and user temporary files",
+      "category": "temp",
+      "paths": [
+        "C:\\Windows\\Temp\\*",
+        "C:\\Users\\%USERNAME%\\AppData\\Local\\Temp\\*"
+      ],
+      "filePatterns": ["*.tmp", "*.temp", "*.bak", "~$*"],
+      "safeToDelete": true,
+      "requiresConfirmation": false
+    },
+    {
+      "id": "browser-cache",
+      "name": "Browser Cache",
+      "description": "Browser cache and temporary internet files",
+      "category": "browser-cache",
+      "paths": [
+        "C:\\Users\\%USERNAME%\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache\\*",
+        "C:\\Users\\%USERNAME%\\AppData\\Local\\Mozilla\\Firefox\\Profiles\\*\\cache2\\*",
+        "C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Cache\\*"
+      ],
+      "filePatterns": ["*"],
+      "safeToDelete": true,
+      "requiresConfirmation": false
+    },
+    {
+      "id": "windows-update-cache",
+      "name": "Windows Update Cache",
+      "description": "Downloaded Windows Update files",
+      "category": "windows-update",
+      "paths": [
+        "C:\\Windows\\SoftwareDistribution\\Download\\*"
+      ],
+      "filePatterns": ["*"],
+      "safeToDelete": true,
+      "requiresConfirmation": true
+    },
+    {
+      "id": "recycle-bin",
+      "name": "Recycle Bin",
+      "description": "Files in the recycle bin",
+      "category": "recycle-bin",
+      "paths": [
+        "C:\\$Recycle.Bin\\*"
+      ],
+      "filePatterns": ["*"],
+      "safeToDelete": true,
+      "requiresConfirmation": true
+    },
+    {
+      "id": "thumbnails",
+      "name": "Thumbnail Cache",
+      "description": "Windows thumbnail cache",
+      "category": "thumbnails",
+      "paths": [
+        "C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Windows\\Explorer\\*"
+      ],
+      "filePatterns": ["thumbcache_*.db", "iconcache_*.db"],
+      "safeToDelete": true,
+      "requiresConfirmation": false
+    },
+    {
+      "id": "logs",
+      "name": "Log Files",
+      "description": "Windows and application log files",
+      "category": "logs",
+      "paths": [
+        "C:\\Windows\\Logs\\*",
+        "C:\\Windows\\Panther\\*",
+        "C:\\ProgramData\\Microsoft\\Windows\\WER\\*"
+      ],
+      "filePatterns": ["*.log", "*.etl", "*.dmp"],
+      "safeToDelete": true,
+      "requiresConfirmation": false
+    },
+    {
+      "id": "crash-dumps",
+      "name": "Crash Dumps",
+      "description": "Application and system crash dumps",
+      "category": "logs",
+      "paths": [
+        "C:\\Users\\%USERNAME%\\AppData\\Local\\CrashDumps\\*",
+        "C:\\Windows\\Minidump\\*",
+        "C:\\Windows\\MEMORY.DMP"
+      ],
+      "filePatterns": ["*.dmp"],
+      "safeToDelete": true,
+      "requiresConfirmation": true
+    },
+    {
+      "id": "prefetch",
+      "name": "Prefetch Data",
+      "description": "Windows prefetch data",
+      "category": "cache",
+      "paths": [
+        "C:\\Windows\\Prefetch\\*"
+      ],
+      "filePatterns": ["*.pf"],
+      "safeToDelete": true,
+      "requiresConfirmation": false
+    }
+  ]
+}

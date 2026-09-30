@@ -1,0 +1,10 @@
+{
+  "lastCheck": null,
+  "sources": {
+    "kudu": { "lastCommit": null, "lastCheck": null },
+    "winrift": { "lastCommit": null, "lastCheck": null },
+    "winscript": { "lastCommit": null, "lastCheck": null },
+    "winutil": { "lastCommit": null, "lastCheck": null }
+  },
+  "pendingUpdates": []
+}

@@ -1,0 +1,86 @@
+{
+  "version": "0.1.0",
+  "lastUpdated": "2026-09-30",
+  "services": [
+    {
+      "id": "diagtrack",
+      "name": "Connected User Experiences and Telemetry",
+      "serviceName": "DiagTrack",
+      "category": "telemetry",
+      "protection": "caution",
+      "description": "Servicio de telemetría de Windows. Desactivar mejora privacidad pero puede afectar diagnósticos.",
+      "impact": "medium",
+      "source": "winutil"
+    },
+    {
+      "id": "dmwappush",
+      "name": "WAP Push Message Routing Service",
+      "serviceName": "dmwappushservice",
+      "category": "telemetry",
+      "protection": "safe",
+      "description": "Enrutador de mensajes WAP push. Seguro de desactivar.",
+      "impact": "low",
+      "source": "winutil"
+    },
+    {
+      "id": "maps",
+      "name": "Downloaded Maps Manager",
+      "serviceName": "MapsBroker",
+      "category": "maps",
+      "protection": "safe",
+      "description": "Gestor de mapas descargados. Seguro si no usas mapas offline.",
+      "impact": "low",
+      "source": "winutil"
+    },
+    {
+      "id": "retaildemo",
+      "name": "Retail Demo Service",
+      "serviceName": "RetailDemo",
+      "category": "demo",
+      "protection": "safe",
+      "description": "Servicio de demo de tiendas. Seguro de desactivar en PCs personales.",
+      "impact": "low",
+      "source": "winutil"
+    },
+    {
+      "id": "sysmain",
+      "name": "SysMain (Superfetch)",
+      "serviceName": "SysMain",
+      "category": "performance",
+      "protection": "caution",
+      "description": "Precarga apps frecuentes. En SSD modernos puede no ser necesario.",
+      "impact": "medium",
+      "source": "winutil"
+    },
+    {
+      "id": "wsearch",
+      "name": "Windows Search",
+      "serviceName": "WSearch",
+      "category": "search",
+      "protection": "protected",
+      "description": "Indexación de búsqueda. Desactivar afecta gravemente la búsqueda en Start.",
+      "impact": "high",
+      "source": "winutil"
+    },
+    {
+      "id": "xblauth",
+      "name": "Xbox Live Auth Manager",
+      "serviceName": "XblAuthManager",
+      "category": "gaming",
+      "protection": "safe",
+      "description": "Autenticación de Xbox Live. Seguro si no usas Xbox Live.",
+      "impact": "low",
+      "source": "winutil"
+    },
+    {
+      "id": "xblgame",
+      "name": "Xbox Live Game Save",
+      "serviceName": "XblGameSave",
+      "category": "gaming",
+      "protection": "safe",
+      "description": "Guardado en la nube de Xbox Live. Seguro si no usas Xbox Live.",
+      "impact": "low",
+      "source": "winutil"
+    }
+  ]
+}

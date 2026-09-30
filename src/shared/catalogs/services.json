@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-30",
+  "services": [
+    {
+      "id": "wsearch",
+      "name": "WSearch",
+      "displayName": "Windows Search",
+      "description": "Provides content indexing, property caching, and search results for files, e-mail, and other content",
+      "canOptimize": true,
+      "recommendedAction": "manual",
+      "impact": "medium",
+      "reason": "Indexing can be resource-intensive but useful for file search"
+    },
+    {
+      "id": "sysmain",
+      "name": "SysMain",
+      "displayName": "SysMain",
+      "description": "Maintains and improves system performance over time",
+      "canOptimize": true,
+      "recommendedAction": "disable",
+      "impact": "high",
+      "reason": "Can cause high disk usage on HDDs; not needed on SSDs"
+    },
+    {
+      "id": "diagtrack",
+      "name": "DiagTrack",
+      "displayName": "Connected User Experiences and Telemetry",
+      "description": "Collects and sends telemetry data to Microsoft",
+      "canOptimize": true,
+      "recommendedAction": "disable",
+      "impact": "low",
+      "reason": "Privacy concern; sends usage data to Microsoft"
+    },
+    {
+      "id": "wuauserv",
+      "name": "wuauserv",
+      "displayName": "Windows Update",
+      "description": "Enables detection, download, and installation of updates for Windows and other programs",
+      "canOptimize": false,
+      "recommendedAction": "keep",
+      "impact": "critical",
+      "reason": "Essential for system security updates"
+    },
+    {
+      "id": "bits",
+      "name": "BITS",
+      "displayName": "Background Intelligent Transfer Service",
+      "description": "Transfers files in the background using idle network bandwidth",
+      "canOptimize": true,
+      "recommendedAction": "manual",
+      "impact": "low",
+      "reason": "Used by Windows Update and other services"
+    },
+    {
+      "id": "themes",
+      "name": "Themes",
+      "displayName": "Themes",
+      "description": "Provides user experience theme management",
+      "canOptimize": true,
+      "recommendedAction": "disable",
+      "impact": "low",
+      "reason": "Not needed if using classic/basic theme"
+    },
+    {
+      "id": "tabletinputservice",
+      "name": "TabletInputService",
+      "displayName": "Tablet PC Input Service",
+      "description": "Enables Tablet PC pen and ink functionality",
+      "canOptimize": true,
+      "recommendedAction": "disable",
+      "impact": "low",
+      "reason": "Only needed for tablet/touch devices"
+    },
+    {
+      "id": "retaildemo",
+      "name": "RetailDemo",
+      "displayName": "Retail Demo Service",
+      "description": "Manages retail demo mode for devices on display",
+      "canOptimize": true,
+      "recommendedAction": "disable",
+      "impact": "low",
+      "reason": "Only needed for retail display devices"
+    }
+  ]
+}

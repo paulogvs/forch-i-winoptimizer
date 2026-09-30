@@ -1,0 +1,188 @@
+{
+  "version": "0.1.0",
+  "lastUpdated": "2026-09-30",
+  "tweaks": [
+    {
+      "id": "disable-telemetry",
+      "name": "Desactivar Telemetría",
+      "category": "privacy",
+      "protection": "caution",
+      "description": "Reduce la telemetría de Windows al mínimo requerido.",
+      "registry": [
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+          "name": "AllowTelemetry",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "disable-activity-history",
+      "name": "Desactivar Historial de Actividad",
+      "category": "privacy",
+      "protection": "safe",
+      "description": "Desactiva el historial de actividad y envío a Microsoft.",
+      "registry": [
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "EnableActivityFeed",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "PublishUserActivities",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+          "name": "UploadUserActivities",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "disable-cortana",
+      "name": "Desactivar Cortana",
+      "category": "privacy",
+      "protection": "caution",
+      "description": "Desactiva Cortana completamente.",
+      "registry": [
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+          "name": "AllowCortana",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "disable-web-search",
+      "name": "Desactivar Búsqueda Web en Start",
+      "category": "privacy",
+      "protection": "safe",
+      "description": "Evita que la búsqueda en Start consulte Bing.",
+      "registry": [
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+          "name": "DisableWebSearch",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+          "name": "ConnectedSearchUseWeb",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "show-hidden-files",
+      "name": "Mostrar Archivos Ocultos",
+      "category": "ux",
+      "protection": "safe",
+      "description": "Muestra archivos y carpetas ocultas en el Explorador.",
+      "registry": [
+        {
+          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "Hidden",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "show-file-extensions",
+      "name": "Mostrar Extensiones de Archivo",
+      "category": "ux",
+      "protection": "safe",
+      "description": "Muestra las extensión de archivo en el Explorador.",
+      "registry": [
+        {
+          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "HideFileExt",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "disable-lock-screen",
+      "name": "Desactivar Pantalla de Bloqueo",
+      "category": "performance",
+      "protection": "safe",
+      "description": "Desactiva la pantalla de bloqueo para ir directo al login.",
+      "registry": [
+        {
+          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization",
+          "name": "NoLockScreen",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "disable-startup-delay",
+      "name": "Eliminar Delay de Inicio de Apps",
+      "category": "performance",
+      "protection": "safe",
+      "description": "Reduce el delay de inicio de apps del Start.",
+      "registry": [
+        {
+          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
+          "name": "StartupDelayInMSec",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "context-menu-clean",
+      "name": "Limpiar Menú Contextual",
+      "category": "ux",
+      "protection": "caution",
+      "description": "Limpia entradas innecesarias del menú contextual.",
+      "registry": [
+        {
+          "path": "HKCR\\Directory\\Background\\shellex\\ContextMenuHandlers\\WorkFolders",
+          "action": "delete"
+        }
+      ],
+      "source": "winutil"
+    },
+    {
+      "id": "disable-game-bar",
+      "name": "Desactivar Game Bar",
+      "category": "gaming",
+      "protection": "safe",
+      "description": "Desactiva la Game Bar y su overlay.",
+      "registry": [
+        {
+          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+          "name": "AppCaptureEnabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "path": "HKCU\\System\\GameConfigStore",
+          "name": "GameDVR_Enabled",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "source": "winutil"
+    }
+  ]
+}

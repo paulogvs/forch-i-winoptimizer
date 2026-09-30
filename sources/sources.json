@@ -1,0 +1,46 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-30",
+  "sources": [
+    {
+      "id": "kudu",
+      "name": "Kudu",
+      "url": "https://github.com/adventdevinc/kudu",
+      "type": "base",
+      "description": "Base de la app (Electron + TS). Fuente principal de arquitectura y features core.",
+      "priority": 1,
+      "catalogs": ["apps", "services", "tweaks", "cleaners"],
+      "enabled": true
+    },
+    {
+      "id": "winrift",
+      "name": "Winrift",
+      "url": "https://github.com/emylfy/Winrift",
+      "type": "tweaks",
+      "description": "Tweaks de rendimiento para Windows.",
+      "priority": 2,
+      "catalogs": ["tweaks"],
+      "enabled": true
+    },
+    {
+      "id": "winscript",
+      "name": "Winscript",
+      "url": "https://github.com/flick9000/Winscript",
+      "type": "debloat",
+      "description": "Debloat + scripts de optimización.",
+      "priority": 3,
+      "catalogs": ["apps", "services", "tweaks"],
+      "enabled": true
+    },
+    {
+      "id": "winutil",
+      "name": "winutil",
+      "url": "https://github.com/christitustech/winutil",
+      "type": "ui-tweaks",
+      "description": "UI/UX + tweaks. Fuente de interfaz y experiencia de usuario.",
+      "priority": 4,
+      "catalogs": ["apps", "services", "tweaks", "cleaners"],
+      "enabled": true
+    }
+  ]
+}

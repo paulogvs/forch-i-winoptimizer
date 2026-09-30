@@ -1,0 +1,102 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-30",
+  "tweaks": [
+    {
+      "id": "disable-telemetry",
+      "name": "Disable Telemetry",
+      "description": "Disables Windows telemetry and data collection",
+      "category": "privacy",
+      "registryPath": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+      "registryName": "AllowTelemetry",
+      "registryValue": 0,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "low"
+    },
+    {
+      "id": "disable-cortana",
+      "name": "Disable Cortana",
+      "description": "Disables Cortana assistant",
+      "category": "privacy",
+      "registryPath": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+      "registryName": "AllowCortana",
+      "registryValue": 0,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "low"
+    },
+    {
+      "id": "disable-activity-history",
+      "name": "Disable Activity History",
+      "description": "Disables activity history tracking",
+      "category": "privacy",
+      "registryPath": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+      "registryName": "EnableActivityFeed",
+      "registryValue": 0,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "low"
+    },
+    {
+      "id": "disable-tips",
+      "name": "Disable Tips and Suggestions",
+      "description": "Disables Windows tips, suggestions, and ads in Start menu",
+      "category": "privacy",
+      "registryPath": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+      "registryName": "SubscribedContent-338389Enabled",
+      "registryValue": 0,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "low"
+    },
+    {
+      "id": "disable-startup-delay",
+      "name": "Disable Startup Delay",
+      "description": "Removes the delay for startup apps",
+      "category": "performance",
+      "registryPath": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
+      "registryName": "StartupDelayInMSec",
+      "registryValue": 0,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "medium"
+    },
+    {
+      "id": "disable-visual-effects",
+      "name": "Disable Visual Effects",
+      "description": "Disables animations and visual effects for better performance",
+      "category": "performance",
+      "registryPath": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects",
+      "registryName": "VisualFXSetting",
+      "registryValue": 2,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "medium"
+    },
+    {
+      "id": "enable-performance-mode",
+      "name": "Enable Performance Mode",
+      "description": "Sets power plan to high performance",
+      "category": "performance",
+      "registryPath": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling",
+      "registryName": "PowerThrottlingOff",
+      "registryValue": 1,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "high"
+    },
+    {
+      "id": "disable-hibernation",
+      "name": "Disable Hibernation",
+      "description": "Disables hibernation to free disk space",
+      "category": "performance",
+      "registryPath": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power",
+      "registryName": "HibernateEnabled",
+      "registryValue": 0,
+      "registryType": "DWORD",
+      "reversible": true,
+      "impact": "medium"
+    }
+  ]
+}

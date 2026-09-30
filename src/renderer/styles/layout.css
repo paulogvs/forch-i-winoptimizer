@@ -1,0 +1,167 @@
+/* ============================================
+   FORCH.iA WinOptimizer — Layout Styles
+   Built with FORCH.i by Paulo Velasco
+   ============================================ */
+
+/* === App Shell === */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+}
+
+/* === Sidebar === */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-header {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-logo {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-fg-primary);
+  font-family: var(--font-display);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+/* === Main Area === */
+.main-area {
+  flex: 1;
+  margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* === Header === */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-left {
+  flex: 1;
+  max-width: 400px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search-box {
+  width: 100%;
+}
+
+.search-box .input {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+/* === Main Content === */
+.main-content {
+  flex: 1;
+  padding: var(--space-6);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* === Page === */
+.page {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.page-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-fg-primary);
+  margin-bottom: var(--space-6);
+  font-family: var(--font-display);
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  .sidebar-logo {
+    font-size: 0;
+  }
+
+  .sidebar-logo::after {
+    content: 'FO';
+    font-size: var(--text-md);
+  }
+
+  .nav-item span:last-child {
+    display: none;
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+
+  .main-area {
+    margin-left: 60px;
+  }
+
+  .header {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .main-content {
+    padding: var(--space-4);
+  }
+}
