@@ -31,6 +31,30 @@ Muestras (ms) medidas:
 El baseline informado para v0.2.3 era **~14.0–14.6 s con 4 spawns**; la mejora determinista
 y verificable es **4 → 1 procesos** y el recorte del coste de arranque en frío.
 
+## System Info — CPU sin Win32_Processor (P0.4)
+
+`Get-CimInstance Win32_Processor` medido aislado costaba **1087–1172 ms** y sólo aportaba
+`LoadPercentage`. El lote de PowerShell ya no lo consulta (tampoco el path legacy de sondas):
+el uso de CPU se calcula en Node muestreando `os.cpus()` en una ventana de **200 ms**
+(`computeCpuUsage`, pura y testeada), disparada **en paralelo** al proceso de PowerShell para
+que la ventana no añada latencia.
+
+| Métrica | Antes (P0.1–P0.3) | Después (P0.4) |
+|---|---|---|
+| Sistema cálido (media) | **~1750 ms** | **615 ms** |
+| Primera ejecución en frío | 7276 ms | 4031 ms |
+| Spawns PowerShell (legacy) | 4 | 3 |
+| Mejora (cálido) | — | **~65 % más rápido** |
+
+Muestras (ms) medidas con `node scripts/measure-system-info.mjs`:
+
+- Batch (1 spawn): `4031, 616, 614` → media **1754 ms**
+- Legacy (3 spawns): `5812, 945, 956` → media **2571 ms**
+
+El delta cálido (~1135 ms) coincide con el coste medido del propio `Win32_Processor`, validando
+el diagnóstico. CPU usage antes = `LoadPercentage` de CIM (instantánea); ahora = promedio de
+uso sobre la ventana de 200 ms (más preciso y sin coste).
+
 ## Drivers / Junk — motor sin cambios + caché (P1.2)
 
 El motor de escaneo no cambió (sigue siendo 1 spawn cada uno); la mejora es la **caché TTL**:

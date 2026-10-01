@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test de integridad de catálogos (P0.1):** valida el JSON de `catalogs/*.json` y `src/shared/catalogs/*.json`
 - **Tests nuevos:** operation-lock (FIFO, liberación en error, status), wiring IPC (canales mutados → lock; lecturas sin lock), hook `useOperationStatus`, y suite E2E `global-mutex.spec.ts` (5 specs)
 
+### Changed
+
+- **System Info: CPU sin `Win32_Processor` (P0.4):** el lote PowerShell ya no consulta el CIM que costaba **1087–1172 ms** (medido) sólo para `LoadPercentage`, ni el path legacy de sondas (4 → 3 spawns). El uso de CPU se calcula en Node con `os.cpus()` en una ventana de 200 ms (`computeCpuUsage`) disparada en paralelo al proceso de PowerShell. **Medido con `scripts/measure-system-info.mjs`:** cálido **~1750 → 615 ms** (~65 % más rápido), frío **7276 → 4031 ms**. Ver `docs/PERFORMANCE.md`
+- `scripts/measure-system-info.mjs`: etiqueta legacy 4 → 3 spawns
+
 ### Fixed
 
 - **JSON inválido en `catalogs/apps-catalog.json`** (comilla faltante en la línea 51) que rompía la importación de actualizaciones de fuentes

@@ -1,4 +1,5 @@
 import os from 'node:os';
+import type { CpuInfo } from 'node:os';
 import { runPowerShell, parsePowerShellJson, type PowerShellResult } from './powershell';
 import { createNoopReporter, type ScanProgressReporter } from './scan-progress';
 
@@ -56,18 +57,20 @@ interface WindowsInfo {
 
 interface SystemInfoBatch {
   Os?: Partial<WindowsInfo> | null;
-  Cpu?: { LoadPercentage?: number | null; Name?: string | null } | null;
   Disk?: Partial<DiskInfo> | null;
   Gpu?: Partial<GpuInfo> | null;
 }
 
 /**
- * One PowerShell process that gathers CPU + memory-independent info + disk +
+ * One PowerShell process that gathers memory-independent info + disk +
  * GPU + OS. Replaces the previous four parallel spawns (P1.1).
+ *
+ * P0.4: no longer queries Win32_Processor — that CIM call alone took
+ * ~1.1s (measured) and only provided LoadPercentage, which is now sampled
+ * in Node from os.cpus() while PowerShell runs.
  */
-const SYSTEM_INFO_BATCH_SCRIPT = `
+export const SYSTEM_INFO_BATCH_SCRIPT = `
   $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue;
-  $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1;
   $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction SilentlyContinue;
   $gpu = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1;
   @{
@@ -76,10 +79,6 @@ const SYSTEM_INFO_BATCH_SCRIPT = `
       Version = if ($os) { $os.Version } else { $null };
       BuildNumber = if ($os) { $os.BuildNumber } else { $null };
       LastBootUpTime = if ($os) { $os.LastBootUpTime.ToString("o") } else { $null }
-    };
-    Cpu = @{
-      LoadPercentage = if ($cpu) { $cpu.LoadPercentage } else { $null };
-      Name = if ($cpu) { $cpu.Name } else { $null }
     };
     Disk = @{
       Size = if ($disk) { $disk.Size } else { $null };
@@ -104,6 +103,58 @@ export function setSystemInfoBatchEnabled(enabled: boolean): void {
   useSystemInfoBatch = enabled;
 }
 
+// --- CPU usage via os.cpus() sampling (P0.4) -------------------------------
+
+export const CPU_SAMPLE_WINDOW_DEFAULT_MS = 200;
+let cpuSampleWindowMs = CPU_SAMPLE_WINDOW_DEFAULT_MS;
+
+/** Test hook: window between the two os.cpus() snapshots (0 = no wait). */
+export function setCpuSampleWindowMs(ms: number): void {
+  cpuSampleWindowMs = ms;
+}
+
+/**
+ * Busy percentage over a window of os.cpus() snapshots.
+ * Pure and deterministic: total delta <= 0 or mismatched samples => 0.
+ */
+export function computeCpuUsage(prev: CpuInfo[], curr: CpuInfo[]): number {
+  if (prev.length === 0 || curr.length !== prev.length) return 0;
+
+  let prevIdle = 0;
+  let prevTotal = 0;
+  let idle = 0;
+  let total = 0;
+
+  for (let i = 0; i < curr.length; i++) {
+    const p = prev[i]?.times;
+    const c = curr[i]?.times;
+    if (!p || !c) return 0;
+    prevIdle += p.idle;
+    prevTotal += p.user + p.nice + p.sys + p.idle + p.irq;
+    idle += c.idle;
+    total += c.user + c.nice + c.sys + c.idle + c.irq;
+  }
+
+  const totalDiff = total - prevTotal;
+  if (totalDiff <= 0) return 0;
+
+  const usage = ((totalDiff - (idle - prevIdle)) / totalDiff) * 100;
+  return Math.min(100, Math.max(0, Math.round(usage)));
+}
+
+async function sampleCpuUsage(): Promise<number> {
+  try {
+    const first = os.cpus();
+    if (cpuSampleWindowMs > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, cpuSampleWindowMs));
+    }
+    const second = os.cpus();
+    return computeCpuUsage(first, second);
+  } catch {
+    return 0;
+  }
+}
+
 function toNumber(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -115,11 +166,11 @@ async function gatherBatch(): Promise<SystemInfoBatch | null> {
   return parsePowerShellJson<SystemInfoBatch>(result.stdout);
 }
 
-/** Legacy path kept behind the feature flag: four independent probes. */
-async function gatherProbes(): Promise<{ disk?: unknown; gpu?: unknown; win?: unknown; cpu?: unknown }> {
+/** Legacy path kept behind the feature flag: three independent probes (P0.4: no CPU probe). */
+async function gatherProbes(): Promise<{ disk?: unknown; gpu?: unknown; win?: unknown }> {
   const probe = (script: string): Promise<PowerShellResult | null> => runPowerShell(script).catch(() => null);
 
-  const [diskResult, gpuResult, winResult, cpuResult] = await Promise.all([
+  const [diskResult, gpuResult, winResult] = await Promise.all([
     probe(`
       $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction SilentlyContinue;
       if ($disk) {
@@ -143,20 +194,12 @@ async function gatherProbes(): Promise<{ disk?: unknown; gpu?: unknown; win?: un
         } | ConvertTo-Json -Compress
       }
     `),
-    probe(`
-      $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1;
-      if ($cpu) { $cpu.LoadPercentage }
-    `),
   ]);
 
   return {
     disk: diskResult?.success && diskResult.stdout ? parsePowerShellJson<DiskInfo>(diskResult.stdout) : undefined,
     gpu: gpuResult?.success && gpuResult.stdout ? parsePowerShellJson<GpuInfo>(gpuResult.stdout) : undefined,
     win: winResult?.success && winResult.stdout ? parsePowerShellJson<WindowsInfo>(winResult.stdout) : undefined,
-    cpu:
-      cpuResult?.success && cpuResult.stdout
-        ? (parseInt(cpuResult.stdout.trim(), 10) as unknown)
-        : undefined,
   };
 }
 
@@ -169,14 +212,17 @@ export async function getSystemInfo(reporter?: ScanProgressReporter): Promise<Sy
 
   progress.report('discover', 5, 'Detecting system hardware...');
 
+  // P0.4: sample CPU usage in Node concurrently with the PowerShell query, so
+  // the sampling window adds no latency to the caller.
+  const cpuUsagePromise = sampleCpuUsage();
+
   let batch: SystemInfoBatch | null = null;
   let disk: Partial<DiskInfo> | undefined;
   let gpu: Partial<GpuInfo> | undefined;
   let win: Partial<WindowsInfo> | undefined;
-  let cpuUsage = 0;
 
   if (useSystemInfoBatch) {
-    progress.report('query', 25, 'Querying CPU, disk, GPU and OS (single batch)...');
+    progress.report('query', 25, 'Querying disk, GPU and OS (single batch)...');
     batch = await gatherBatch();
     progress.report('parse', 70, 'Parsing hardware response...');
 
@@ -184,7 +230,6 @@ export async function getSystemInfo(reporter?: ScanProgressReporter): Promise<Sy
       disk = batch.Disk ?? undefined;
       gpu = batch.Gpu ?? undefined;
       win = batch.Os ?? undefined;
-      cpuUsage = toNumber(batch.Cpu?.LoadPercentage);
     } else {
       // Batch failed: degrade gracefully to the legacy probes.
       progress.report('query', 40, 'Batch unavailable, falling back...');
@@ -192,7 +237,6 @@ export async function getSystemInfo(reporter?: ScanProgressReporter): Promise<Sy
       disk = probes.disk as Partial<DiskInfo> | undefined;
       gpu = probes.gpu as Partial<GpuInfo> | undefined;
       win = probes.win as Partial<WindowsInfo> | undefined;
-      cpuUsage = toNumber(probes.cpu);
     }
   } else {
     progress.report('query', 25, 'Querying system probes...');
@@ -200,10 +244,10 @@ export async function getSystemInfo(reporter?: ScanProgressReporter): Promise<Sy
     disk = probes.disk as Partial<DiskInfo> | undefined;
     gpu = probes.gpu as Partial<GpuInfo> | undefined;
     win = probes.win as Partial<WindowsInfo> | undefined;
-    cpuUsage = toNumber(probes.cpu);
   }
 
   progress.report('normalize', 90, 'Normalizing system information...');
+  const cpuUsage = await cpuUsagePromise;
 
   const diskTotal = toNumber(disk?.Size);
   const diskFree = toNumber(disk?.FreeSpace);

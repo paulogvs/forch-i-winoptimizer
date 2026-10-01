@@ -1,4 +1,4 @@
-// Real measurement harness for the P1.1 optimization.
+// Real measurement harness for the P1.1/P0.4 optimizations.
 //
 // Loads the COMPILED main-process services (dist/) and runs the actual code
 // paths against real PowerShell, counting processes spawned and wall-clock time.
@@ -45,7 +45,7 @@ async function average(label, fn, runs = 3) {
 const results = [];
 results.push(await average('System Info (batched, 1 spawn)', () => systemInfo.getSystemInfo()));
 systemInfo.setSystemInfoBatchEnabled(false);
-results.push(await average('System Info (legacy, 4 spawns)', () => systemInfo.getSystemInfo()));
+results.push(await average('System Info (legacy, 3 spawns)', () => systemInfo.getSystemInfo()));
 systemInfo.setSystemInfoBatchEnabled(true);
 results.push(await average('Drivers scan', () => drivers.scanDrivers(), 2));
 results.push(await average('Junk scan', () => junk.scanForJunkFiles(), 1));
