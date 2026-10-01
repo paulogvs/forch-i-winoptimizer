@@ -1,4 +1,4 @@
-import { runPowerShell, parsePowerShellJson } from './powershell';
+import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
 
 export interface StartupApp {
   id: string;
@@ -66,7 +66,7 @@ export async function getStartupApps(): Promise<StartupApp[]> {
   if (result.success && result.stdout) {
     const parsed = parsePowerShellJson<RegistryStartupItem[]>(result.stdout);
     if (parsed) {
-      for (const item of parsed) {
+      for (const item of toArray(parsed)) {
         if (!item.Name) continue;
 
         // Determine impact based on known high-impact apps
@@ -113,7 +113,7 @@ export async function getStartupApps(): Promise<StartupApp[]> {
     }>>(impactResult.stdout);
 
     if (parsed) {
-      for (const app of parsed) {
+      for (const app of toArray(parsed)) {
         if (!app.Name) continue;
 
         const existingApp = apps.find(a => a.name === app.Name);

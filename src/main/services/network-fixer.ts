@@ -107,7 +107,7 @@ export async function testConnectivity(): Promise<{
 }> {
   // Test latency with ping
   const pingResult = await runPowerShell(`
-    $ping = Test-Connection -ComputerName 8.8.8.8 -Count 4 -ErrorAction SilentlyContinue;
+    $ping = Test-Connection -ComputerName 8.8.8.8 -Count 2 -ErrorAction SilentlyContinue;
     if ($ping) {
       $avgLatency = ($ping | Measure-Object -Property ResponseTime -Average).Average;
       Write-Output "$avgLatency"
@@ -121,7 +121,7 @@ export async function testConnectivity(): Promise<{
   // Test DNS resolution
   const dnsResult = await runPowerShell(`
     try {
-      $result = Resolve-DnsName -Name google.com -ErrorAction Stop;
+      $result = Resolve-DnsName -Name google.com -QuickTimeout -ErrorAction Stop;
       Write-Output "DNS_OK"
     } catch {
       Write-Output "DNS_FAIL"

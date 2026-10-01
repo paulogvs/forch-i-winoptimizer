@@ -1,4 +1,4 @@
-import { runPowerShell, parsePowerShellJson } from './powershell';
+import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
 
 export interface SystemService {
   id: string;
@@ -155,7 +155,7 @@ export async function getSystemServices(): Promise<SystemService[]> {
     return [];
   }
 
-  return parsed.map((service) => {
+  return toArray(parsed).map((service) => {
     const isProtected = PROTECTED_SERVICES.includes(service.Name);
     const optimization = OPTIMIZABLE_SERVICES[service.Name];
 

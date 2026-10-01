@@ -154,6 +154,27 @@ ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requ
 
 ---
 
+### 12. Requisitos de administrador (por módulo)
+
+Muchas funciones leen o modifican el sistema y requieren **ejecutar la app como administrador**:
+
+| Módulo | ¿Requiere admin? |
+|--------|:---:|
+| Dashboard / System Info | No |
+| Cleaner (limpiar `C:\Windows\*`, caché de Windows Update) | Sí |
+| Boost / Servicios (cambiar tipo de inicio, detener) | Sí |
+| App Manager (desinstalar apps UWP/Win32) | Sí |
+| Drivers (punto de restauración, `pnputil`) | Sí |
+| Network Fixer (reset TCP/IP, Winsock, firewall) | Sí |
+| Scheduled Cleaning (crear tareas programadas) | Sí |
+| Audit / Benchmark (lectura de HKLM) | Parcial |
+
+**Portable:** si las acciones fallan, cerrá la app y reabrí con clic derecho → **Ejecutar como administrador**.
+
+**Nota técnica:** todos los scripts se ejecutan vía `-EncodedCommand` (Base64 UTF-16LE) para evitar problemas de comillas y codificación. Si un módulo devuelve datos vacíos, verificá que `powershell.exe` esté disponible y que no haya políticas de ejecución restrictivas.
+
+---
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

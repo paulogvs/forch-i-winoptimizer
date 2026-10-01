@@ -430,7 +430,7 @@ async function runStorageChecks(): Promise<AuditCheck[]> {
 
   // Recycle bin
   const recycleResult = await runPowerShell(`
-    $size = (Get-ChildItem -Path "C:\\$Recycle.Bin" -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
+    $size = (Get-ChildItem -LiteralPath 'C:\\$Recycle.Bin' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
     $sizeMB = [math]::Round($size / 1MB, 2);
     Write-Output "$sizeMB"
   `);

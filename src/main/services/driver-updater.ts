@@ -32,6 +32,16 @@ function compareVersions(current: string, latest: string): boolean {
   return false;
 }
 
+/** Convert a .NET JSON date ("/Date(ms)/") or ISO string to YYYY-MM-DD. */
+function formatDriverDate(value: string | null | undefined): string {
+  if (!value) return '';
+  const match = /\/Date\((\d+)/.exec(value);
+  if (match && match[1]) {
+    return new Date(parseInt(match[1], 10)).toISOString().slice(0, 10);
+  }
+  return value;
+}
+
 // Simulated latest version database (in production, this would query manufacturer APIs)
 const LATEST_DRIVERS: Record<string, { version: string; date: string; url: string; size: number }> = {
   NVIDIA: { version: '551.86', date: '2025-03-15', url: 'https://www.nvidia.com/download/index.aspx', size: 650_000_000 },
@@ -42,29 +52,34 @@ const LATEST_DRIVERS: Record<string, { version: string; date: string; url: strin
 
 export async function scanDrivers(): Promise<DriverScanResult> {
   const result = await runPowerShell(`
-    $devices = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { $_.PNPClass -in @('Display', 'Net', 'Media', 'HIDClass', 'USB', 'SCSIAdapter', 'System') };
-    $result = @();
-    foreach ($device in $devices) {
-      $driver = Get-CimInstance -ClassName Win32_PnPSignedDriver -Filter "DeviceID='$($device.DeviceID)'";
-      $result += @{
-        DeviceID = $device.DeviceID;
-        Name = $device.Name;
-        Manufacturer = $device.Manufacturer;
-        DriverVersion = $driver.DriverVersion;
-        DriverDate = $driver.DriverDate;
-        DeviceClass = $device.PNPClass;
-        HardwareID = $device.HardwareID[0]
+    $drivers = @{};
+    Get-CimInstance -ClassName Win32_PnPSignedDriver -ErrorAction SilentlyContinue | ForEach-Object {
+      if ($_.DeviceID) { $drivers[$_.DeviceID] = $_ }
+    };
+    $devices = Get-CimInstance -ClassName Win32_PnPEntity -ErrorAction SilentlyContinue |
+      Where-Object { $_.PNPClass -in @('Display', 'Net', 'Media', 'HIDClass', 'USB', 'SCSIAdapter', 'System') };
+    $out = foreach ($d in $devices) {
+      $drv = $drivers[$d.DeviceID];
+      [pscustomobject]@{
+        DeviceID = $d.DeviceID;
+        Name = $d.Name;
+        Manufacturer = $d.Manufacturer;
+        DriverVersion = if ($drv) { $drv.DriverVersion } else { $null };
+        DriverDate = if ($drv) { $drv.DriverDate } else { $null };
+        DeviceClass = $d.PNPClass;
+        HardwareID = @($d.HardwareID) | Select-Object -First 1
       }
     };
-    $result | ConvertTo-Json -Compress
+    @($out) | ConvertTo-Json -Depth 4 -Compress
   `);
 
   if (!result.success || !result.stdout) {
     return { drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() };
   }
 
-  const parsed = parsePowerShellJson<PnPDevice[]>(result.stdout);
-  if (!parsed) {
+  const parsed = parsePowerShellJson<PnPDevice[] | PnPDevice>(result.stdout);
+  const devices: PnPDevice[] = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+  if (devices.length === 0) {
     return { drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() };
   }
 
@@ -72,7 +87,7 @@ export async function scanDrivers(): Promise<DriverScanResult> {
   let outdatedCount = 0;
   let upToDateCount = 0;
 
-  for (const device of parsed) {
+  for (const device of devices) {
     if (!device.Name || !device.DriverVersion) continue;
 
     const manufacturer = detectManufacturer(device.Name, device.Manufacturer ?? '');
@@ -92,7 +107,7 @@ export async function scanDrivers(): Promise<DriverScanResult> {
       isUpToDate,
       deviceClass: device.DeviceClass,
       hardwareId: device.HardwareID ?? '',
-      releaseDate: latest?.date || device.DriverDate || '',
+      releaseDate: latest?.date || formatDriverDate(device.DriverDate),
       downloadUrl: latest?.url || '',
       size: latest?.size || 0,
     });

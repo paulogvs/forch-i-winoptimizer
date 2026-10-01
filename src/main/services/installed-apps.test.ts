@@ -5,6 +5,7 @@ import { getInstalledApps, uninstallApp } from './installed-apps';
 vi.mock('./powershell', () => ({
   runPowerShell: vi.fn(),
   parsePowerShellJson: vi.fn(),
+  toArray: (v: unknown) => (v == null ? [] : Array.isArray(v) ? v : [v]),
 }));
 
 import { runPowerShell, parsePowerShellJson } from './powershell';

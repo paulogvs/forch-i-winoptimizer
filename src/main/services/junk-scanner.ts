@@ -37,6 +37,22 @@ interface CleanerRule {
   description: string;
 }
 
+interface ScannedFile {
+  Category: JunkCategory;
+  FullName: string;
+  Name: string;
+  Length: number;
+  LastWriteTime: string;
+}
+
+interface JunkTarget {
+  category: JunkCategory;
+  path: string;
+  pattern: string;
+}
+
+const MAX_FILES_PER_TARGET = 5000;
+
 const DEFAULT_RULES: CleanerRule[] = [
   {
     id: 'temp-files',
@@ -115,20 +131,8 @@ const DEFAULT_RULES: CleanerRule[] = [
   },
 ];
 
-function expandEnvironmentVariables(pathStr: string): string {
-  return pathStr
-    .replace(/%TEMP%/gi, process.env.TEMP ?? 'C:\\Windows\\Temp')
-    .replace(/%LOCALAPPDATA%/gi, process.env.LOCALAPPDATA ?? 'C:\\Users\\Default\\AppData\\Local')
-    .replace(/%USERNAME%/gi, process.env.USERNAME ?? 'Default');
-}
-
-function generateId(filePath: string, index: number): string {
-  return `junk-${index}-${path.basename(filePath)}`;
-}
-
-export async function scanForJunkFiles(): Promise<JunkScanResult> {
-  const files: JunkFile[] = [];
-  const categories: Record<JunkCategory, { count: number; size: number }> = {
+function emptyCategories(): Record<JunkCategory, { count: number; size: number }> {
+  return {
     temp: { count: 0, size: 0 },
     cache: { count: 0, size: 0 },
     logs: { count: 0, size: 0 },
@@ -137,62 +141,97 @@ export async function scanForJunkFiles(): Promise<JunkScanResult> {
     'browser-cache': { count: 0, size: 0 },
     'windows-update': { count: 0, size: 0 },
   };
+}
 
+function generateId(filePath: string, index: number): string {
+  return `junk-${index}-${path.basename(filePath)}`;
+}
+
+/** Escape a value for a PowerShell single-quoted string literal. */
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
+function buildTargets(): JunkTarget[] {
+  const targets: JunkTarget[] = [];
   for (const rule of DEFAULT_RULES) {
     for (const rulePath of rule.paths) {
-      const expandedPath = expandEnvironmentVariables(rulePath);
-
       for (const pattern of rule.patterns) {
-        try {
-          const psCommand = `
-            $files = Get-ChildItem -Path "${expandedPath}" -Filter "${pattern}" -Recurse -ErrorAction SilentlyContinue -Force;
-            $result = @();
-            foreach ($file in $files) {
-              $result += @{
-                FullName = $file.FullName;
-                Name = $file.Name;
-                Length = $file.Length;
-                LastWriteTime = $file.LastWriteTime.ToString("o")
-              }
-            };
-            $result | ConvertTo-Json -Compress
-          `;
-
-          const result = await runPowerShell(psCommand);
-          if (result.success && result.stdout) {
-            const parsed = parsePowerShellJson<Array<{
-              FullName: string;
-              Name: string;
-              Length: number;
-              LastWriteTime: string;
-            }>>(result.stdout);
-
-            if (parsed) {
-              for (let i = 0; i < parsed.length; i++) {
-                const file = parsed[i];
-                if (!file) continue;
-
-                const junkFile: JunkFile = {
-                  id: generateId(file.FullName, files.length),
-                  path: file.FullName,
-                  name: file.Name,
-                  size: file.Length,
-                  category: rule.category,
-                  lastModified: new Date(file.LastWriteTime),
-                  safeToDelete: rule.protection === 'safe',
-                };
-
-                files.push(junkFile);
-                categories[rule.category].count++;
-                categories[rule.category].size += file.Length;
-              }
-            }
-          }
-        } catch {
-          // Continue with next path
-        }
+        targets.push({ category: rule.category, path: rulePath, pattern });
       }
     }
+  }
+  return targets;
+}
+
+/**
+ * Scan for junk files in a SINGLE PowerShell invocation.
+ *
+ * Using one process (instead of ~20 sequential spawns) is dramatically faster.
+ * Paths/patterns are emitted as single-quoted PowerShell literals so that
+ * `$Recycle.Bin` is not treated as a variable.
+ */
+export async function scanForJunkFiles(): Promise<JunkScanResult> {
+  const categories = emptyCategories();
+  const files: JunkFile[] = [];
+
+  const targetLiterals = buildTargets()
+    .map((t) => `[pscustomobject]@{ Category=${psQuote(t.category)}; Path=${psQuote(t.path)}; Filter=${psQuote(t.pattern)} }`)
+    .join(', ');
+
+  const script = `
+    $targets = @(${targetLiterals});
+    $out = foreach ($t in $targets) {
+      $p = [Environment]::ExpandEnvironmentVariables($t.Path);
+      if (-not (Test-Path -LiteralPath $p)) { continue }
+      Get-ChildItem -LiteralPath $p -Filter $t.Filter -Recurse -Force -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.PSIsContainer } |
+        Select-Object -First ${MAX_FILES_PER_TARGET} |
+        ForEach-Object {
+          [pscustomobject]@{
+            Category = $t.Category;
+            FullName = $_.FullName;
+            Name = $_.Name;
+            Length = $_.Length;
+            LastWriteTime = $_.LastWriteTime.ToString('o')
+          }
+        }
+    };
+    @($out) | ConvertTo-Json -Depth 3 -Compress
+  `;
+
+  try {
+    const result = await runPowerShell(script);
+    if (!result.success || !result.stdout) {
+      return { files, totalSize: 0, totalCount: 0, categories };
+    }
+
+    const parsed = parsePowerShellJson<ScannedFile[] | ScannedFile>(result.stdout);
+    const list: ScannedFile[] = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+
+    for (const file of list) {
+      if (!file || !file.FullName) continue;
+
+      const category: JunkCategory = file.Category ?? 'temp';
+      const size = Number(file.Length) || 0;
+
+      files.push({
+        id: generateId(file.FullName, files.length),
+        path: file.FullName,
+        name: file.Name,
+        size,
+        category,
+        lastModified: new Date(file.LastWriteTime),
+        safeToDelete: category !== 'windows-update' && category !== 'recycle-bin',
+      });
+
+      if (categories[category]) {
+        categories[category].count++;
+        categories[category].size += size;
+      }
+    }
+  } catch {
+    // Return whatever was collected so far.
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
@@ -218,9 +257,9 @@ export async function deleteJunkFiles(files: string[]): Promise<{
   for (const filePath of files) {
     try {
       const psCommand = `
-        $path = "${filePath.replace(/"/g, '\\"')}";
-        if (Test-Path $path) {
-          Remove-Item -Path $path -Recurse -Force -ErrorAction Stop;
+        $path = ${psQuote(filePath)};
+        if (Test-Path -LiteralPath $path) {
+          Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;
           Write-Output "DELETED"
         } else {
           Write-Output "NOT_FOUND"
@@ -228,9 +267,7 @@ export async function deleteJunkFiles(files: string[]): Promise<{
       `;
 
       const result = await runPowerShell(psCommand);
-      if (result.success && result.stdout === 'DELETED') {
-        deleted++;
-      } else if (result.stdout === 'NOT_FOUND') {
+      if (result.success && (result.stdout === 'DELETED' || result.stdout === 'NOT_FOUND')) {
         deleted++;
       } else {
         failed++;

@@ -170,7 +170,7 @@ async function cleanCategory(category: string): Promise<{ filesDeleted: number; 
     '    }',
     '  }',
     '  "recycle-bin" {',
-    '    $files = Get-ChildItem -Path "C:\\$Recycle.Bin" -Recurse -ErrorAction SilentlyContinue -Force;',
+    '    $files = Get-ChildItem -LiteralPath \'C:\\$Recycle.Bin\' -Recurse -ErrorAction SilentlyContinue -Force;',
     '    foreach ($file in $files) {',
     '      try {',
     '        $size = $file.Length;',

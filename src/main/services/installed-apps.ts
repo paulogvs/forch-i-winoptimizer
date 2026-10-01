@@ -1,4 +1,4 @@
-import { runPowerShell, parsePowerShellJson } from './powershell';
+import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
 
 export interface InstalledApp {
   id: string;
@@ -113,7 +113,7 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
   if (hklmResult.success && hklmResult.stdout) {
     const parsed = parsePowerShellJson<RegistryApp[]>(hklmResult.stdout);
     if (parsed) {
-      for (const app of parsed) {
+      for (const app of toArray(parsed)) {
         if (!app.Name) continue;
 
         const isProtected = PROTECTED_APPS.some(p => app.Name.includes(p));
@@ -159,7 +159,7 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
   if (hkcuResult.success && hkcuResult.stdout) {
     const parsed = parsePowerShellJson<RegistryApp[]>(hkcuResult.stdout);
     if (parsed) {
-      for (const app of parsed) {
+      for (const app of toArray(parsed)) {
         if (!app.Name) continue;
 
         const isProtected = PROTECTED_APPS.some(p => app.Name.includes(p));
@@ -209,7 +209,7 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
     }>>(uwpResult.stdout);
 
     if (parsed) {
-      for (const app of parsed) {
+      for (const app of toArray(parsed)) {
         if (!app.Name) continue;
 
         apps.push({
