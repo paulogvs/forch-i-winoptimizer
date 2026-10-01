@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageId } from '@shared/types';
+import type { PageId } from '@shared/types';
 
 interface SidebarProps {
   currentPage: PageId;
@@ -17,6 +17,7 @@ const navItems: { id: PageId; label: string; icon: string }[] = [
   { id: 'benchmark', label: 'Benchmark', icon: '📊' },
   { id: 'bundles', label: 'Bundles', icon: '📦' },
   { id: 'cleaning', label: 'Cleaning', icon: '🗓️' },
+  { id: 'tweaks', label: 'Tweaks', icon: '🎛️' },
   { id: 'statistics', label: 'Statistics', icon: '📈' },
   { id: 'security', label: 'Security', icon: '🛡️' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },

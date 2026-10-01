@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CatalogItem, PendingUpdate } from './types';
+import type { CatalogItem, PendingUpdate } from './types';
 import { getCatalogStorageDir, resolveBundledPath } from './paths';
 
 export function loadLocalCatalog(catalogName: string): CatalogItem[] {

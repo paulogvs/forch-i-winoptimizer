@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Progress } from '../components/ui/Progress';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { SkeletonList } from '../components/ui/Skeleton';
+import { ScanProgress } from '../components/ui/ScanProgress';
+import { useScanProgress } from '../hooks/useScanProgress';
 import { formatBytes } from '../utils/format';
 import type { JunkScanResult } from '@shared/electron-api';
 
@@ -20,45 +22,57 @@ interface JunkFileWithSelection {
 
 export const Cleaner: React.FC = () => {
   const [scanning, setScanning] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const [files, setFiles] = useState<JunkFileWithSelection[]>([]);
+  const [scanned, setScanned] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const progress = useScanProgress('junk');
 
-  const handleScan = async () => {
+  const handleScan = useCallback(async () => {
     setScanning(true);
+    setError(null);
     try {
-      const result: JunkScanResult = await window.electronAPI.scanForJunkFiles();
-      const filesWithSelection = result.files.map((f) => ({
-        ...f,
-        selected: f.safeToDelete,
-      }));
+      const result: JunkScanResult = await window.electronAPI.scanForJunkFiles({ force: true });
+      const filesWithSelection = result.files.map((f) => ({ ...f, selected: f.safeToDelete }));
       setFiles(filesWithSelection);
-    } catch (error) {
-      console.error('Scan failed:', error);
+      setScanned(true);
+    } catch (scanError) {
+      console.error('Scan failed:', scanError);
+      setError('The scan could not be completed. Please try again.');
     } finally {
       setScanning(false);
     }
-  };
+  }, []);
 
-  const handleClean = async () => {
-    const selectedFiles = files.filter((f) => f.selected);
-    if (selectedFiles.length === 0) return;
-
+  const handleClean = useCallback(async () => {
+    setCleaning(true);
+    setError(null);
     try {
-      const result = await window.electronAPI.deleteFiles(
-        selectedFiles.map((f) => f.path)
-      );
+      const selectedFiles = files.filter((f) => f.selected);
+      if (selectedFiles.length === 0) return;
+      const result = await window.electronAPI.deleteFiles(selectedFiles.map((f) => f.path));
       if (result.success) {
         setFiles((prev) => prev.filter((f) => !f.selected));
+      } else {
+        setError(`Some files could not be removed (${result.failed} failed).`);
+        setFiles((prev) => prev.filter((f) => !f.selected));
       }
-    } catch (error) {
-      console.error('Clean failed:', error);
+    } catch (cleanError) {
+      console.error('Clean failed:', cleanError);
+      setError('Cleaning failed. Please try again.');
+    } finally {
+      setCleaning(false);
     }
-  };
+  }, [files]);
 
-  const toggleFile = (id: string) => {
-    setFiles(files.map((f) => (f.id === id ? { ...f, selected: !f.selected } : f)));
-  };
+  const toggleFile = useCallback((id: string) => {
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, selected: !f.selected } : f)));
+  }, []);
 
-  const selectedSize = files.filter((f) => f.selected).reduce((sum, f) => sum + f.size, 0);
+  const selectedSize = useMemo(
+    () => files.filter((f) => f.selected).reduce((sum, f) => sum + f.size, 0),
+    [files]
+  );
 
   return (
     <div className="page">
@@ -68,19 +82,35 @@ export const Cleaner: React.FC = () => {
           <Button variant="secondary" onClick={handleScan} loading={scanning}>
             {scanning ? 'Scanning...' : 'Scan'}
           </Button>
-          <Button variant="primary" onClick={handleClean} disabled={files.length === 0}>
-            Clean ({selectedSize > 0 ? `${formatBytes(selectedSize)}` : '0 B'})
+          <Button
+            variant="primary"
+            onClick={handleClean}
+            loading={cleaning}
+            disabled={files.length === 0}
+          >
+            Clean ({selectedSize > 0 ? formatBytes(selectedSize) : '0 B'})
           </Button>
         </div>
       </div>
 
-      {scanning && <Progress value={60} label="Scanning..." className="mb-4" />}
+      {scanning && <ScanProgress event={progress} className="mb-4" />}
+      {scanning && files.length === 0 && <SkeletonList rows={8} />}
 
-      {files.length === 0 && !scanning && (
+      {error && (
+        <div className="mb-4 p-3 rounded-lg text-sm text-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {!scanning && files.length === 0 && (
         <EmptyState
-          title="No junk files found"
-          description="Run a scan to find temporary files, caches, and other junk that can be safely removed."
-          actionLabel="Scan Now"
+          title={scanned ? 'No junk files found' : 'Ready to scan'}
+          description={
+            scanned
+              ? 'Your system is already clean. Run a scan again after using your PC for a while.'
+              : 'Run a scan to find temporary files, caches, and other junk that can be safely removed.'
+          }
+          actionLabel={scanned ? 'Scan Again' : 'Scan Now'}
           onAction={handleScan}
         />
       )}
@@ -89,21 +119,20 @@ export const Cleaner: React.FC = () => {
         <Card>
           <div className="flex flex-col gap-2">
             {files.map((file) => (
-              <div key={file.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg-hover">
+              <div key={file.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-hover">
                 <input
                   type="checkbox"
                   checked={file.selected}
                   onChange={() => toggleFile(file.id)}
                   className="w-4 h-4"
+                  aria-label={`Select ${file.name}`}
                 />
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-fg-primary">{file.name}</div>
-                  <div className="text-xs text-fg-tertiary font-mono">{file.path}</div>
+                  <div className="text-sm font-medium text-primary">{file.name}</div>
+                  <div className="text-xs text-tertiary font-mono">{file.path}</div>
                 </div>
                 <Badge variant="info">{file.category}</Badge>
-                <span className="text-sm text-fg-secondary font-mono">
-                  {formatBytes(file.size)}
-                </span>
+                <span className="text-sm text-secondary font-mono">{formatBytes(file.size)}</span>
               </div>
             ))}
           </div>

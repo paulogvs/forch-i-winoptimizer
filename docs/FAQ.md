@@ -50,8 +50,27 @@ Los archivos marcados como "safe" (temporales, caché, miniaturas) son seguros. 
 2. Revisa la lista de servicios y apps de inicio
 3. Click en "Optimize" para aplicar cambios recomendados
 
+**¿Qué son los Tweaks?**
+Ajustes seguros y reversibles de rendimiento, privacidad y Explorador (por ejemplo mostrar
+extensiones, desactivar telemetría/DiagTrack, menú contextual clásico). Nada se aplica
+automáticamente: primero ves un **Preview** de lo que se toca.
+
+**¿Los Tweaks son reversibles?**
+Sí, todos. La app guarda tu estado previo antes de aplicar y el botón **Restore** lo devuelve
+tal cual estaba (o usa los valores por defecto de Windows si no pudo capturarlo).
+
+**¿Los Tweaks necesitan administrador?**
+Los que tocan servicios, tareas programadas o `HKLM` sí (SysMain, Prefetch, Telemetry/DiagTrack).
+Los de `HKCU` (Background Apps, Suggested Content, Explorer) no.
+
+**¿Puedo mover, maximizar o cerrar la ventana?**
+Sí. La ventana es frameless con controles propios arriba a la derecha (Minimizar,
+Maximizar/Restaurar, Cerrar). Arrastrás la ventana desde la barra superior o el encabezado del
+menú lateral. Todo es accesible por teclado.
+
 **¿Puedo deshacer los cambios?**
-Sí, la mayoría de los cambios se pueden revertir manualmente desde los mismos módulos.
+Sí, la mayoría de los cambios se pueden revertir manualmente desde los mismos módulos. Los
+**Tweaks** tienen su propio botón Restore.
 
 **¿Cómo cambio el tema?**
 Ve a Settings > Theme y selecciona el tema deseado (Oscuro, Claro, Azul, Verde, Naranja).

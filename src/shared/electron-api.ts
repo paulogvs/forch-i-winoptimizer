@@ -1,3 +1,6 @@
+import type { ScanProgressEvent } from './scan-progress';
+import type { TweakApplyResult, TweakPreview, TweakView } from './tweaks';
+
 export interface SystemInfo {
   platform: string;
   release: string;
@@ -277,25 +280,148 @@ export interface CleaningHistoryEntry {
   status: 'success' | 'partial' | 'failed';
 }
 
+/** Read-through cache control exposed to the renderer (P1.2). */
+export interface CacheOptions {
+  /** Skip a fresh cache entry and recompute. */
+  force?: boolean;
+}
+
+// ===== Window controls (P0.1) =====
+export interface WindowControlsAPI {
+  minimize: () => Promise<void>;
+  maximize: () => Promise<void>;
+  unmaximize: () => Promise<void>;
+  isMaximized: () => Promise<boolean>;
+  close: () => Promise<void>;
+  /** Subscribe to maximize state changes. Returns an unsubscribe function. */
+  onMaximized: (callback: () => void) => () => void;
+  /** Subscribe to unmaximize state changes. Returns an unsubscribe function. */
+  onUnmaximized: (callback: () => void) => () => void;
+}
+
 export interface ElectronAPI {
-  getSystemInfo: () => Promise<SystemInfo>;
-  scanForJunkFiles: () => Promise<JunkScanResult>;
+  getSystemInfo: (options?: CacheOptions) => Promise<SystemInfo>;
+  scanForJunkFiles: (options?: CacheOptions) => Promise<JunkScanResult>;
   deleteFiles: (files: string[]) => Promise<{ success: boolean; deleted: number; failed: number; errors: string[] }>;
-  getStartupApps: () => Promise<StartupApp[]>;
+  getStartupApps: (options?: CacheOptions) => Promise<StartupApp[]>;
   toggleStartupApp: (appId: string, enabled: boolean) => Promise<{ success: boolean; message: string }>;
-  getInstalledApps: () => Promise<InstalledApp[]>;
+  getInstalledApps: (options?: CacheOptions) => Promise<InstalledApp[]>;
   uninstallApp: (appId: string, uninstallString: string) => Promise<{ success: boolean; message: string }>;
-  getSystemServices: () => Promise<SystemService[]>;
+  getSystemServices: (options?: CacheOptions) => Promise<SystemService[]>;
   toggleService: (serviceId: string, enabled: boolean) => Promise<{ success: boolean; message: string }>;
   setServiceStartType: (serviceId: string, startType: 'automatic' | 'manual' | 'disabled') => Promise<{ success: boolean; message: string }>;
   checkForUpdates: () => Promise<UpdateInfo>;
   downloadUpdate: (url: string) => Promise<string>;
   onUpdateProgress: (callback: (percent: number) => void) => () => void;
+  // Window controls
+  window: WindowControlsAPI;
+  // Scan progress (P0.3)
+  onScanProgress: (callback: (event: ScanProgressEvent) => void) => () => void;
+  // Cache control (P1.2)
+  clearCache: () => Promise<{ success: boolean }>;
+}
+
+// ===== Advanced (namespaced) API used by feature pages =====
+export interface OperationResult {
+  success: boolean;
+  message: string;
+}
+
+export interface ConnectivityTestResult {
+  success: boolean;
+  latency: number;
+  downloadSpeed: number;
+}
+
+export interface RunScheduleResult extends OperationResult {
+  filesDeleted: number;
+  spaceFreed: number;
+}
+
+export interface ImportResult {
+  success: boolean;
+  imported: number;
+  failed: number;
+  errors: string[];
+}
+
+export interface WinOptimizerAPI {
+  drivers: {
+    scan: (options?: CacheOptions) => Promise<DriverScanResult>;
+    createRestorePoint: (description: string) => Promise<OperationResult>;
+    install: (driverId: string, downloadUrl: string) => Promise<OperationResult>;
+    rollback: (driverId: string) => Promise<OperationResult>;
+  };
+  network: {
+    fix: () => Promise<NetworkFixReport>;
+    test: () => Promise<ConnectivityTestResult>;
+    fixError0x00000709: () => Promise<OperationResult>;
+  };
+  drift: {
+    check: () => Promise<{ events: DriftEvent[] }>;
+    reapply: (tweakId: string) => Promise<{ success: boolean }>;
+    reapplyAll: () => Promise<{ success: boolean }>;
+    status: () => Promise<DriftGuardStatus>;
+    startMonitoring: () => Promise<{ success: boolean }>;
+    stopMonitoring: () => Promise<{ success: boolean }>;
+  };
+  audit: {
+    run: () => Promise<AuditReport>;
+  };
+  benchmark: {
+    run: () => Promise<BenchmarkReport>;
+    exportMarkdown: (report: BenchmarkReport) => Promise<string>;
+  };
+  privacy: {
+    getSettings: () => Promise<PrivacySetting[]>;
+    applySetting: (settingId: string) => Promise<OperationResult>;
+    applyAll: () => Promise<OperationResult>;
+  };
+  security: {
+    getActions: () => Promise<SecurityAction[]>;
+    runAction: (actionId: string) => Promise<OperationResult>;
+  };
+  dns: {
+    benchmark: () => Promise<DNSBenchmarkResult[]>;
+    set: (primaryDNS: string, secondaryDNS: string) => Promise<OperationResult>;
+  };
+  bundles: {
+    get: () => Promise<AppBundle[]>;
+    checkInstalled: () => Promise<Map<string, boolean>>;
+    install: (wingetId: string) => Promise<OperationResult>;
+    installMultiple: (wingetIds: string[]) => Promise<OperationResult>;
+    uninstall: (wingetId: string) => Promise<OperationResult>;
+  };
+  cleaning: {
+    getSchedules: () => Promise<CleaningSchedule[]>;
+    getDefaultSchedules: () => Promise<CleaningSchedule[]>;
+    createSchedule: (schedule: CleaningSchedule) => Promise<CleaningSchedule>;
+    updateSchedule: (id: string, updates: Partial<CleaningSchedule>) => Promise<CleaningSchedule | null>;
+    deleteSchedule: (id: string) => Promise<boolean>;
+    runNow: (id: string) => Promise<RunScheduleResult>;
+    getHistory: () => Promise<CleaningHistoryEntry[]>;
+  };
+  sourceUpdater: {
+    check: () => Promise<{ report: unknown; formatted: string }>;
+    pending: () => Promise<{ pending: unknown[]; formatted: string }>;
+    import: (updates: unknown[]) => Promise<ImportResult>;
+    importAll: () => Promise<ImportResult>;
+    reject: (updateId: string) => Promise<{ success: boolean }>;
+    rejectAll: () => Promise<{ success: boolean }>;
+  };
+  tweaks: {
+    get: () => Promise<TweakView[]>;
+    preview: (id: string) => Promise<TweakPreview>;
+    apply: (id: string) => Promise<TweakApplyResult>;
+    restore: (id: string) => Promise<TweakApplyResult>;
+    applyMany: (ids: string[]) => Promise<TweakApplyResult[]>;
+    restoreMany: (ids: string[]) => Promise<TweakApplyResult[]>;
+  };
 }
 
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
-    winoptimizer: any;
+    winoptimizer: WinOptimizerAPI;
   }
 }

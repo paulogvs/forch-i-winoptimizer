@@ -687,3 +687,279 @@
 .w-full { width: 100%; }
 .h-full { height: 100%; }
 .min-h-screen { min-height: 100vh; }
+
+/* === Skeletons (P0.2) === */
+.skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 25%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.skeleton-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.skeleton-table-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.skeleton-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.skeleton-list-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* === Scan progress / stepper (P0.3) === */
+.scan-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scan-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+.scan-progress-stage {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-progress-percent {
+  font-family: var(--font-mono);
+  color: var(--color-fg-primary);
+}
+
+.scan-steps {
+  display: flex;
+  gap: var(--space-1);
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.scan-step {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+  color: var(--color-fg-tertiary);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.scan-step--done {
+  background: var(--color-success-muted);
+  color: var(--color-success);
+}
+
+.scan-step--active {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.scan-step--error {
+  background: var(--color-error-muted);
+  color: var(--color-error);
+}
+
+/* === Virtual list (P0.4) === */
+.virtual-list {
+  position: relative;
+  overscroll-behavior: contain;
+}
+
+.virtual-list-inner {
+  width: 100%;
+}
+
+.virtual-list-row {
+  /* Keep painting cheap for off-screen rows without breaking measurement. */
+  will-change: transform;
+}
+
+/* === Drivers === */
+.driver-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+}
+
+.driver-row:hover {
+  background: var(--color-bg-hover);
+}
+
+.driver-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.driver-row-main .text-sm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* === Tweaks (P2) === */
+.tweak-intro {
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.tweak-banner {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-muted);
+  color: var(--color-fg-primary);
+  font-size: var(--text-sm);
+}
+
+.tweak-section {
+  margin-bottom: var(--space-6);
+  /* Skip rendering long sections until they approach the viewport (P3). */
+  content-visibility: auto;
+  contain-intrinsic-size: 480px;
+}
+
+.tweak-section-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin-bottom: var(--space-3);
+}
+
+.tweak-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.tweak-check {
+  width: 16px;
+  height: 16px;
+  margin-top: var(--space-1);
+  flex-shrink: 0;
+}
+
+.tweak-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tweak-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+}
+
+.tweak-name {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+.tweak-description {
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+.tweak-note {
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+  margin-top: var(--space-1);
+}
+
+.tweak-message {
+  font-size: var(--text-xs);
+  margin-top: var(--space-1);
+}
+
+.tweak-message--done {
+  color: var(--color-success);
+}
+
+.tweak-message--error {
+  color: var(--color-error);
+}
+
+.tweak-message--working {
+  color: var(--color-fg-tertiary);
+}
+
+.tweak-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.tweak-preview-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-primary);
+  margin-bottom: var(--space-1);
+}
+
+.tweak-preview-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+  word-break: break-word;
+}
+
+.tweak-preview-list li {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}

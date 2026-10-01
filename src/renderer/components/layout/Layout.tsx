@@ -2,7 +2,7 @@ import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { StatusBar } from './StatusBar';
-import { PageId, Theme } from '@shared/types';
+import type { PageId, Theme } from '@shared/types';
 
 interface LayoutProps {
   currentPage: PageId;

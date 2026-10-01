@@ -3,6 +3,8 @@ import path from 'node:path';
 import { registerIpcHandlers } from './ipc';
 import { setupAutoUpdater } from './updater';
 import { WINDOW_BACKGROUND } from '../shared/theme';
+import { registerWindowControls, attachWindowStateEvents } from './window-controls';
+import { setProgressSender } from './services/scan-progress';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -36,14 +38,27 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
+  // Window controls (P0.1): forward native maximize/unmaximize to the renderer.
+  attachWindowStateEvents(mainWindow);
+
+  // Scan progress (P0.3): stream stage/percent events to this window.
+  setProgressSender((event) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('scan:progress', event);
+    }
+  });
+
   mainWindow.on('closed', () => {
+    setProgressSender(null);
     mainWindow = null;
   });
 }
 
 app.whenReady().then(() => {
-  registerIpcHandlers(mainWindow);
+  registerWindowControls();
+  // Create the window first so IPC closures capture a live reference.
   createWindow();
+  registerIpcHandlers(mainWindow);
   setupAutoUpdater(mainWindow);
 
   app.on('activate', () => {

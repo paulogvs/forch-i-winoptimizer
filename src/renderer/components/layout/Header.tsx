@@ -1,5 +1,6 @@
 import React from 'react';
-import { Theme } from '@shared/types';
+import type { Theme } from '@shared/types';
+import { WindowControls } from './WindowControls';
 
 interface HeaderProps {
   theme: Theme;
@@ -8,10 +9,15 @@ interface HeaderProps {
   searchQuery: string;
 }
 
+/**
+ * Titlebar + header. The bar itself is the OS drag region; interactive
+ * children opt out with `no-drag` (see layout.css) and the window controls sit
+ * at the far right (P0.1).
+ */
 export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, searchQuery }) => {
   return (
-    <header className="header">
-      <div className="header-left">
+    <header className="header titlebar">
+      <div className="header-left no-drag">
         <div className="search-box">
           <input
             type="search"
@@ -23,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
           />
         </div>
       </div>
-      <div className="header-right">
+      <div className="header-right no-drag">
         <button
           className="btn btn-ghost btn-sm"
           onClick={onThemeToggle}
@@ -37,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
         <div className="user-avatar" aria-label="User profile">
           <span>PV</span>
         </div>
+        <WindowControls />
       </div>
     </header>
   );

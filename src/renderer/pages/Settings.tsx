@@ -5,7 +5,7 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
-import { Theme } from '@shared/types';
+import type { Theme } from '@shared/types';
 import type { UpdateInfo } from '@shared/electron-api';
 
 interface SettingsProps {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PageId, Theme } from '@shared/types';
+import type { PageId, Theme } from '@shared/types';
 
 interface AppState {
   currentPage: PageId;

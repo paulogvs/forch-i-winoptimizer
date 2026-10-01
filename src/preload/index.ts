@@ -1,25 +1,29 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
+import type { IpcRendererEvent } from 'electron';
+import type { ElectronAPI, WinOptimizerAPI } from '../shared/electron-api';
+import type { ScanProgressEvent } from '../shared/scan-progress';
+import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 
-const api = {
+const api: ElectronAPI = {
   // System
-  getSystemInfo: () => ipcRenderer.invoke('system:get-info'),
+  getSystemInfo: (options) => ipcRenderer.invoke('system:get-info', options),
 
   // Cleaner
-  scanForJunkFiles: () => ipcRenderer.invoke('cleaner:scan'),
+  scanForJunkFiles: (options) => ipcRenderer.invoke('cleaner:scan', options),
   deleteFiles: (files: string[]) => ipcRenderer.invoke('cleaner:delete', files),
 
   // Startup apps
-  getStartupApps: () => ipcRenderer.invoke('startup:get-apps'),
+  getStartupApps: (options) => ipcRenderer.invoke('startup:get-apps', options),
   toggleStartupApp: (appId: string, enabled: boolean) =>
     ipcRenderer.invoke('startup:toggle', appId, enabled),
 
   // Installed apps
-  getInstalledApps: () => ipcRenderer.invoke('apps:get-installed'),
+  getInstalledApps: (options) => ipcRenderer.invoke('apps:get-installed', options),
   uninstallApp: (appId: string, uninstallString: string) =>
     ipcRenderer.invoke('apps:uninstall', appId, uninstallString),
 
   // System services
-  getSystemServices: () => ipcRenderer.invoke('services:get-all'),
+  getSystemServices: (options) => ipcRenderer.invoke('services:get-all', options),
   toggleService: (serviceId: string, enabled: boolean) =>
     ipcRenderer.invoke('services:toggle', serviceId, enabled),
   setServiceStartType: (serviceId: string, startType: 'automatic' | 'manual' | 'disabled') =>
@@ -29,22 +33,36 @@ const api = {
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   downloadUpdate: (url: string) => ipcRenderer.invoke('updater:download', url),
 
-  // Source Monitor (pull updates from the 4 base repositories)
-  sourceUpdater: {
-    check: () => ipcRenderer.invoke('source-updater:check'),
-    pending: () => ipcRenderer.invoke('source-updater:pending'),
-    import: (updates: unknown[]) => ipcRenderer.invoke('source-updater:import', updates),
-    importAll: () => ipcRenderer.invoke('source-updater:import-all'),
-    reject: (updateId: string) => ipcRenderer.invoke('source-updater:reject', updateId),
-    rejectAll: () => ipcRenderer.invoke('source-updater:reject-all'),
+  // Window controls (P0.1)
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    maximize: () => ipcRenderer.invoke('window:maximize'),
+    unmaximize: () => ipcRenderer.invoke('window:unmaximize'),
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    close: () => ipcRenderer.invoke('window:close'),
+    onMaximized: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('window:maximized', handler);
+      return () => ipcRenderer.removeListener('window:maximized', handler);
+    },
+    onUnmaximized: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('window:unmaximized', handler);
+      return () => ipcRenderer.removeListener('window:unmaximized', handler);
+    },
   },
 
-  // Events
-  onUpdateAvailable: (callback: (info: unknown) => void) => {
-    const handler = (_event: IpcRendererEvent, info: unknown) => callback(info);
-    ipcRenderer.on('update:available', handler);
-    return () => ipcRenderer.removeListener('update:available', handler);
+  // Scan progress (P0.3)
+  onScanProgress: (callback: (event: ScanProgressEvent) => void) => {
+    const handler = (_event: IpcRendererEvent, payload: ScanProgressEvent) => callback(payload);
+    ipcRenderer.on('scan:progress', handler);
+    return () => ipcRenderer.removeListener('scan:progress', handler);
   },
+
+  // Cache control (P1.2)
+  clearCache: () => ipcRenderer.invoke('cache:clear'),
+
+  // Events
   onUpdateProgress: (callback: (percent: number) => void) => {
     const handler = (_event: IpcRendererEvent, percent: number) => callback(percent);
     ipcRenderer.on('updater:progress', handler);
@@ -55,10 +73,10 @@ const api = {
 contextBridge.exposeInMainWorld('electronAPI', api);
 
 // Namespaced API used by the advanced feature pages (Drivers, Network, Audit,
-// Benchmark, Security & Privacy, App Bundles, Scheduled Cleaning).
-const winoptimizer = {
+// Benchmark, Security & Privacy, App Bundles, Scheduled Cleaning, Tweaks).
+const winoptimizer: WinOptimizerAPI = {
   drivers: {
-    scan: () => ipcRenderer.invoke('drivers:scan'),
+    scan: (options) => ipcRenderer.invoke('drivers:scan', options),
     createRestorePoint: (description: string) => ipcRenderer.invoke('drivers:create-restore-point', description),
     install: (driverId: string, downloadUrl: string) => ipcRenderer.invoke('drivers:install', driverId, downloadUrl),
     rollback: (driverId: string) => ipcRenderer.invoke('drivers:rollback', driverId),
@@ -81,7 +99,7 @@ const winoptimizer = {
   },
   benchmark: {
     run: () => ipcRenderer.invoke('benchmark:run'),
-    exportMarkdown: (report: unknown) => ipcRenderer.invoke('benchmark:export-markdown', report),
+    exportMarkdown: (report) => ipcRenderer.invoke('benchmark:export-markdown', report),
   },
   privacy: {
     getSettings: () => ipcRenderer.invoke('privacy:get-settings'),
@@ -106,8 +124,8 @@ const winoptimizer = {
   cleaning: {
     getSchedules: () => ipcRenderer.invoke('cleaning:get-schedules'),
     getDefaultSchedules: () => ipcRenderer.invoke('cleaning:get-default-schedules'),
-    createSchedule: (schedule: unknown) => ipcRenderer.invoke('cleaning:create-schedule', schedule),
-    updateSchedule: (id: string, updates: unknown) => ipcRenderer.invoke('cleaning:update-schedule', id, updates),
+    createSchedule: (schedule) => ipcRenderer.invoke('cleaning:create-schedule', schedule),
+    updateSchedule: (id: string, updates) => ipcRenderer.invoke('cleaning:update-schedule', id, updates),
     deleteSchedule: (id: string) => ipcRenderer.invoke('cleaning:delete-schedule', id),
     runNow: (id: string) => ipcRenderer.invoke('cleaning:run-now', id),
     getHistory: () => ipcRenderer.invoke('cleaning:get-history'),
@@ -120,9 +138,16 @@ const winoptimizer = {
     reject: (updateId: string) => ipcRenderer.invoke('source-updater:reject', updateId),
     rejectAll: () => ipcRenderer.invoke('source-updater:reject-all'),
   },
+  tweaks: {
+    get: (): Promise<TweakView[]> => ipcRenderer.invoke('tweaks:get'),
+    preview: (id: string): Promise<TweakPreview> => ipcRenderer.invoke('tweaks:preview', id),
+    apply: (id: string): Promise<TweakApplyResult> => ipcRenderer.invoke('tweaks:apply', id),
+    restore: (id: string): Promise<TweakApplyResult> => ipcRenderer.invoke('tweaks:restore', id),
+    applyMany: (ids: string[]): Promise<TweakApplyResult[]> => ipcRenderer.invoke('tweaks:apply-many', ids),
+    restoreMany: (ids: string[]): Promise<TweakApplyResult[]> => ipcRenderer.invoke('tweaks:restore-many', ids),
+  },
 };
 
 contextBridge.exposeInMainWorld('winoptimizer', winoptimizer);
 
-export type ElectronAPI = typeof api;
-export type WinOptimizerAPI = typeof winoptimizer;
+export type { ElectronAPI, WinOptimizerAPI };

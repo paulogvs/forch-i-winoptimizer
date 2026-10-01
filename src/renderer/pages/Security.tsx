@@ -5,9 +5,18 @@ import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
 
+interface SecurityCheck {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pass' | 'warning' | 'critical';
+  recommendation: string;
+  autoFixable: boolean;
+}
+
 export const Security: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'security' | 'privacy' | 'dns'>('security');
-  const [securityChecks, setSecurityChecks] = useState<any[]>([]);
+  const [securityChecks, setSecurityChecks] = useState<SecurityCheck[]>([]);
   const [privacySettings, setPrivacySettings] = useState<PrivacySetting[]>([]);
   const [securityActions, setSecurityActions] = useState<SecurityAction[]>([]);
   const [dnsResults, setDnsResults] = useState<DNSBenchmarkResult[]>([]);
@@ -44,7 +53,7 @@ export const Security: React.FC = () => {
 
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const checks = [
+    const checks: SecurityCheck[] = [
       { id: 'defender', title: 'Windows Defender Real-time Protection', description: 'Real-time protection is enabled and active', status: 'pass', recommendation: 'No action needed', autoFixable: false },
       { id: 'firewall', title: 'Windows Firewall', description: 'Firewall is enabled for all network profiles', status: 'pass', recommendation: 'No action needed', autoFixable: false },
       { id: 'updates', title: 'Windows Updates', description: 'System is up to date with latest security patches', status: 'pass', recommendation: 'No action needed', autoFixable: false },

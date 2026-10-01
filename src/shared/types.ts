@@ -15,7 +15,8 @@ export type PageId =
   | 'audit'
   | 'benchmark'
   | 'bundles'
-  | 'cleaning';
+  | 'cleaning'
+  | 'tweaks';
 
 export interface NavItem {
   id: PageId;

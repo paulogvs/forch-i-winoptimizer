@@ -1,4 +1,5 @@
 import { runPowerShell, parsePowerShellJson } from './powershell';
+import { createNoopReporter, type ScanProgressReporter } from './scan-progress';
 import type { DriverInfo, DriverScanResult } from '@shared/types';
 
 interface PnPDevice {
@@ -50,7 +51,9 @@ const LATEST_DRIVERS: Record<string, { version: string; date: string; url: strin
   Generic: { version: '', date: '', url: '', size: 0 },
 };
 
-export async function scanDrivers(): Promise<DriverScanResult> {
+export async function scanDrivers(reporter?: ScanProgressReporter): Promise<DriverScanResult> {
+  const progress = reporter ?? createNoopReporter('drivers');
+  progress.report('query', 20, 'Enumerating devices and signed drivers...');
   const result = await runPowerShell(`
     $drivers = @{};
     Get-CimInstance -ClassName Win32_PnPSignedDriver -ErrorAction SilentlyContinue | ForEach-Object {
@@ -74,15 +77,19 @@ export async function scanDrivers(): Promise<DriverScanResult> {
   `);
 
   if (!result.success || !result.stdout) {
+    progress.fail('Driver scan failed');
     return { drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() };
   }
 
+  progress.report('parse', 65, 'Parsing device list...');
   const parsed = parsePowerShellJson<PnPDevice[] | PnPDevice>(result.stdout);
   const devices: PnPDevice[] = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
   if (devices.length === 0) {
+    progress.done('No devices found');
     return { drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() };
   }
 
+  progress.report('normalize', 85, 'Comparing driver versions...');
   const drivers: DriverInfo[] = [];
   let outdatedCount = 0;
   let upToDateCount = 0;
@@ -112,6 +119,8 @@ export async function scanDrivers(): Promise<DriverScanResult> {
       size: latest?.size || 0,
     });
   }
+
+  progress.done('Driver scan complete');
 
   return {
     drivers,

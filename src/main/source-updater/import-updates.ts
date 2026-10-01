@@ -1,4 +1,4 @@
-import { PendingUpdate } from './types';
+import type { PendingUpdate } from './types';
 import { loadLocalCatalog, saveLocalCatalog, mergeCatalogs } from './diff-catalogs';
 import { loadLastCheck, saveLastCheck } from './check-updates';
 

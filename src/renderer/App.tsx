@@ -10,12 +10,16 @@ import { Audit } from './pages/Audit';
 import { Benchmark } from './pages/Benchmark';
 import { Bundles } from './pages/Bundles';
 import { Cleaning } from './pages/Cleaning';
+import { Tweaks } from './pages/Tweaks';
 import { Statistics } from './pages/Statistics';
 import { Security } from './pages/Security';
 import { Settings } from './pages/Settings';
-import { PageId, Theme } from '@shared/types';
+import { useScanningIndicator } from './hooks/useScanProgress';
+import type { PageId, Theme } from '@shared/types';
 
 const App: React.FC = () => {
+  useScanningIndicator();
+
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme');
@@ -50,6 +54,7 @@ const App: React.FC = () => {
       case 'benchmark': return <Benchmark />;
       case 'bundles': return <Bundles />;
       case 'cleaning': return <Cleaning />;
+      case 'tweaks': return <Tweaks />;
       case 'statistics': return <Statistics />;
       case 'security': return <Security />;
       case 'settings': return <Settings theme={theme} onThemeToggle={handleThemeToggle} />;

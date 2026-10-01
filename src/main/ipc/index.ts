@@ -1,10 +1,20 @@
-import { ipcMain, IpcMainInvokeEvent, BrowserWindow } from 'electron';
+import type { IpcMainInvokeEvent, BrowserWindow } from 'electron';
+import { ipcMain } from 'electron';
+import type { BenchmarkReport, CleaningSchedule } from '@shared/types';
 import { getSystemInfo } from '../services/system-info';
-import { scanForJunkFiles, deleteJunkFiles, JunkScanResult } from '../services/junk-scanner';
-import { getStartupApps, toggleStartupApp, StartupApp } from '../services/startup-apps';
-import { getInstalledApps, uninstallApp as uninstallInstalledApp, InstalledApp } from '../services/installed-apps';
-import { getSystemServices, toggleService, setServiceStartType, SystemService } from '../services/system-services';
-import { checkForUpdates, downloadUpdate, UpdateInfo } from '../services/updater';
+import { cache, withCache, type CacheOptions } from '../services/cache';
+import { createProgressReporter } from '../services/scan-progress';
+import { getTweaks, previewTweak, applyTweak, restoreTweak, applyTweaks, restoreTweaks } from '../services/tweaks';
+import type { JunkScanResult } from '../services/junk-scanner';
+import { scanForJunkFiles, deleteJunkFiles } from '../services/junk-scanner';
+import type { StartupApp } from '../services/startup-apps';
+import { getStartupApps, toggleStartupApp } from '../services/startup-apps';
+import type { InstalledApp } from '../services/installed-apps';
+import { getInstalledApps, uninstallApp as uninstallInstalledApp } from '../services/installed-apps';
+import type { SystemService } from '../services/system-services';
+import { getSystemServices, toggleService, setServiceStartType } from '../services/system-services';
+import type { UpdateInfo } from '../services/updater';
+import { checkForUpdates, downloadUpdate } from '../services/updater';
 import { scanDrivers, createRestorePoint, installDriver, rollbackDriver } from '../services/driver-updater';
 import { runNetworkFix, testConnectivity, fixError0x00000709 } from '../services/network-fixer';
 import { checkForDrift, reapplyTweak, reapplyAllTweaks, getDriftStatus, startDriftMonitoring, stopDriftMonitoring } from '../services/drift-guard';
@@ -18,37 +28,57 @@ import { importUpdates, importAllPending, rejectUpdate, rejectAllPending } from 
 import type { PendingUpdate } from '../source-updater';
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
-  // System info
-  ipcMain.handle('system:get-info', () => getSystemInfo());
+  // System info (TTL 60s; `force` bypasses after an explicit Refresh)
+  ipcMain.handle('system:get-info', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('systemInfo', () => getSystemInfo(createProgressReporter('system')), options ?? {})
+  );
 
-  // Junk file scanner
-  ipcMain.handle('cleaner:scan', async (_event: IpcMainInvokeEvent) => {
-    return scanForJunkFiles();
-  });
+  // Junk file scanner (TTL 30s)
+  ipcMain.handle('cleaner:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('junk', () => scanForJunkFiles(createProgressReporter('junk')), options ?? {})
+  );
 
   ipcMain.handle('cleaner:delete', async (_event: IpcMainInvokeEvent, files: string[]) => {
-    return deleteJunkFiles(files);
+    const result = await deleteJunkFiles(files);
+    cache.invalidateModule('junk');
+    return result;
   });
 
-  // Startup apps
-  ipcMain.handle('startup:get-apps', () => getStartupApps());
+  // Startup apps (TTL 60s)
+  ipcMain.handle('startup:get-apps', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('startup', () => getStartupApps(), options ?? {})
+  );
   ipcMain.handle('startup:toggle', async (_event: IpcMainInvokeEvent, appId: string, enabled: boolean) => {
-    return toggleStartupApp(appId, enabled);
+    const result = await toggleStartupApp(appId, enabled);
+    cache.invalidateModule('startup');
+    return result;
   });
 
-  // Installed apps
-  ipcMain.handle('apps:get-installed', () => getInstalledApps());
+  // Installed apps (TTL 60s)
+  ipcMain.handle('apps:get-installed', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('apps', () => getInstalledApps(), options ?? {})
+  );
   ipcMain.handle('apps:uninstall', async (_event: IpcMainInvokeEvent, appId: string, uninstallString: string) => {
-    return uninstallInstalledApp(appId, uninstallString);
+    const result = await uninstallInstalledApp(appId, uninstallString);
+    cache.invalidateModule('apps');
+    return result;
   });
 
-  // System services
-  ipcMain.handle('services:get-all', () => getSystemServices());
+  // System services (TTL 60s)
+  ipcMain.handle('services:get-all', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('services', () => getSystemServices(), options ?? {})
+  );
   ipcMain.handle('services:toggle', async (_event: IpcMainInvokeEvent, serviceId: string, enabled: boolean) => {
-    return toggleService(serviceId, enabled);
+    const result = await toggleService(serviceId, enabled);
+    cache.invalidateModule('services');
+    cache.invalidateModule('health');
+    return result;
   });
   ipcMain.handle('services:set-start-type', async (_event: IpcMainInvokeEvent, serviceId: string, startType: 'automatic' | 'manual' | 'disabled') => {
-    return setServiceStartType(serviceId, startType);
+    const result = await setServiceStartType(serviceId, startType);
+    cache.invalidateModule('services');
+    cache.invalidateModule('health');
+    return result;
   });
 
   // Updater (app self-update via GitHub Releases)
@@ -80,16 +110,22 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     return { success: true };
   });
 
-  // ===== Driver Updater =====
-  ipcMain.handle('drivers:scan', () => scanDrivers());
+  // ===== Driver Updater (TTL 5m) =====
+  ipcMain.handle('drivers:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('drivers', () => scanDrivers(createProgressReporter('drivers')), options ?? {})
+  );
   ipcMain.handle('drivers:create-restore-point', async (_event: IpcMainInvokeEvent, description: string) => {
     return createRestorePoint(description);
   });
   ipcMain.handle('drivers:install', async (_event: IpcMainInvokeEvent, driverId: string, downloadUrl: string) => {
-    return installDriver(driverId, downloadUrl);
+    const result = await installDriver(driverId, downloadUrl);
+    cache.invalidateModule('drivers');
+    return result;
   });
   ipcMain.handle('drivers:rollback', async (_event: IpcMainInvokeEvent, driverId: string) => {
-    return rollbackDriver(driverId);
+    const result = await rollbackDriver(driverId);
+    cache.invalidateModule('drivers');
+    return result;
   });
 
   // ===== Network Fixer =====
@@ -107,28 +143,42 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   ipcMain.handle('drift:start-monitoring', () => startDriftMonitoring());
   ipcMain.handle('drift:stop-monitoring', () => stopDriftMonitoring());
 
-  // ===== System Audit =====
-  ipcMain.handle('audit:run', () => runSystemAudit());
+  // ===== System Audit (TTL 30s) =====
+  ipcMain.handle('audit:run', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('health', () => runSystemAudit(), options ?? {})
+  );
 
   // ===== Benchmark =====
   ipcMain.handle('benchmark:run', () => runBenchmark());
-  ipcMain.handle('benchmark:export-markdown', async (_event: IpcMainInvokeEvent, report: any) => {
+  ipcMain.handle('benchmark:export-markdown', async (_event: IpcMainInvokeEvent, report: BenchmarkReport) => {
     return generateMarkdownReport(report);
   });
 
   // ===== Security & Privacy =====
-  ipcMain.handle('privacy:get-settings', () => getPrivacySettings());
+  ipcMain.handle('privacy:get-settings', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('health', () => getPrivacySettings(), options ?? {})
+  );
   ipcMain.handle('privacy:apply-setting', async (_event: IpcMainInvokeEvent, settingId: string) => {
-    return applyPrivacySetting(settingId);
+    const result = await applyPrivacySetting(settingId);
+    cache.invalidateModule('health');
+    return result;
   });
-  ipcMain.handle('privacy:apply-all', () => applyAllPrivacySettings());
+  ipcMain.handle('privacy:apply-all', async () => {
+    const result = await applyAllPrivacySettings();
+    cache.invalidateModule('health');
+    return result;
+  });
   ipcMain.handle('security:get-actions', () => getSecurityActions());
   ipcMain.handle('security:run-action', async (_event: IpcMainInvokeEvent, actionId: string) => {
-    return runSecurityAction(actionId);
+    const result = await runSecurityAction(actionId);
+    cache.invalidateModule('health');
+    return result;
   });
   ipcMain.handle('dns:benchmark', () => benchmarkDNS());
   ipcMain.handle('dns:set', async (_event: IpcMainInvokeEvent, primaryDNS: string, secondaryDNS: string) => {
-    return setDNS(primaryDNS, secondaryDNS);
+    const result = await setDNS(primaryDNS, secondaryDNS);
+    cache.invalidateModule('health');
+    return result;
   });
 
   // ===== App Bundles =====
@@ -147,10 +197,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   // ===== Scheduled Cleaning =====
   ipcMain.handle('cleaning:get-schedules', () => getSchedules());
   ipcMain.handle('cleaning:get-default-schedules', () => getDefaultSchedules());
-  ipcMain.handle('cleaning:create-schedule', async (_event: IpcMainInvokeEvent, schedule: any) => {
+  ipcMain.handle('cleaning:create-schedule', async (_event: IpcMainInvokeEvent, schedule: CleaningSchedule) => {
     return createSchedule(schedule);
   });
-  ipcMain.handle('cleaning:update-schedule', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
+  ipcMain.handle('cleaning:update-schedule', async (_event: IpcMainInvokeEvent, id: string, updates: Partial<CleaningSchedule>) => {
     return updateSchedule(id, updates);
   });
   ipcMain.handle('cleaning:delete-schedule', async (_event: IpcMainInvokeEvent, id: string) => {
@@ -160,6 +210,36 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     return runScheduleNow(id);
   });
   ipcMain.handle('cleaning:get-history', () => getHistory());
+
+  // ===== Cache control =====
+  ipcMain.handle('cache:clear', () => {
+    cache.clear();
+    return { success: true };
+  });
+
+  // ===== Safe Tweaks (P2) =====
+  ipcMain.handle('tweaks:get', () => getTweaks());
+  ipcMain.handle('tweaks:preview', (_event: IpcMainInvokeEvent, id: string) => previewTweak(id));
+  ipcMain.handle('tweaks:apply', async (_event: IpcMainInvokeEvent, id: string) => {
+    const result = await applyTweak(id);
+    cache.invalidateModule('health');
+    return result;
+  });
+  ipcMain.handle('tweaks:restore', async (_event: IpcMainInvokeEvent, id: string) => {
+    const result = await restoreTweak(id);
+    cache.invalidateModule('health');
+    return result;
+  });
+  ipcMain.handle('tweaks:apply-many', async (_event: IpcMainInvokeEvent, ids: string[]) => {
+    const result = await applyTweaks(ids);
+    cache.invalidateModule('health');
+    return result;
+  });
+  ipcMain.handle('tweaks:restore-many', async (_event: IpcMainInvokeEvent, ids: string[]) => {
+    const result = await restoreTweaks(ids);
+    cache.invalidateModule('health');
+    return result;
+  });
 }
 
 export type {

@@ -168,10 +168,51 @@ Muchas funciones leen o modifican el sistema y requieren **ejecutar la app como 
 | Network Fixer (reset TCP/IP, Winsock, firewall) | Sí |
 | Scheduled Cleaning (crear tareas programadas) | Sí |
 | Audit / Benchmark (lectura de HKLM) | Parcial |
+| Tweaks — Performance: SysMain, Prefetch (`HKLM`/servicios) | Sí |
+| Tweaks — Privacy: Telemetry/DiagTrack (servicio + tareas + `HKLM`) | Sí |
+| Tweaks — Background Apps, Suggested Content, Explorer (`HKCU`) | No |
 
 **Portable:** si las acciones fallan, cerrá la app y reabrí con clic derecho → **Ejecutar como administrador**.
 
 **Nota técnica:** todos los scripts se ejecutan vía `-EncodedCommand` (Base64 UTF-16LE) para evitar problemas de comillas y codificación. Si un módulo devuelve datos vacíos, verificá que `powershell.exe` esté disponible y que no haya políticas de ejecución restrictivas.
+
+---
+
+### 13. Tweaks: cómo funcionan, reversibilidad y administrador
+
+**Qué son:** ajustes curados (Performance / Privacy / Explorer) para Windows 11. Sólo se incluye
+el **subset seguro**; no hay tweaks destructivos ni "Remove All".
+
+**Reversibilidad (garantizada):**
+1. Antes de aplicar, la app **captura el estado previo** (valor de registro, tipo de inicio del
+   servicio, estado de la tarea programada) y lo persiste en
+   `%APPDATA%/forch-i-winoptimizer/tweaks-state.json`.
+2. **Restore** escribe ese estado previo (o borra el valor si no existía).
+3. Si la captura no está disponible, se usan los valores por defecto documentados de Windows.
+
+**Preview antes de aplicar:** el botón **Preview** lista exactamente las claves de registro,
+servicios y tareas que se tocan (Apply y Restore).
+
+**Un tweak falla o no tiene efecto:**
+- Ejecutá la app **como administrador** para los tweaks de servicios/`HKLM` (SysMain, Prefetch,
+  Telemetry/DiagTrack).
+- El mensaje de error se muestra en la tarjeta del tweak (motivo real de PowerShell).
+- Los tweaks **informativos** (Game Mode / HAGS) nunca modifican nada: sólo sugieren.
+
+**Restaurar todo:** marcá los tweaks aplicados y usá **Restore selected**.
+
+---
+
+### 14. Ventana frameless: mover, maximizar o cerrar
+
+**No puedo mover la ventana:** arrastrá desde la **barra superior** o el **encabezado del menú
+lateral** (zonas de drag). Los controles y el buscador no arrastran (por diseño).
+
+**El botón Maximizar no cambia de ícono:** debería alternar con el estado de la ventana. Si usás
+un gestor de ventanas que evita eventos `maximize`/`unmaximize` de Electron, reiniciá la app.
+
+**La caché me muestra datos viejos (≤ TTL):** System Info 60 s, Drivers 5 min, Junk 30 s. Usá
+**Refresh** en el Dashboard (invalida la caché) o volvé a ejecutar el scan del módulo.
 
 ---
 

@@ -9,6 +9,7 @@
    - [Cleaner](#cleaner)
    - [Boost](#boost)
    - [Tools](#tools)
+   - [Tweaks](#tweaks)
    - [Security](#security)
    - [Statistics](#statistics)
    - [Settings](#settings)
@@ -30,8 +31,22 @@
 - **Monitoreo del sistema** — CPU, RAM, disco y GPU en tiempo real
 - **Gestión de apps** — Desinstalar aplicaciones fácilmente
 - **Seguridad** — Auditoría de seguridad del sistema
+- **Tweaks seguros** — Ajustes de rendimiento/privacidad/Explorer, reversibles y con vista previa
 - **Multi-idioma** — Español e Inglés
 - **Temas** — Oscuro, claro y más
+
+### Controles de ventana
+
+La ventana es *frameless* con controles propios en la esquina superior derecha
+(estilo Windows 11):
+
+- **Minimizar** — envía la ventana a la barra de tareas
+- **Maximizar / Restaurar** — alterna el tamaño; el ícono cambia según el estado
+- **Cerrar** — cierra la aplicación (hover rojo)
+
+Podés **arrastrar la ventana** desde la barra superior o desde el encabezado del menú
+lateral. Los botones de control y los campos de búsqueda no arrastran. Todos los botones
+son accesibles por teclado (`Tab` + `Enter`/`Espacio`, con anillo de foco visible).
 
 ---
 
@@ -124,6 +139,43 @@ Herramientas del sistema:
 - **Abrir Registry Editor** — Editor del registro
 - **Abrir Services** — Administrador de servicios
 
+### Tweaks
+
+Ajustes **seguros y reversibles** de rendimiento, privacidad y Explorador. **Nada se aplica
+automáticamente** y todo se puede restaurar.
+
+Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
+
+**Performance**
+- **SysMain (Superfetch)** — desactiva el servicio; recomendado sólo en SSD si notás uso alto de disco/CPU
+- **Prefetch / Superfetch (conservador)** — restaura los valores recomendados por Windows (no lo desactiva)
+- **Background Apps (usuario)** — evita que las apps de la Store corran en segundo plano
+- **Game Mode / HAGS** — **informativo**: detecta y sugiere, nunca fuerza (depende de GPU/driver)
+
+**Privacy**
+- **Telemetry & DiagTrack** — desactiva DiagTrack, fija telemetría al mínimo y apaga tareas CEIP/feedback
+- **Suggested Content & Ads** — quita sugerencias, tips y publicidad de Windows 11
+
+**Explorer**
+- **Mostrar extensiones de archivos**
+- **Ocultar recientes y frecuentes** (Acceso rápido)
+- **Menú contextual clásico/compacto** (Windows 11)
+
+**Uso:**
+
+1. Ve a **Tweaks** en el menú lateral
+2. Click en **Preview** para ver **exactamente** qué claves/servicios se tocan
+3. Click en **Apply** (individual) o marcá varios y usá **Apply selected**
+4. Para deshacer, click en **Restore** (o **Restore selected**)
+
+> **Reversibilidad:** antes de aplicar, la app **captura el estado previo** (valor del registro,
+> tipo de inicio del servicio, estado de la tarea) y lo guarda para restaurarlo. Si no puede
+> capturarlo, usa los valores por defecto de Windows documentados en el tweak.
+>
+> **Administrador:** los tweaks que tocan servicios del sistema, tareas programadas o `HKLM`
+> (SysMain, Prefetch, Telemetry/DiagTrack) requieren ejecutar la app como administrador.
+> Los de `HKCU` (Background Apps, Suggested Content, Explorer) no.
+
 ### Security
 
 Auditoría de seguridad:
@@ -184,6 +236,7 @@ Sí. La aplicación está diseñada con seguridad en mente:
 ### ¿Puedo deshacer los cambios?
 
 Sí. La mayoría de los cambios se pueden revertir:
+- **Tweaks:** botón **Restore** por tweak (o "Restore selected"); vuelve al estado previo capturado
 - **Servicios:** Se pueden volver a activar manualmente
 - **Archivos eliminados:** Se pueden restaurar desde la papelera (si no se vació)
 - **Apps de inicio:** Se pueden volver a activar
@@ -225,6 +278,12 @@ Puedes reportar errores en la [sección de issues](https://github.com/paulogvs/f
 - Cierra otras aplicaciones
 - Reinicia el sistema
 - Verifica que tu PC cumpla los requisitos mínimos
+
+### Un tweak no se aplica ("FAILED" o sin efecto)
+
+- Los tweaks de servicios/`HKLM` requieren **ejecutar como administrador**
+- Revisá el mensaje de error en la tarjeta del tweak (indica el motivo real)
+- Podés volver atrás con **Restore**; si el estado previo no estaba disponible, se usan los default de Windows
 
 ### Error "PowerShell not found"
 

@@ -34,6 +34,8 @@
   /* Semantic — Error/Danger */
   --color-error: #EF4444;
   --color-error-muted: rgba(239, 68, 68, 0.15);
+  --color-danger: #EF4444;
+  --color-danger-foreground: #FFFFFF;
 
   /* Semantic — Info */
   --color-info: #3B82F6;
@@ -135,6 +137,8 @@
   /* Semantic — Error/Danger */
   --color-error: #DC2626;
   --color-error-muted: rgba(220, 38, 38, 0.12);
+  --color-danger: #DC2626;
+  --color-danger-foreground: #FFFFFF;
 
   /* Semantic — Info */
   --color-info: #2563EB;
@@ -194,6 +198,21 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* === Pause decorative animations while scanning (P3) === */
+html[data-scanning='true'] .status-dot-online,
+html[data-scanning='true'] .page {
+  animation-play-state: paused;
+}
+
+html[data-scanning='true'] .page {
+  animation: none;
 }
 
 @keyframes pulse {

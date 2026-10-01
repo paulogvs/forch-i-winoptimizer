@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Source, SourcesConfig, LastCheck, UpdateReport, GitHubRepoInfo } from './types';
+import type { Source, SourcesConfig, LastCheck, UpdateReport, GitHubRepoInfo } from './types';
 import { getCatalogStorageDir, getStorageDir, resolveBundledPath } from './paths';
 
 const GITHUB_API = 'https://api.github.com';

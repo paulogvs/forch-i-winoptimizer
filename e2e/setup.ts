@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const mockSystemInfo = {
   platform: 'win32',
@@ -183,7 +183,7 @@ export async function setupElectronMock(page: Page): Promise<void> {
       toggleStartupApp: (appId: string, enabled: boolean) =>
         Promise.resolve({ success: true, message: `App ${enabled ? 'enabled' : 'disabled'}` }),
       getInstalledApps: () => Promise.resolve(installedApps),
-      uninstallApp: (appId: string, uninstallString: string) =>
+      uninstallApp: (_appId: string, _uninstallString: string) =>
         Promise.resolve({ success: true, message: 'Uninstalled' }),
       getSystemServices: () => Promise.resolve(systemServices),
       toggleService: (serviceId: string, enabled: boolean) =>
@@ -192,12 +192,23 @@ export async function setupElectronMock(page: Page): Promise<void> {
         Promise.resolve({ success: true, message: `Start type set to ${startType}` }),
       checkForUpdates: () =>
         new Promise((resolve) => setTimeout(() => resolve(updateInfo), 100)),
-      downloadUpdate: (url: string) => Promise.resolve('C:\\Downloads\\update.exe'),
+      downloadUpdate: (_url: string) => Promise.resolve('C:\\Downloads\\update.exe'),
       onUpdateProgress: (callback: (percent: number) => void) => {
         callback(50);
         callback(100);
         return () => {};
       },
+      window: {
+        minimize: () => Promise.resolve(),
+        maximize: () => Promise.resolve(),
+        unmaximize: () => Promise.resolve(),
+        isMaximized: () => Promise.resolve(false),
+        close: () => Promise.resolve(),
+        onMaximized: () => () => {},
+        onUnmaximized: () => () => {},
+      },
+      onScanProgress: () => () => {},
+      clearCache: () => Promise.resolve({ success: true }),
     };
 
     (window as unknown as { electronAPI: typeof mockAPI }).electronAPI = mockAPI;
@@ -288,6 +299,36 @@ export async function setupElectronMock(page: Page): Promise<void> {
         importAll: () => Promise.resolve({ success: true, imported: 0, failed: 0, errors: [] }),
         reject: () => Promise.resolve({ success: true }),
         rejectAll: () => Promise.resolve({ success: true }),
+      },
+      tweaks: {
+        get: () =>
+          Promise.resolve([
+            {
+              id: 'show-file-extensions',
+              name: 'Show file extensions',
+              description: 'Shows known file extensions in File Explorer.',
+              category: 'explorer' as const,
+              safety: 'safe' as const,
+              reversible: true as const,
+              impact: 'low' as const,
+              requiresAdmin: false,
+              applied: false,
+              apply: [
+                { kind: 'registry' as const, hive: 'HKCU' as const, path: 'Software\\Explorer\\Advanced', name: 'HideFileExt', type: 'DWORD' as const, value: 0 },
+              ],
+              revert: [
+                { kind: 'registry' as const, hive: 'HKCU' as const, path: 'Software\\Explorer\\Advanced', name: 'HideFileExt', type: 'DWORD' as const, value: 1 },
+              ],
+            },
+          ]),
+        preview: (id: string) =>
+          Promise.resolve({ id, name: id, reversible: true, applyOperations: [], revertOperations: [] }),
+        apply: (id: string) => Promise.resolve({ id, success: true, message: 'ok' }),
+        restore: (id: string) => Promise.resolve({ id, success: true, message: 'ok' }),
+        applyMany: (ids: string[]) =>
+          Promise.resolve(ids.map((id) => ({ id, success: true, message: 'ok' }))),
+        restoreMany: (ids: string[]) =>
+          Promise.resolve(ids.map((id) => ({ id, success: true, message: 'ok' }))),
       },
     };
 

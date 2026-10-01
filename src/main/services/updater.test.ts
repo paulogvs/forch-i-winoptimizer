@@ -38,7 +38,7 @@ describe('updater', () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockRelease),
-      } as any);
+      } as unknown as Response);
 
       const result = await checkForUpdates();
 
@@ -59,7 +59,7 @@ describe('updater', () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockRelease),
-      } as any);
+      } as unknown as Response);
 
       const result = await checkForUpdates();
 
@@ -81,7 +81,7 @@ describe('updater', () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: false,
         status: 404,
-      } as any);
+      } as unknown as Response);
 
       const result = await checkForUpdates();
 
@@ -100,7 +100,7 @@ describe('updater', () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockRelease),
-      } as any);
+      } as unknown as Response);
 
       const result = await checkForUpdates();
 
@@ -119,7 +119,7 @@ describe('updater', () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockRelease),
-      } as any);
+      } as unknown as Response);
 
       const result = await checkForUpdates();
 
@@ -134,7 +134,7 @@ describe('updater', () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: false,
         statusText: 'Not Found',
-      } as any);
+      } as unknown as Response);
 
       await expect(downloadUpdate('https://example.com/update.exe')).rejects.toThrow('Download failed');
     });
@@ -144,7 +144,7 @@ describe('updater', () => {
         ok: true,
         body: null,
         headers: new Headers(),
-      } as any);
+      } as unknown as Response);
 
       await expect(downloadUpdate('https://example.com/update.exe')).rejects.toThrow('Failed to read response body');
     });

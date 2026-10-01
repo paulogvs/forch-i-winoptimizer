@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-01
+
+Fase P0 → P3 completa: UX crítico, rendimiento medible, tweaks seguros reversibles y pulido Electron.
+
+### Added
+
+- **Controles de ventana (P0.1):** Minimizar / Maximizar-Restaurar / Cerrar en la titlebar frameless, con estilo Windows 11, estados hover, focus-visible, `-webkit-app-region` (drag en la barra, `no-drag` en los controles) y sincronización del ícono Maximize↔Restore vía eventos IPC `window:maximized` / `window:unmaximized`
+- **Progreso por etapas (P0.3):** contrato `ScanProgressEvent` (module, stage, percent, message, etaMs) emitido desde Main con **throttle de 180 ms** y sólo si cambia etapa o percent (±1). Barra + stepper por módulo en la UI. El contrato de respuesta final no cambió (el progreso es adicional)
+- **Skeletons reutilizables (P0.2):** tabla, lista, cards y texto, usados en Dashboard/Cleaner/Drivers para estados `loading` coherentes
+- **Virtualización + chunked reveal (P0.4):** `@tanstack/react-virtual` para listas > 50 filas (Drivers), `React.memo` por fila, `useMemo`/`useCallback`, y reveal progresivo (30 filas iniciales, +60 por tick)
+- **Cache TTL en memoria (P1.2):** System Info 60 s · Drivers 5 m · Junk 30 s · Apps/Startup/Services 60 s · Health/Optimize 30 s. Invalidación explícita tras Clean / Apply / Toggle / Refresh, y `clearCache()` manual
+- **Feature flag reversible (P1.1):** `useSystemInfoBatch` (por defecto batch; desactivable) para volver a las 4 sondas si hiciera falta
+- **Sección Tweaks (P2):** 9 tweaks seguros (Performance / Privacy / Explorer), cada uno con descripción, badge Safe/Advanced, **Reversible: Sí**, Preview de las claves/servicios exactos, Apply/Restore individual y por grupo. Estado previo capturado antes de aplicar y persistido para restaurar el valor original
+- `docs/PERFORMANCE.md` con mediciones antes/después y `scripts/measure-system-info.mjs`
+- Tests nuevos: ventana (IPC/componente), progreso (throttle/estado), cache TTL, batch System Info, tweaks (apply/restore con mocks), skeletons, virtualización (E2E real)
+
+### Changed
+
+- **System Info en 1 proceso PowerShell (P1.1):** las 4 sondas (CPU/Disco/GPU/OS) se agrupan en un único script `-EncodedCommand` que devuelve JSON anidado. **4 spawns → 1** y ~60 % más rápido en medición real (ver `docs/PERFORMANCE.md`). Fallback automático a las sondas si el batch falla
+- Búsqueda de drivers con `useDeferredValue` (sin lag al escribir) y filtro memoizado
+- Páginas de scan migradas a los nuevos estados (skeleton + progreso + error explícito) en lugar de spinners infinitos
+- **Electron/Pulido (P3):** `content-visibility: auto` en secciones largas, pausa de animaciones decorativas durante scans (`data-scanning`), defaults de `backgroundThrottling` sin cambios, y auditoría de listeners/timers (todos con cleanup)
+
+### Fixed
+
+- **Script de lint roto:** `eslint . --ext ts,tsx` fallaba con la config flat de ESLint 8. Ahora es `eslint .` y se instaló `typescript-eslint` (faltaba). Lint pasa con **0 errores y 0 warnings**
+- Eliminados los `any` restantes en IPC/Security/electron-api; `winoptimizer` ahora está tipado por completo (`WinOptimizerAPI`)
+- Fuga potencial de listeners de IPC en el renderer resuelta con unsubscribe garantizado (`onMaximized/onUnmaximized/onScanProgress`)
+- El `Refresh` del Dashboard ahora invalida la caché (no devuelve datos cacheados)
+
 ## [0.2.3] - 2026-10-01
 
 ### Fixed

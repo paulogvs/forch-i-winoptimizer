@@ -1,5 +1,6 @@
 import * as path from 'path';
 import { runPowerShell, parsePowerShellJson } from './powershell';
+import { createNoopReporter, type ScanProgressReporter } from './scan-progress';
 
 export interface JunkFile {
   id: string;
@@ -171,9 +172,12 @@ function buildTargets(): JunkTarget[] {
  * Paths/patterns are emitted as single-quoted PowerShell literals so that
  * `$Recycle.Bin` is not treated as a variable.
  */
-export async function scanForJunkFiles(): Promise<JunkScanResult> {
+export async function scanForJunkFiles(reporter?: ScanProgressReporter): Promise<JunkScanResult> {
+  const progress = reporter ?? createNoopReporter('junk');
   const categories = emptyCategories();
   const files: JunkFile[] = [];
+
+  progress.report('discover', 8, 'Preparing junk scan targets...');
 
   const targetLiterals = buildTargets()
     .map((t) => `[pscustomobject]@{ Category=${psQuote(t.category)}; Path=${psQuote(t.path)}; Filter=${psQuote(t.pattern)} }`)
@@ -201,13 +205,18 @@ export async function scanForJunkFiles(): Promise<JunkScanResult> {
   `;
 
   try {
+    progress.report('query', 35, 'Scanning temporary files and caches...');
     const result = await runPowerShell(script);
     if (!result.success || !result.stdout) {
+      progress.fail('Junk scan failed');
       return { files, totalSize: 0, totalCount: 0, categories };
     }
 
+    progress.report('parse', 80, 'Parsing scan results...');
     const parsed = parsePowerShellJson<ScannedFile[] | ScannedFile>(result.stdout);
     const list: ScannedFile[] = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+
+    progress.report('normalize', 90, 'Aggregating sizes...');
 
     for (const file of list) {
       if (!file || !file.FullName) continue;
@@ -235,6 +244,8 @@ export async function scanForJunkFiles(): Promise<JunkScanResult> {
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+
+  progress.done('Junk scan complete');
 
   return {
     files,

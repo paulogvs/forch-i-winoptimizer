@@ -1,4 +1,4 @@
-import { UpdateReport, PendingUpdate } from './types';
+import type { UpdateReport, PendingUpdate } from './types';
 import { loadLastCheck } from './check-updates';
 
 export function formatReport(report: UpdateReport): string {

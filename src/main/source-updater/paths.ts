@@ -20,7 +20,7 @@ interface ElectronLike {
  */
 function loadElectron(): ElectronLike | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('electron') as unknown;
     if (mod && typeof mod === 'object' && 'app' in (mod as Record<string, unknown>)) {
       return mod as ElectronLike;

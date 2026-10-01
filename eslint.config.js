@@ -19,6 +19,8 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // ESLint 8 only supports 'all' | false for checkLoops.
+      'no-constant-condition': ['error', { checkLoops: false }],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/consistent-type-imports': 'error',
     },
