@@ -126,6 +126,34 @@
 
 ---
 
+### 11. Error al empaquetar para Windows (electron-builder)
+
+**Síntomas:** `npm run electron:build` falla con:
+
+```
+ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido
+  ...\winCodeSign\<hash>\darwin\10.12\lib\libcrypto.dylib
+```
+
+**Causa:** electron-builder extrae el paquete `winCodeSign`, que incluye enlaces simbólicos de macOS (`darwin/*.dylib`). Windows necesita el privilegio `SeCreateSymbolicLinkPrivilege` (Modo Desarrollador o Administrador) para crearlos.
+
+**Soluciones (elige una):**
+1. **Activar Modo Desarrollador** (recomendado): Configuración → Privacidad y seguridad → Para desarrolladores → *Modo para desarrolladores* = Activado. Vuelve a ejecutar `npm run electron:build`.
+2. **Ejecutar la terminal como Administrador.**
+3. **Workaround sin privilegios** — pre-extraer `winCodeSign` excluyendo `darwin`:
+   ```powershell
+   $cache = "$env:LOCALAPPDATA\electron-builder\Cache\winCodeSign"
+   $7za   = ".\node_modules\7zip-bin\win\x64\7za.exe"
+   $arc   = (Get-ChildItem "$cache\*.7z" | Select-Object -First 1).FullName
+   & $7za x $arc "-o$cache\winCodeSign-2.6.0" "-xr!darwin" -y
+   ```
+4. **Alternativa rápida (sin icono/metadatos embebidos en el `.exe`):**
+   ```bash
+   npx electron-builder --win --config.win.signAndEditExecutable=false
+   ```
+
+---
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

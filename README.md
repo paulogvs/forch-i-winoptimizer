@@ -81,6 +81,10 @@ pnpm run electron:build
 
 Artifacts are written to `release/`.
 
+Prebuilt artifacts are published on the [Releases page](https://github.com/paulogvs/forch-i-winoptimizer/releases) (with SHA-256 checksums). The binaries are **not code-signed**, so Windows SmartScreen may warn on first run.
+
+> Building on a fresh Windows machine may hit a `winCodeSign` symbolic-link error — see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) §11.
+
 ### Build for Production
 
 ```bash
