@@ -65,7 +65,7 @@ const App: React.FC = () => {
       onThemeToggle={handleThemeToggle}
       onSearch={handleSearch}
       searchQuery={searchQuery}
-      version="0.1.0"
+      version={__APP_VERSION__}
       windowsVersion="Windows 11"
       lastScan={lastScan}
     >

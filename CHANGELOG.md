@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-10-01
+
+### Changed
+
+- Sidebar now shows the full **brand lockup** (mark + "WINOPTIMIZER"), theme-aware: white on dark, navy on light
+- App version is injected at build time from `package.json` (`__APP_VERSION__`) — removed hardcoded `0.1.0` in `App.tsx` / `Settings.tsx`
+
+### Added
+
+- Transparent brand lockups (`lockup-dark`, `lockup-light`) generated from the source logo
+- Brand assets served from `/brand` (packaged with the renderer)
+
 ## [0.2.1] - 2026-10-01
 
 ### Changed

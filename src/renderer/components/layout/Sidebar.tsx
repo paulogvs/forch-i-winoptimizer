@@ -26,7 +26,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => 
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <h1 className="sidebar-logo">FORCH.iA WinOptimizer</h1>
+        <img
+          className="sidebar-brand brand-logo--dark"
+          src="brand/lockup-dark.png"
+          alt="FORCH.iA WinOptimizer"
+        />
+        <img
+          className="sidebar-brand brand-logo--light"
+          src="brand/lockup-light.png"
+          alt="FORCH.iA WinOptimizer"
+        />
       </div>
       <nav className="sidebar-nav" aria-label="Main navigation">
         {navItems.map((item) => (

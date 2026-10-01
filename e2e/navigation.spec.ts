@@ -54,6 +54,6 @@ test.describe('Navigation', () => {
   });
 
   test('should display version in status bar', async ({ page }) => {
-    await expect(page.locator('text=v0.1.0')).toBeVisible();
+    await expect(page.locator('.status-bar')).toContainText(/v\d+\.\d+\.\d+/);
   });
 });

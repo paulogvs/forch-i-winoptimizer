@@ -93,7 +93,7 @@ export const Settings: React.FC<SettingsProps> = ({ theme, onThemeToggle }) => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-fg-primary">Current Version</div>
-                <div className="text-xs text-fg-tertiary">v0.1.0</div>
+                <div className="text-xs text-fg-tertiary">v{__APP_VERSION__}</div>
               </div>
               <Button variant="secondary" size="sm" onClick={checkForUpdates} loading={checking}>
                 {checking ? 'Checking...' : 'Check for Updates'}
@@ -133,7 +133,7 @@ export const Settings: React.FC<SettingsProps> = ({ theme, onThemeToggle }) => {
 
         <Card title="About">
           <div className="flex flex-col gap-2 text-sm text-fg-secondary">
-            <p><strong>FORCH.iA WinOptimizer</strong> v0.1.0</p>
+            <p><strong>FORCH.iA WinOptimizer</strong> v{__APP_VERSION__}</p>
             <p>Built with FORCH.i by Paulo Velasco</p>
             <p>Electron 31 + React 18 + TypeScript 5.5 + Vite 5</p>
             <div className="mt-4">
