@@ -59,11 +59,21 @@ Verificado en navegador real por `e2e/performance.spec.ts`.
 - Progreso por etapas con throttle de 180 ms (evita spam de eventos IPC).
 - Animaciones decorativas pausadas durante scans (`data-scanning`).
 
+## Huella de la app (portable v0.3.0, en reposo)
+
+Medido con `Get-Process` sobre el portable elevado, ~35 s después del arranque:
+
+| Métrica | Valor |
+|---|---|
+| Procesos Electron | 4 (main + renderer + GPU + utility) |
+| RAM en reposo (WorkingSet total) | **≈ 330 MB** |
+| CPU acumulada en ~35 s | ≈ 3.5 s (pico en startup, luego ocioso) |
+
 ## Pendiente / no instrumentado
 
 - **Long Tasks y FPS de scroll**: no se capturaron con DevTools Performance en este entorno.
-  La virtualización y el chunked reveal están verificados por conteo de DOM, no por frame timing.
-- **RAM/CPU**: se reporta el estado del proceso al lanzar la app, no un perfil sostenido.
+  La virtualización y el chunked reveal están verificados por conteo de DOM (< 120 filas para 500),
+  no por frame timing. Queda como medición recomendada en un equipo con perfilador.
 - `backgroundThrottling`: se mantuvo el default seguro de Electron (no se desactiva).
 
 *Build. Learn. Evolve.*
