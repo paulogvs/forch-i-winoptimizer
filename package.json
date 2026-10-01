@@ -1,6 +1,6 @@
 {
   "name": "forch-i-winoptimizer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Windows optimizer built with FORCH.iA ecosystem",
   "author": "Paulo Velasco",
   "license": "MIT",
@@ -80,7 +80,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "FORCH.iA WinOptimizer"
+      "shortcutName": "FORCH.iA WinOptimizer",
+      "installerIcon": "assets/icons/icon.ico",
+      "uninstallerIcon": "assets/icons/icon.ico",
+      "installerHeaderIcon": "assets/icons/icon.ico"
     },
     "portable": {
       "artifactName": "FORCH.iA-WinOptimizer-Portable-${version}.exe"

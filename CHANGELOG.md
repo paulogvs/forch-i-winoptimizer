@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-01
+
+### Changed
+
+- Replaced the placeholder icon with the **final FORCH.iA WinOptimizer logo** ("FORCH Core": the F-built-from-ascending-bars wrapped by a boost-sweep arc)
+- Generated a multi-resolution `assets/icons/icon.ico` (16/24/32/48/64/128/256) plus `icon-256/512/1024.png` masters
+- NSIS installer/uninstaller/header now use the app icon
+
 ## [0.2.0] - 2026-09-30
 
 ### Added
