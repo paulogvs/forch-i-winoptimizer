@@ -86,6 +86,49 @@ export function getAppBundles(): AppBundle[] {
   return APP_BUNDLES;
 }
 
+// ===== P0.2: winget exit-code handling + package id validation =====
+
+/**
+ * winget package ids are dot-separated identifiers (e.g. `Google.Chrome`,
+ * `7zip.7zip`, GUID-like ids such as `clsid2227a280-...`). Anything outside
+ * this grammar is rejected BEFORE the id is interpolated into a PowerShell
+ * script, which closes the command-injection gap.
+ */
+const WINGET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+
+function invalidIdResult(action: 'install' | 'uninstall'): { success: false; message: string } {
+  return { success: false, message: `Invalid package id: refusing to ${action}` };
+}
+
+/**
+ * winget reports failures via exit code and stderr, NOT via exceptions, so a
+ * surrounding `try/catch` can never see them. The script captures the output
+ * and derives the verdict from `$LASTEXITCODE` (plus winget's "already
+ * installed" case, which exits non-zero on some versions).
+ */
+function wingetScript(action: 'install' | 'uninstall', wingetId: string): string {
+  const flags =
+    action === 'install'
+      ? 'install --id ' + wingetId + ' --silent --accept-package-agreements --accept-source-agreements'
+      : 'uninstall --id ' + wingetId + ' --silent';
+  return `
+    $out = winget ${flags} 2>&1 | Out-String;
+    if ($LASTEXITCODE -eq 0 -or $out -match 'already installed') {
+      Write-Output 'SUCCESS'
+    } else {
+      Write-Output "FAILED: winget exit code $LASTEXITCODE"
+      Write-Output $out
+    }
+  `;
+}
+
+function failureMessage(action: 'install' | 'uninstall', wingetId: string, result: { stdout: string; stderr: string }): string {
+  const combined = `${result.stdout}\n${result.stderr}`;
+  const marker = combined.indexOf('FAILED:');
+  const detail = (marker >= 0 ? combined.slice(marker) : combined).trim();
+  return `Failed to ${action} ${wingetId}${detail ? `: ${detail}` : ''}`;
+}
+
 export async function checkInstalledApps(): Promise<Map<string, boolean>> {
   const installed = new Map<string, boolean>();
 
@@ -116,20 +159,18 @@ export async function installApp(wingetId: string): Promise<{
   success: boolean;
   message: string;
 }> {
-  const result = await runPowerShell(`
-    try {
-      winget install --id ${wingetId} --silent --accept-package-agreements --accept-source-agreements;
-      Write-Output "SUCCESS"
-    } catch {
-      Write-Output "FAILED: $_"
-    }
-  `);
+  if (!WINGET_ID_PATTERN.test(wingetId)) {
+    return invalidIdResult('install');
+  }
+
+  const result = await runPowerShell(wingetScript('install', wingetId));
+  const success = result.success && result.stdout.includes('SUCCESS');
 
   return {
-    success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
+    success,
+    message: success
       ? `Successfully installed ${wingetId}`
-      : `Failed to install ${wingetId}: ${result.stderr}`,
+      : failureMessage('install', wingetId, result),
   };
 }
 
@@ -160,19 +201,17 @@ export async function uninstallApp(wingetId: string): Promise<{
   success: boolean;
   message: string;
 }> {
-  const result = await runPowerShell(`
-    try {
-      winget uninstall --id ${wingetId} --silent;
-      Write-Output "SUCCESS"
-    } catch {
-      Write-Output "FAILED: $_"
-    }
-  `);
+  if (!WINGET_ID_PATTERN.test(wingetId)) {
+    return invalidIdResult('uninstall');
+  }
+
+  const result = await runPowerShell(wingetScript('uninstall', wingetId));
+  const success = result.success && result.stdout.includes('SUCCESS');
 
   return {
-    success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
+    success,
+    message: success
       ? `Successfully uninstalled ${wingetId}`
-      : `Failed to uninstall ${wingetId}: ${result.stderr}`,
+      : failureMessage('uninstall', wingetId, result),
   };
 }

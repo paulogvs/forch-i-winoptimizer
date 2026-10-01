@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { SkeletonList } from '../components/ui/Skeleton';
 import type { TweakCategory, TweakOperation, TweakView } from '@shared/tweaks';
+import { useOperationStatus } from '../hooks/useOperationStatus';
 
 type ActionState = 'idle' | 'working' | 'done' | 'error';
 
@@ -34,6 +35,7 @@ function describeOperation(op: TweakOperation): string {
 }
 
 export const Tweaks: React.FC = () => {
+  const operation = useOperationStatus();
   const [tweaks, setTweaks] = useState<TweakView[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -188,6 +190,7 @@ export const Tweaks: React.FC = () => {
                 variant="primary"
                 size="sm"
                 loading={state === 'working'}
+                disabled={operation.busy}
                 onClick={() => runSingle(tweak, 'apply')}
               >
                 Apply
@@ -198,6 +201,7 @@ export const Tweaks: React.FC = () => {
                 variant="secondary"
                 size="sm"
                 loading={state === 'working'}
+                disabled={operation.busy}
                 onClick={() => runSingle(tweak, 'restore')}
               >
                 Restore
@@ -219,10 +223,18 @@ export const Tweaks: React.FC = () => {
           <Button variant="secondary" onClick={loadTweaks} loading={loading}>
             Refresh
           </Button>
-          <Button variant="primary" onClick={() => runSelected('apply')} disabled={selectedCount === 0}>
+          <Button
+            variant="primary"
+            onClick={() => runSelected('apply')}
+            disabled={selectedCount === 0 || operation.busy}
+          >
             Apply selected ({selectedCount})
           </Button>
-          <Button variant="secondary" onClick={() => runSelected('restore')} disabled={selectedCount === 0}>
+          <Button
+            variant="secondary"
+            onClick={() => runSelected('restore')}
+            disabled={selectedCount === 0 || operation.busy}
+          >
             Restore selected
           </Button>
         </div>

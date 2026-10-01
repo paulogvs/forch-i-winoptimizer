@@ -111,6 +111,65 @@ describe('App Bundles', () => {
       const result = await installApp('Invalid.Package');
       expect(result.success).toBe(false);
     });
+
+    // ===== P0.2: winget exit code + package id validation =====
+
+    it('rejects a package id containing shell metacharacters without invoking PowerShell', async () => {
+      const result = await installApp('Google.Chrome"; Remove-Item C:\\ -Recurse; Write-Output "');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Invalid package id');
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects an empty package id without invoking PowerShell', async () => {
+      const result = await installApp('');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Invalid package id');
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('generates a script that checks the winget exit code (never unconditional SUCCESS)', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      await installApp('Google.Chrome');
+
+      const script = String(vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '');
+      expect(script).toContain('$LASTEXITCODE');
+      // winget reports failures on stderr/exit code, not via exceptions
+      expect(script).not.toMatch(/winget install[\s\S]*Write-Output "SUCCESS"\s*;?\s*catch/);
+    });
+
+    it('returns success=false when the script reports a winget failure', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'FAILED: winget exit 0x8A150014',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await installApp('Google.Chrome');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Failed to install');
+    });
+
+    it('treats "already installed" as success', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS\nGoogle Chrome is already installed',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await installApp('Google.Chrome');
+      expect(result.success).toBe(true);
+    });
   });
 
   describe('installApps', () => {
@@ -152,6 +211,21 @@ describe('App Bundles', () => {
       expect(result.installed).toBe(1);
       expect(result.failed).toBe(1);
     });
+
+    it('counts an injected package id as a failure without invoking PowerShell', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await installApps(['Google.Chrome', 'bad id; calc']);
+
+      expect(result.installed).toBe(1);
+      expect(result.failed).toBe(1);
+      expect(runPowerShell).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('uninstallApp', () => {
@@ -178,6 +252,30 @@ describe('App Bundles', () => {
 
       const result = await uninstallApp('Invalid.Package');
       expect(result.success).toBe(false);
+    });
+
+    // ===== P0.2: winget exit code + package id validation =====
+
+    it('rejects a malicious package id without invoking PowerShell', async () => {
+      const result = await uninstallApp('Google.Chrome; Stop-Computer');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Invalid package id');
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('generates a script that checks the winget exit code', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      await uninstallApp('Google.Chrome');
+
+      const script = String(vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '');
+      expect(script).toContain('$LASTEXITCODE');
     });
   });
 });

@@ -299,6 +299,18 @@ export interface WindowControlsAPI {
   onUnmaximized: (callback: () => void) => () => void;
 }
 
+/** Global operation-lock status (P0.3): mirrors main's operation-lock state. */
+export interface OperationStatus {
+  /** True while an operation is running OR queued. */
+  busy: boolean;
+  /** IPC channel of the operation currently holding the lock. */
+  current: string | null;
+  /** Number of operations waiting for the lock. */
+  queued: number;
+  /** Epoch ms when the current operation started (null when idle). */
+  startedAt: number | null;
+}
+
 export interface ElectronAPI {
   getSystemInfo: (options?: CacheOptions) => Promise<SystemInfo>;
   scanForJunkFiles: (options?: CacheOptions) => Promise<JunkScanResult>;
@@ -317,6 +329,10 @@ export interface ElectronAPI {
   window: WindowControlsAPI;
   // Scan progress (P0.3)
   onScanProgress: (callback: (event: ScanProgressEvent) => void) => () => void;
+  // Global operation lock (P0.3)
+  getOperationStatus: () => Promise<OperationStatus>;
+  /** Subscribe to global operation status changes. Returns an unsubscribe function. */
+  onOperationStatus: (callback: (status: OperationStatus) => void) => () => void;
   // Cache control (P1.2)
   clearCache: () => Promise<{ success: boolean }>;
 }

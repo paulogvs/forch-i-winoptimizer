@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.4.0 (en progreso)
+
+### Added
+
+- **Mutex global de operaciones (P0.3):** cola FIFO `withOperationLock` en Main que serializa los 24 canales IPC que mutan el sistema (tweaks, winget install/uninstall, servicios, cleaner, debloat, DNS, drivers, red, startup, drift…). Dos operaciones conflictivas **nunca** corren a la vez; el lock se libera aunque la operación falle. Nuevo canal `system:op-status` + evento `system:op-changed`
+- **Indicador global de ocupación en la UI (P0.3):** badge "Applying tweak / Installing apps / …" con punto pulsante en el header (`data-testid="op-status"`), hook `useOperationStatus`, y botones de acción (Tweaks: Apply/Restore single y selected; Bundles: Install/Install Selected) deshabilitados mientras el lock está ocupado
+- **Test de integridad de catálogos (P0.1):** valida el JSON de `catalogs/*.json` y `src/shared/catalogs/*.json`
+- **Tests nuevos:** operation-lock (FIFO, liberación en error, status), wiring IPC (canales mutados → lock; lecturas sin lock), hook `useOperationStatus`, y suite E2E `global-mutex.spec.ts` (5 specs)
+
+### Fixed
+
+- **JSON inválido en `catalogs/apps-catalog.json`** (comilla faltante en la línea 51) que rompía la importación de actualizaciones de fuentes
+- **winget sin verificación de exit code (P0.2):** los scripts de install/uninstall ahora evalúan `$LASTEXITCODE` (con tolerancia a "already installed") en lugar de un `try/catch` que winget nunca dispara — antes un fallo de winget se reportaba como éxito
+- **Validación de `wingetId` (P0.2):** el id se valida contra `^[A-Za-z0-9][A-Za-z0-9._+-]*$` antes de interpolarlo en el script PowerShell (cierra un hueco de inyección de comandos); id inválido → fallo sin invocar PowerShell
+
 ## [0.3.0] - 2026-10-01
 
 Fase P0 → P3 completa: UX crítico, rendimiento medible, tweaks seguros reversibles y pulido Electron.

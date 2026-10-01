@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
-import type { ElectronAPI, WinOptimizerAPI } from '../shared/electron-api';
+import type { ElectronAPI, WinOptimizerAPI, OperationStatus } from '../shared/electron-api';
 import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 
@@ -57,6 +57,14 @@ const api: ElectronAPI = {
     const handler = (_event: IpcRendererEvent, payload: ScanProgressEvent) => callback(payload);
     ipcRenderer.on('scan:progress', handler);
     return () => ipcRenderer.removeListener('scan:progress', handler);
+  },
+
+  // Global operation lock (P0.3)
+  getOperationStatus: () => ipcRenderer.invoke('system:op-status'),
+  onOperationStatus: (callback: (status: OperationStatus) => void) => {
+    const handler = (_event: IpcRendererEvent, status: OperationStatus) => callback(status);
+    ipcRenderer.on('system:op-changed', handler);
+    return () => ipcRenderer.removeListener('system:op-changed', handler);
   },
 
   // Cache control (P1.2)

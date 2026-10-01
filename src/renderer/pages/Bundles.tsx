@@ -4,8 +4,10 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import type { AppBundle } from '@shared/types';
+import { useOperationStatus } from '../hooks/useOperationStatus';
 
 export const Bundles: React.FC = () => {
+  const operation = useOperationStatus();
   const [bundles, setBundles] = useState<AppBundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState<string | null>(null);
@@ -115,7 +117,7 @@ export const Bundles: React.FC = () => {
           <Button
             variant="primary"
             onClick={installSelected}
-            disabled={selectedApps.size === 0}
+            disabled={selectedApps.size === 0 || operation.busy}
             loading={installing === 'selected'}
           >
             Install Selected
@@ -165,6 +167,7 @@ export const Bundles: React.FC = () => {
                           installApp(app.wingetId, app.id);
                         }}
                         loading={installing === app.id}
+                        disabled={operation.busy}
                       >
                         Install
                       </Button>

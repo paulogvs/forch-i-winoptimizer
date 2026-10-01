@@ -208,10 +208,30 @@ export async function setupElectronMock(page: Page): Promise<void> {
         onUnmaximized: () => () => {},
       },
       onScanProgress: () => () => {},
+      // Global operation lock (P0.3): idle by default. E2E pushes a status
+      // through `window.__emitOperationStatus(status)` to assert the busy UI.
+      getOperationStatus: () =>
+        Promise.resolve({ busy: false, current: null, queued: 0, startedAt: null }),
+      onOperationStatus: (callback: (status: unknown) => void) => {
+        const w = window as unknown as { __opStatusListeners?: Array<(status: unknown) => void> };
+        w.__opStatusListeners = w.__opStatusListeners ?? [];
+        w.__opStatusListeners.push(callback);
+        return () => {
+          w.__opStatusListeners = (w.__opStatusListeners ?? []).filter((l) => l !== callback);
+        };
+      },
       clearCache: () => Promise.resolve({ success: true }),
     };
 
     (window as unknown as { electronAPI: typeof mockAPI }).electronAPI = mockAPI;
+
+    // Test hook: broadcast a global operation status to all subscribers.
+    (window as unknown as { __emitOperationStatus: (status: unknown) => void }).__emitOperationStatus = (
+      status
+    ) => {
+      const w = window as unknown as { __opStatusListeners?: Array<(status: unknown) => void> };
+      (w.__opStatusListeners ?? []).forEach((listener) => listener(status));
+    };
 
     // Advanced feature pages use the `winoptimizer` namespace.
     const mockWinoptimizer = {
