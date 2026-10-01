@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Theme } from '@shared/types';
 import { WindowControls } from './WindowControls';
 import { useOperationStatus } from '../../hooks/useOperationStatus';
@@ -36,6 +36,7 @@ const OPERATION_LABELS: Record<string, string> = {
   'startup:toggle': 'Changing startup app',
   'drift:reapply': 'Reapplying tweak',
   'drift:reapply-all': 'Reapplying tweaks',
+  'memory:free': 'Freeing RAM',
 };
 
 function operationLabel(channel: string | null): string {
@@ -53,6 +54,43 @@ function operationLabel(channel: string | null): string {
  */
 export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, searchQuery }) => {
   const operation = useOperationStatus();
+  const [ramState, setRamState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
+  const [freedMb, setFreedMb] = useState(0);
+  const resetRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (resetRef.current !== null) window.clearTimeout(resetRef.current);
+    },
+    []
+  );
+
+  const handleFreeRam = async () => {
+    if (ramState === 'working') return;
+    setRamState('working');
+    try {
+      const result = await window.electronAPI.freeMemory();
+      if (result.success) {
+        setFreedMb(result.freedMb);
+        setRamState('done');
+      } else {
+        setRamState('error');
+      }
+    } catch {
+      setRamState('error');
+    }
+    if (resetRef.current !== null) window.clearTimeout(resetRef.current);
+    resetRef.current = window.setTimeout(() => setRamState('idle'), 3000);
+  };
+
+  const ramLabel =
+    ramState === 'working'
+      ? 'Freeing...'
+      : ramState === 'done'
+        ? `Freed ${freedMb} MB`
+        : ramState === 'error'
+          ? 'Free failed'
+          : 'Free RAM';
 
   return (
     <header className="header titlebar">
@@ -76,6 +114,14 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
             {operation.queued > 0 && <span>+{operation.queued} queued</span>}
           </div>
         )}
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={handleFreeRam}
+          disabled={ramState === 'working' || operation.busy}
+          data-testid="free-ram"
+        >
+          {ramLabel}
+        </button>
         <button
           className="btn btn-ghost btn-sm"
           onClick={onThemeToggle}

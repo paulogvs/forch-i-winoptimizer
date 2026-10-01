@@ -32,6 +32,7 @@
 - **Gestión de apps** — Desinstalar aplicaciones fácilmente
 - **Seguridad** — Auditoría de seguridad del sistema
 - **Tweaks seguros** — Ajustes de rendimiento/privacidad/Explorer, reversibles y con vista previa
+- **Free RAM** — Botón en el header que libera la memoria ocupada por la app al instante (muestra "Freed N MB")
 - **Multi-idioma** — Español e Inglés
 - **Temas** — Oscuro, claro y más
 

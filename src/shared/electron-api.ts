@@ -311,6 +311,16 @@ export interface OperationStatus {
   startedAt: number | null;
 }
 
+/** Result of the quick "Free RAM" action (P1.1). */
+export interface FreeMemoryResult {
+  success: boolean;
+  /** MB trimmed from this app's working set (max(0, before - after)). */
+  freedMb: number;
+  rssBeforeMb: number;
+  rssAfterMb: number;
+  error?: string;
+}
+
 export interface ElectronAPI {
   getSystemInfo: (options?: CacheOptions) => Promise<SystemInfo>;
   scanForJunkFiles: (options?: CacheOptions) => Promise<JunkScanResult>;
@@ -333,6 +343,8 @@ export interface ElectronAPI {
   getOperationStatus: () => Promise<OperationStatus>;
   /** Subscribe to global operation status changes. Returns an unsubscribe function. */
   onOperationStatus: (callback: (status: OperationStatus) => void) => () => void;
+  // Quick "Free RAM" (P1.1)
+  freeMemory: () => Promise<FreeMemoryResult>;
   // Cache control (P1.2)
   clearCache: () => Promise<{ success: boolean }>;
 }

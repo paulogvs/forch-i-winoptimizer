@@ -221,6 +221,14 @@ export async function setupElectronMock(page: Page): Promise<void> {
         };
       },
       clearCache: () => Promise.resolve({ success: true }),
+      // Quick "Free RAM" (P1.1): success by default; E2E can override through
+      // `window.__freeMemoryResult` to assert the failure path.
+      freeMemory: () => {
+        const w = window as unknown as { __freeMemoryResult?: unknown };
+        return Promise.resolve(
+          w.__freeMemoryResult ?? { success: true, freedMb: 42, rssBeforeMb: 1024, rssAfterMb: 982 }
+        );
+      },
     };
 
     (window as unknown as { electronAPI: typeof mockAPI }).electronAPI = mockAPI;

@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Mutex global de operaciones (P0.3):** cola FIFO `withOperationLock` en Main que serializa los 24 canales IPC que mutan el sistema (tweaks, winget install/uninstall, servicios, cleaner, debloat, DNS, drivers, red, startup, drift…). Dos operaciones conflictivas **nunca** corren a la vez; el lock se libera aunque la operación falle. Nuevo canal `system:op-status` + evento `system:op-changed`
+- **Botón "Free RAM" en el header (P1.1):** acción rápida que recorta el working set de la app (main + procesos hijos) vía `EmptyWorkingSet` (psapi.dll), con fallback a GC de .NET, y muestra la RAM liberada (`Freed N MB`, auto-reset a 3 s). Canal `memory:free` serializado por el mutex global. **Medido con `scripts/measure-free-memory.mjs`:** RSS **266 → 13 MB (−253 MB)**, ~3.0 s (spawn frío + Add-Type)
+- **Mutex global de operaciones (P0.3):** cola FIFO `withOperationLock` en Main que serializa los 25 canales IPC que mutan el sistema (tweaks, winget install/uninstall, servicios, cleaner, debloat, DNS, drivers, red, startup, drift, free-ram…). Dos operaciones conflictivas **nunca** corren a la vez; el lock se libera aunque la operación falle. Nuevo canal `system:op-status` + evento `system:op-changed`
 - **Indicador global de ocupación en la UI (P0.3):** badge "Applying tweak / Installing apps / …" con punto pulsante en el header (`data-testid="op-status"`), hook `useOperationStatus`, y botones de acción (Tweaks: Apply/Restore single y selected; Bundles: Install/Install Selected) deshabilitados mientras el lock está ocupado
 - **Test de integridad de catálogos (P0.1):** valida el JSON de `catalogs/*.json` y `src/shared/catalogs/*.json`
-- **Tests nuevos:** operation-lock (FIFO, liberación en error, status), wiring IPC (canales mutados → lock; lecturas sin lock), hook `useOperationStatus`, y suite E2E `global-mutex.spec.ts` (5 specs)
+- **Tests nuevos:** operation-lock (FIFO, liberación en error, status), wiring IPC (canales mutados → lock; lecturas sin lock), hook `useOperationStatus`, memory-free (script, éxito, fallo, fallback, pid inválido, sin negativos), y suites E2E `global-mutex.spec.ts` (5 specs) + `free-ram.spec.ts` (4 specs)
 
 ### Changed
 

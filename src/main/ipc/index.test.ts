@@ -91,6 +91,7 @@ describe('IPC handler registration (P0.3 global mutex)', () => {
       'network:fix',
       'startup:toggle',
       'drift:reapply',
+      'memory:free',
     ];
     for (const channel of expected) {
       expect(MUTATING_CHANNELS.has(channel), `"${channel}" must be serialized`).toBe(true);

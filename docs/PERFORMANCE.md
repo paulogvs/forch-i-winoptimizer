@@ -93,6 +93,24 @@ Medido con `Get-Process` sobre el portable elevado, ~35 s después del arranque:
 | RAM en reposo (WorkingSet total) | **≈ 330 MB** |
 | CPU acumulada en ~35 s | ≈ 3.5 s (pico en startup, luego ocioso) |
 
+## Free RAM (P1.1)
+
+Acción rápida en el header (`memory:free`, serializada por el mutex global): recorta el
+working set del proceso principal + hijos con `EmptyWorkingSet` (psapi.dll vía
+`Add-Type`), con fallback a GC de .NET si psapi no está disponible. El `freedMb`
+reportado es la diferencia de `process.memoryUsage().rss` medida en Node.
+
+**Medido con `node scripts/measure-free-memory.mjs`** (proceso con ~266 MB de RSS):
+
+| Muestra | RSS antes | RSS después | RAM liberada | Wall-clock |
+|---|---|---|---|---|
+| 1 | 266.3 MB | 12.8 MB | **253 MB** | 3125 ms |
+| 2 | 266.2 MB | 12.7 MB | **254 MB** | 3028 ms |
+
+- Resultado consistente: **~253 MB liberados en ~3 s** (frío: 1 spawn de PowerShell + compilación de `Add-Type`; en caliente la app reutiliza el mismo patrón de 1 spawn).
+- Si `EmptyWorkingSet` no está disponible, el script cae a `[System.GC]::Collect()` (`freedMb` puede ser 0 y aún así `success: true`).
+- `freedMb` nunca es negativo (si el RSS crece entre mediciones se reporta 0).
+
 ## Pendiente / no instrumentado
 
 - **Long Tasks y FPS de scroll**: no se capturaron con DevTools Performance en este entorno.

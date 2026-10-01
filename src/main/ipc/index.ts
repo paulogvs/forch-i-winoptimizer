@@ -56,6 +56,7 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'bundles:install-multiple',
   'bundles:uninstall',
   'cleaning:run-now',
+  'memory:free',
   'tweaks:apply',
   'tweaks:restore',
   'tweaks:apply-many',
@@ -88,6 +89,13 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
 
   // ===== Operation status (global mutex, P0.3) =====
   handle('system:op-status', () => getOperationStatus());
+
+  // Quick "Free RAM" (P1.1): trims this app's working set (serialized by the
+  // global lock so it never interleaves with another mutating operation).
+  handle('memory:free', async () => {
+    const { freeMemory } = await import('../services/memory-free');
+    return freeMemory();
+  });
 
   // System info (TTL 60s; `force` bypasses after an explicit Refresh)
   handle('system:get-info', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>

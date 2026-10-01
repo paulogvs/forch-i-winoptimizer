@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
-import type { ElectronAPI, WinOptimizerAPI, OperationStatus } from '../shared/electron-api';
+import type { ElectronAPI, WinOptimizerAPI, OperationStatus, FreeMemoryResult } from '../shared/electron-api';
 import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 
@@ -69,6 +69,9 @@ const api: ElectronAPI = {
 
   // Cache control (P1.2)
   clearCache: () => ipcRenderer.invoke('cache:clear'),
+
+  // Quick "Free RAM" (P1.1)
+  freeMemory: (): Promise<FreeMemoryResult> => ipcRenderer.invoke('memory:free'),
 
   // Events
   onUpdateProgress: (callback: (percent: number) => void) => {
