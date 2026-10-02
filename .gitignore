@@ -62,3 +62,10 @@ tmp/
 temp/
 *.tmp
 COMMIT_MSG.txt
+
+# Runtime state written by the services when Electron's userData is unavailable
+# (e.g. validation harnesses run outside the app). Never commit machine state.
+security-fix-state.json
+tweaks-state.json
+last-check.json
+
