@@ -4,8 +4,10 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import { Tooltip } from '../components/ui/Tooltip';
+import { Modal } from '../components/ui/Modal';
 import { useAppStore } from '../stores/useAppStore';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
+import type { SecurityFixOutcome, SecurityFixPreview } from '@shared/security-fix';
 import {
   SECURITY_CHECK_BY_ID,
   SECURITY_SCORE_FORMULA,
@@ -64,6 +66,11 @@ export const Security: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [scanError, setScanError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
+  // Reversible auto-fix (v0.7.0): mandatory preview -> confirm -> apply/revert.
+  const [fixCheckId, setFixCheckId] = useState<string | null>(null);
+  const [fixPreview, setFixPreview] = useState<SecurityFixPreview | null>(null);
+  const [fixBusy, setFixBusy] = useState(false);
+  const [fixMessage, setFixMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -149,6 +156,67 @@ export const Security: React.FC = () => {
       alert(result.message);
     } catch (error) {
       console.error('Failed to set DNS:', error);
+    }
+  };
+
+  // ===== Reversible auto-fix (v0.7.0) =====
+  const openFixPreview = async (checkId: string) => {
+    setFixCheckId(checkId);
+    setFixPreview(null);
+    setFixMessage(null);
+    setFixBusy(true);
+    try {
+      const preview = await window.winoptimizer.security.previewFix(checkId);
+      setFixPreview(preview);
+      if (!preview) setFixMessage('This check does not support auto-fix.');
+    } catch (error) {
+      setFixMessage(error instanceof Error ? error.message : 'Could not load the fix preview.');
+    } finally {
+      setFixBusy(false);
+    }
+  };
+
+  const closeFix = () => {
+    setFixCheckId(null);
+    setFixPreview(null);
+    setFixMessage(null);
+    setFixBusy(false);
+  };
+
+  const runFix = async (action: 'apply' | 'revert') => {
+    if (!fixCheckId) return;
+    setFixBusy(true);
+    setFixMessage(null);
+    try {
+      const outcome: SecurityFixOutcome =
+        action === 'apply'
+          ? await window.winoptimizer.security.applyFix(fixCheckId)
+          : await window.winoptimizer.security.revertFix(fixCheckId);
+      setFixMessage(outcome.message);
+      // Re-read the machine so the report reflects reality, and refresh the
+      // preview so the buttons match the new state.
+      const [refreshedReport, refreshedPreview] = await Promise.all([
+        window.winoptimizer.security.scan({ force: true }),
+        window.winoptimizer.security.previewFix(fixCheckId),
+      ]);
+      setReport(refreshedReport);
+      setFixPreview(refreshedPreview);
+    } catch (error) {
+      setFixMessage(error instanceof Error ? error.message : 'The action failed.');
+    } finally {
+      setFixBusy(false);
+    }
+  };
+
+  const relaunchElevated = async () => {
+    setFixBusy(true);
+    try {
+      const result = await window.winoptimizer.security.relaunchElevated();
+      setFixMessage(result.message);
+    } catch (error) {
+      setFixMessage(error instanceof Error ? error.message : 'Could not relaunch elevated.');
+    } finally {
+      setFixBusy(false);
     }
   };
 
@@ -319,6 +387,17 @@ export const Security: React.FC = () => {
                               Actions
                             </Button>
                           )}
+                        {meta?.autoFixable && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => openFixPreview(check.id)}
+                            title="Preview a reversible, admin-only fix for this check."
+                            data-testid={`security-fix-${check.id}`}
+                          >
+                            Auto-fix
+                          </Button>
+                        )}
                       </div>
                     </Card>
                   );
@@ -453,6 +532,89 @@ export const Security: React.FC = () => {
           </Card>
         </>
       )}
+
+      {/* Reversible auto-fix (v0.7.0): mandatory preview, then explicit
+          confirmation, then apply; a revert restores the captured value. */}
+      <Modal
+        open={fixCheckId !== null}
+        onClose={closeFix}
+        title={fixPreview?.title ?? 'Security auto-fix'}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={closeFix} disabled={fixBusy}>
+              Close
+            </Button>
+            {fixPreview?.blockedReason === 'requires-admin' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={relaunchElevated}
+                loading={fixBusy}
+                data-testid="security-fix-relaunch"
+              >
+                Restart as administrator
+              </Button>
+            )}
+            {fixPreview?.canRevert && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => runFix('revert')}
+                loading={fixBusy}
+                data-testid="security-fix-revert"
+              >
+                Revert
+              </Button>
+            )}
+            {fixPreview?.canApply && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => runFix('apply')}
+                loading={fixBusy}
+                data-testid="security-fix-apply"
+              >
+                Apply
+              </Button>
+            )}
+          </div>
+        }
+      >
+        {fixBusy && !fixPreview && (
+          <p className="text-sm text-fg-secondary">Reading the current value…</p>
+        )}
+        {fixPreview && (
+          <div className="flex flex-col gap-2 text-sm">
+            <p className="text-fg-secondary">{fixPreview.description}</p>
+            <p className="text-fg-primary">
+              <strong>Current:</strong>{' '}
+              <span data-testid="security-fix-current">{fixPreview.current}</span>
+            </p>
+            <p className="text-fg-primary">
+              <strong>Change to:</strong>{' '}
+              <span data-testid="security-fix-target">{fixPreview.target}</span>
+            </p>
+            {fixPreview.original && (
+              <p className="text-fg-tertiary">
+                <strong>Revert would restore:</strong> {fixPreview.original}
+              </p>
+            )}
+            {fixPreview.blockedMessage && (
+              <p className="text-warning" data-testid="security-fix-blocked">
+                {fixPreview.blockedMessage}
+              </p>
+            )}
+            {!fixPreview.canApply && !fixPreview.canRevert && !fixPreview.blockedMessage && (
+              <p className="text-fg-tertiary">No change is available for this check right now.</p>
+            )}
+          </div>
+        )}
+        {fixMessage && (
+          <p className="text-sm text-fg-secondary mt-3" data-testid="security-fix-message">
+            {fixMessage}
+          </p>
+        )}
+      </Modal>
     </div>
   );
 };

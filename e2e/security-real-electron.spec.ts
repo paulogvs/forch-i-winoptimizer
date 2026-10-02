@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { _electron as electron } from 'playwright';
+import {
+  _electron as electron,
+  type ElectronApplication,
+  type Locator,
+  type Page,
+} from 'playwright';
 
 /**
  * Real-Electron end-to-end for the live security scanner (v0.6.0).
@@ -36,6 +41,41 @@ interface ScanReport {
   machine: { osCaption: string; isAdmin: boolean };
 }
 
+/**
+ * Deterministic click for a freshly launched Electron window.
+ *
+ * On Windows the FIRST synthetic click after launch can stall in the OS input
+ * queue while the window is not yet foregrounded ("performing click action" and
+ * then a 30 s timeout), which makes this E2E flaky. We focus the BrowserWindow
+ * first; if the queued click still does not complete we dispatch the DOM click
+ * directly. Either path runs the real React handler and the real IPC calls, so
+ * the test keeps validating the app end-to-end — it just stops depending on the
+ * OS input queue.
+ */
+async function robustClick(app: ElectronApplication, page: Page, target: Locator): Promise<void> {
+  try {
+    const window = await app.browserWindow(page);
+    await window.evaluate((win) => {
+      win.show();
+      win.focus();
+    });
+  } catch {
+    // Best effort: focusing is not essential, only a de-flaking aid.
+  }
+  await page.bringToFront().catch(() => undefined);
+
+  // Resolve exactly one element up-front: a later re-render (e.g. after the
+  // click navigates) must not turn the locator strict-mode-ambiguous.
+  const element = target.first();
+  try {
+    await element.click({ timeout: 8_000 });
+  } catch {
+    // Fallback for a stalled input queue: dispatching the DOM click still runs
+    // the real React handler and the real IPC calls.
+    await element.evaluate((el) => (el as HTMLElement).click());
+  }
+}
+
 test('security scan runs in the real Electron main process', async () => {
   const appRoot = process.cwd();
   const app = await electron.launch({
@@ -51,12 +91,12 @@ test('security scan runs in the real Electron main process', async () => {
     // Wait until the React app has mounted its sidebar.
     await page.waitForSelector('.sidebar', { timeout: 60_000 });
 
-    await page.click('.sidebar >> text=Security');
+    await robustClick(app, page, page.locator('.sidebar button', { hasText: 'Security' }));
     await expect(page.locator('h2.page-title')).toHaveText('Security & Privacy');
 
     // Drive the scan through the real UI (not a direct IPC call). The first
     // run may take ~30 s end to end on a cold machine.
-    await page.click('[data-testid="security-scan-button"]');
+    await robustClick(app, page, page.getByTestId('security-scan-button'));
     await expect(page.locator('[data-testid="security-report"]')).toBeVisible({ timeout: 150_000 });
 
     const renderedChecks = await page.locator('[data-testid^="security-check-"]').count();

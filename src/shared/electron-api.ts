@@ -4,6 +4,7 @@ import type { AppSettings, SettingsPayload, UpdateSettingsResult } from './setti
 import type { StatsEvent, StatsExportResult } from './stats';
 import type { UpdateStatus } from './updater-status';
 import type { SecurityScanReport } from './security-scan';
+import type { SecurityFixOutcome, SecurityFixPreview } from './security-fix';
 
 export interface SystemInfo {
   platform: string;
@@ -465,6 +466,12 @@ export interface WinOptimizerAPI {
     runAction: (actionId: string) => Promise<OperationResult>;
     /** Live, read-only security scan of the real machine (v0.6.0). */
     scan: (options?: CacheOptions) => Promise<SecurityScanReport>;
+    /** Reversible auto-fix (v0.7.0): mandatory preview before any change. */
+    previewFix: (checkId: string) => Promise<SecurityFixPreview | null>;
+    applyFix: (checkId: string) => Promise<SecurityFixOutcome>;
+    revertFix: (checkId: string) => Promise<SecurityFixOutcome>;
+    /** Relaunch the app with elevation (used when a fix requires admin). */
+    relaunchElevated: () => Promise<OperationResult>;
   };
   dns: {
     benchmark: () => Promise<DNSBenchmarkResult[]>;

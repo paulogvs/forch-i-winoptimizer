@@ -219,5 +219,14 @@ No. La fórmula es explícita y aparece en el tooltip y en `docs/SECURITY_CHECKS
 Los checks no medidos / no aplicables **no** cuentan en el denominador.
 
 **¿El scan cambia mi sistema?**
-No. El Security Scan es **de solo lectura**. La reparación de un hallazgo es una
-guía concreta o una acción separada; ninguna acción del scanner modifica el sistema.
+El escaneo es **de solo lectura**: no modifica nada. Aparte, tres checks
+(`smb1`, `guest-account`, `remote-desktop`) tienen un botón **Auto-fix** que aplica un
+cambio **reversible** recién después de un preview y tu confirmación; el resto de los
+hallazgos son guía.
+
+**¿Cómo funciona el auto-fix y cómo lo deshago?**
+Al pulsar *Auto-fix* ves primero un **preview** con el valor actual observado y el valor
+objetivo. Si confirmás, se aplica y el check **se vuelve a medir**. Requiere
+**administrador**: sin elevación la acción aparece deshabilitada con el motivo y podés
+reiniciar como administrador desde el diálogo. Para deshacerlo, usá **Revert**, que
+restaura el **valor previo real** capturado antes del cambio.

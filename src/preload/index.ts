@@ -151,6 +151,11 @@ const winoptimizer: WinOptimizerAPI = {
     getActions: () => ipcRenderer.invoke('security:get-actions'),
     runAction: (actionId: string) => ipcRenderer.invoke('security:run-action', actionId),
     scan: (options) => ipcRenderer.invoke('security:scan', options),
+    // Reversible auto-fix (v0.7.0): preview -> confirm -> apply -> revert.
+    previewFix: (checkId: string) => ipcRenderer.invoke('security:fix-preview', checkId),
+    applyFix: (checkId: string) => ipcRenderer.invoke('security:fix-apply', checkId),
+    revertFix: (checkId: string) => ipcRenderer.invoke('security:fix-revert', checkId),
+    relaunchElevated: () => ipcRenderer.invoke('security:relaunch-elevated'),
   },
   dns: {
     benchmark: () => ipcRenderer.invoke('dns:benchmark'),

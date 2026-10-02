@@ -23,6 +23,12 @@ import { runSystemAudit } from '../services/system-audit';
 import { runBenchmark, generateMarkdownReport } from '../services/benchmark';
 import { getPrivacySettings, applyPrivacySetting, applyAllPrivacySettings, runSecurityAction, getSecurityActions, benchmarkDNS, setDNS } from '../services/security-privacy';
 import { runSecurityScan } from '../services/security-scan';
+import {
+  previewSecurityFix,
+  applySecurityFix,
+  revertSecurityFix,
+  relaunchElevated,
+} from '../services/security-fix';
 import { getAppBundles, checkInstalledApps, installApp, installApps, uninstallApp } from '../services/app-bundles';
 import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow, getHistory, getDefaultSchedules } from '../services/scheduled-cleaning';
 import { checkAllSources, formatReport, getPendingUpdates, formatPendingForDisplay } from '../source-updater';
@@ -63,6 +69,9 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'privacy:apply-setting',
   'privacy:apply-all',
   'security:run-action',
+  'security:fix-apply',
+  'security:fix-revert',
+  'security:relaunch-elevated',
   'dns:set',
   'bundles:install',
   'bundles:install-multiple',
@@ -332,6 +341,24 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
       options ?? {}
     )
   );
+  // Reversible auto-fix (v0.7.0): preview is read-only; apply/revert are
+  // mutating and serialized by the global lock. All three are admin-gated in
+  // the service (they return `blocked` with `requires-admin`, never silent).
+  handle('security:fix-preview', (_event: IpcMainInvokeEvent, checkId: string) =>
+    previewSecurityFix(String(checkId))
+  );
+  handle('security:fix-apply', async (_event: IpcMainInvokeEvent, checkId: string) => {
+    const result = await applySecurityFix(String(checkId));
+    cache.invalidateModule('security');
+    return result;
+  });
+  handle('security:fix-revert', async (_event: IpcMainInvokeEvent, checkId: string) => {
+    const result = await revertSecurityFix(String(checkId));
+    cache.invalidateModule('security');
+    return result;
+  });
+  handle('security:relaunch-elevated', () => relaunchElevated());
+
   handle('dns:benchmark', () => benchmarkDNS());
   handle('dns:set', async (_event: IpcMainInvokeEvent, primaryDNS: string, secondaryDNS: string) => {
     const result = await setDNS(primaryDNS, secondaryDNS);

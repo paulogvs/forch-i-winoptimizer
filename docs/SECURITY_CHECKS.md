@@ -1,6 +1,6 @@
 # Security Checks Catalog
 
-> **FORCH.iA WinOptimizer v0.6.0** — live security scanner reference.
+> **FORCH.iA WinOptimizer v0.7.0** — live security scanner reference (read-only scan + three reversible auto-fixes).
 >
 > Built with FORCH.i by Paulo Velasco.
 
@@ -56,13 +56,34 @@ score = round(100 × Σ(weight(check) × statusScore) / Σ(weight(check)))
 - If the denominator is zero, the score is **`null`** ("not scored") — never a
   magic number.
 
-## Auto-fix policy
+## Auto-fix policy (v0.7.0)
 
-**Zero checks are auto-fixed in v0.6.0.** Every candidate security repair (RDP,
-Guest account, BitLocker, Secure Boot, SMBv1, …) can lock a user out or requires
-administrator rights, so the conservative and honest choice is guidance only.
-Each check carries concrete `guidance` text. This is enforced by a unit test
-(`all security checks are read-only`).
+Exactly **three** checks ship a real, reversible self-repair:
+
+| Check | Apply does | Revert restores |
+|-------|------------|-----------------|
+| `smb1` | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`) | the **exact previous value** captured before the change (`enabled` / `disabled`) |
+| `guest-account` | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback) | re-enables it **only if it was enabled before** |
+| `remote-desktop` | sets `fDenyTSConnections = 1` | the **exact previous numeric value** of `fDenyTSConnections` |
+
+Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
+
+1. **Preview is mandatory.** Nothing changes until the user sees the observed
+   `current` value and the `target`, then confirms. The preview is a separate,
+   read-only IPC call (`security:fix-preview`).
+2. **Requires admin.** Without elevation the action is returned as `blocked` with
+   reason `requires-admin` and a message (plus a "Restart as administrator"
+   button, `Start-Process -Verb RunAs`). It never runs and never fails silently.
+3. **Real previous value.** The value is read and persisted *before* the write; the
+   revert restores that captured value, never a hard-coded default.
+4. **Honest state.** After apply/revert the value is **re-read** from the machine;
+   the returned `after` is measured, not assumed, and the UI re-runs the scan.
+5. **Everything else stays read-only.** BitLocker, Secure Boot, TPM, UAC, and any
+   account policy beyond Guest can lock a user out or are not reversible through a
+   single value, so those checks offer `guidance` only.
+
+The unit test `security-scan.test.ts` asserts that the set of `autoFixable` checks
+is **exactly** `{smb1, guest-account, remote-desktop}` — adding a fourth fails CI.
 
 ## Check catalog
 
@@ -71,13 +92,13 @@ Each check carries concrete `guidance` text. This is enforced by a unit test
 | `antivirus` | Antivirus protection | critical | `SecurityCenter2 => AntiVirusProduct` (live `productState` decode; **no product-name list**) | pass, warn, fail, unknown, requires-admin | no |
 | `firewall` | Windows Firewall | critical | `Get-NetFirewallProfile => Enabled` (registry fallback `EnableFirewall`) | pass, warn, fail, requires-admin, unknown | no |
 | `uac` | User Account Control (UAC) | high | Registry `HKLM\...\Policies\System` → `EnableLUA`, `ConsentPromptBehaviorAdmin`, `PromptOnSecureDesktop` | pass, warn, fail, unknown | no |
-| `smb1` | SMBv1 protocol | high | `Get-SmbServerConfiguration => EnableSMB1Protocol` (registry fallback) | pass, fail, requires-admin, unknown | no |
+| `smb1` | SMBv1 protocol | high | `Get-SmbServerConfiguration => EnableSMB1Protocol` (registry fallback) | pass, fail, requires-admin, unknown | **yes** |
 | `secure-boot` | Secure Boot | medium | `Confirm-SecureBootUEFI` + `$env:firmware_type` | pass, fail, not-applicable, requires-admin, unknown | no |
 | `tpm` | TPM (Trusted Platform Module) | medium | `root\cimv2\security\microsofttpm => Win32_Tpm` | pass, warn, not-applicable, requires-admin, unknown | no |
 | `bitlocker` | System drive encryption (BitLocker) | high | `Get-BitLockerVolume -MountPoint %SystemDrive%` + edition detection | pass, fail, not-applicable, requires-admin, unknown | no |
 | `windows-update` | Windows updates | high | `Win32_QuickFixEngineering` (latest `InstalledOn`) + pending-reboot registry flags | pass, warn, fail, unknown | no |
-| `guest-account` | Built-in Guest account | medium | `Win32_UserAccount` where `LocalAccount=True`, matched by **RID 501** (not name) | pass, fail, requires-admin, unknown | no |
-| `remote-desktop` | Remote Desktop (RDP) | medium | Registry `HKLM\SYSTEM\...\Terminal Server` → `fDenyTSConnections` | pass, warn, unknown | no |
+| `guest-account` | Built-in Guest account | medium | `Win32_UserAccount` where `LocalAccount=True`, matched by **RID 501** (not name) | pass, fail, requires-admin, unknown | **yes** |
+| `remote-desktop` | Remote Desktop (RDP) | medium | Registry `HKLM\SYSTEM\...\Terminal Server` → `fDenyTSConnections` | pass, warn, unknown | **yes** |
 
 ## Anti-hardcoding guarantees
 

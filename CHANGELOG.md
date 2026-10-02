@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-02
+
+Sin listas hardcodeadas, build reproducible y **auto-fix real** (3 checks reversibles).
+
+### Added
+
+- **Auto-fix de seguridad reversible** (`src/main/services/security-fix.ts` +
+  `src/shared/security-fix.ts`): sólo `smb1`, `guest-account` y `remote-desktop`, con
+  **preview obligatorio** (valor actual observado + objetivo), confirmación y **revert**
+  que restaura el **valor previo real** persistido antes del cambio (nunca un default).
+  **Requiere admin**: sin elevación devuelve `blocked` con motivo `requires-admin` (nunca
+  falla en silencio) y ofrece relanzar con `Start-Process -Verb RunAs`. Tras aplicar, el
+  check **se vuelve a medir**. Nuevos canales IPC `security:fix-preview` / `fix-apply` /
+  `fix-revert` / `relaunch-elevated` (4 planos) y UI (botón *Auto-fix* + modal) en Security.
+- **Clasificador dinámico de apps de arranque** (`src/main/services/startup-impact.ts`):
+  el impacto se deriva de señales observables (origen/persistencia, existencia + firma
+  del binario, ruta del sistema, **huella CPU/RAM medida en vivo** y gramática genérica
+  del nombre). Documentado en `docs/STARTUP_APP_IMPACT.md`.
+- **`docs/BUILD_REPRODUCIBILITY.md`**: causa y arreglo de la deuda `@shared/*`.
+
+### Changed
+
+- **Eliminadas las allowlists de ~90 apps** (`highImpactApps` / `mediumImpactApps`) de
+  `startup-apps.ts`: prohibido cualquier listado de productos/AV/marcas. Ahora enumera
+  Run HKCU/HKLM, carpeta Startup, tareas programadas y servicios auto en **un solo
+  proceso PowerShell**, con firma, ruta y huella medida por entrada.
+- **`SECURITY_CHECK_CATALOG`**: `autoFixable: true` sólo en `smb1`, `guest-account` y
+  `remote-desktop`. El test pasó de "ninguno es auto-fixable" a afirmar **exactamente
+  esos 3**.
+
+### Fixed
+
+- **Deuda de build `@shared/*`**: se eliminaron los 10 shims creados a mano en
+  `node_modules/@shared/` (gitignoreado + rutas absolutas ⇒ build no reproducible). La
+  resolución del alias se registra **en runtime** desde `src/main/register-shared-alias.ts`
+  (importado primero en `main/index.ts`). Verificado borrando los 10 directorios: el E2E
+  con Electron real sigue **1/1**.
+
+### Release
+
+- `checksums.sha256` ahora incluye también el **`.blockmap`** (además de Setup, Portable
+  y `latest.yml`).
+
 ## [0.6.0] - 2026-10-02
 
 El **Security Scan** deja de ser una lista de 8 chequeos hardcodeados y pasa a ser

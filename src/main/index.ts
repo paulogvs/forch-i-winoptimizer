@@ -1,3 +1,6 @@
+// MUST be first: registers the runtime `@shared/*` resolver before any module
+// that requires the alias is loaded (see register-shared-alias.ts).
+import './register-shared-alias';
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { registerIpcHandlers } from './ipc';

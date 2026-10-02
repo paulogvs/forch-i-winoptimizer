@@ -272,12 +272,12 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 
 ### Security
 
-Auditoría de seguridad:
-
-- **Firewall** — Estado del firewall de Windows
-- **Windows Defender** — Estado del antivirus
-- **UAC** — Control de cuentas de usuario
-- **Updates** — Actualizaciones pendientes
+Escaneo de seguridad **real y de solo lectura** contra tu máquina (10 chequeos:
+antivirus, firewall, UAC, SMBv1, Secure Boot, TPM, BitLocker, updates, cuenta Guest,
+RDP), mostrando la **evidencia observada** en cada fila. Tres chequeos ofrecen además
+**auto-fix reversible** (preview → confirmar → aplicar → revertir): `smb1`,
+`guest-account` y `remote-desktop`. Todo lo demás es guía. Ver
+`docs/SECURITY_CHECKS.md`.
 
 ### Statistics
 
@@ -392,6 +392,32 @@ Puedes reportar errores en la [sección de issues](https://github.com/paulogvs/f
 
 ---
 
+## Novedades v0.7.0
+
+### Arranque sin listas (Boost)
+
+La clasificación de impacto de las apps de arranque ya **no usa listas de productos**.
+Se deriva solo de **señales observables** (origen/persistencia, existencia y firma del
+binario, ruta del sistema, huella CPU/RAM medida del proceso en vivo y gramática
+genérica del nombre), así que funciona en cualquier PC. Ver
+`docs/STARTUP_APP_IMPACT.md`.
+
+### Auto-fix de seguridad reversible
+
+`smb1`, `guest-account` y `remote-desktop` ahora se pueden reparar desde la app con
+**preview obligatorio** (valor actual observado), confirmación y **revert** que restaura
+el valor previo real. Requiere **administrador**: sin elevación la acción aparece
+**deshabilitada con el motivo** y ofrece "Reiniciar como administrador". El resto de los
+checks sigue siendo solo lectura + guía.
+
+### Build reproducible
+
+Se eliminó la deuda de `@shared/*` que vivía en `node_modules` (no viajaba en el repo ni
+sobrevivía a un `npm ci`). La resolución del alias se registra en runtime desde el propio
+*main*, sin tocar `node_modules`. Ver `docs/BUILD_REPRODUCIBILITY.md`.
+
+---
+
 ## Novedades v0.5.0
 
 Todas las funciones que antes aparecían como *stub deshabilitado* (“Not implemented yet”)
@@ -475,5 +501,14 @@ tiene sentido penalizar lo que no aplica ni lo que no se pudo medir. Si nada es
 medible, muestra *not scored* en vez de un número.
 
 Por qué un check puede salir **unknown** o **requires-admin** y cómo interpretarlo:
-ver `docs/SECURITY_CHECKS.md`. El scan **no modifica el sistema**; la
-reparación es una guía o una acción aparte.
+ver `docs/SECURITY_CHECKS.md`.
+
+### Auto-fix (v0.7.0)
+
+Tres checks — `smb1`, `guest-account` y `remote-desktop` — tienen un botón **Auto-fix**.
+Al pulsarlo se muestra un **preview** con el valor **actual observado** y el valor
+objetivo; recién al confirmar se aplica. Si la app no corre como administrador, la acción
+aparece **deshabilitada con el motivo** y podés **reiniciar como administrador** desde el
+mismo diálogo. Tras aplicar, el check **se vuelve a medir** (no se asume "pass"). El
+revert restaura el **valor previo real** capturado antes del cambio (nunca un default).
+El resto de los checks sigue siendo solo lectura + guía.

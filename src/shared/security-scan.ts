@@ -45,10 +45,14 @@ export interface SecurityCheckDefinition {
   /** Every status this check can legitimately return. */
   possibleStatuses: readonly SecurityCheckStatus[];
   /**
-   * Whether the app can repair this check itself with preview + confirmation +
-   * revert. Security checks are deliberately conservative: none are auto-fixed
-   * because every candidate (RDP, Guest, BitLocker, ...) can lock a user out or
-   * needs admin rights. They all provide concrete guidance instead.
+   * Whether the app can repair this check itself with a mandatory preview,
+   * explicit confirmation and a revert that restores the exact previous value.
+   *
+   * v0.7.0 ships auto-fix for exactly three checks — `smb1`, `guest-account`
+   * and `remote-desktop` — because each has a standard, admin-only, reversible
+   * remediation. Every other check remains read-only and offers guidance, since
+   * its candidate repair (BitLocker, Secure Boot, ...) can lock a user out or
+   * is not reversible through a single value.
    */
   autoFixable: boolean;
   /** Concrete guidance shown when the check is not passing. */
@@ -100,7 +104,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     reads:
       'Get-SmbServerConfiguration => EnableSMB1Protocol, with registry fallback (LanmanServer\\Parameters\\SMB1)',
     possibleStatuses: ['pass', 'fail', 'requires-admin', 'unknown'],
-    autoFixable: false,
+    autoFixable: true,
     guidance:
       'Disable SMBv1 (Windows Features => SMB 1.0/CIFS File Sharing Support => uncheck) and reboot.',
   },
@@ -160,7 +164,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     reads:
       'Win32_UserAccount where LocalAccount=True and SID ends in -501 (matched by RID, not by name)',
     possibleStatuses: ['pass', 'fail', 'requires-admin', 'unknown'],
-    autoFixable: false,
+    autoFixable: true,
     guidance:
       'Disable the built-in Guest account (Local Users and Groups => Users => Guest => Disable).',
   },
@@ -172,7 +176,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     reads:
       'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server => fDenyTSConnections',
     possibleStatuses: ['pass', 'warn', 'unknown'],
-    autoFixable: false,
+    autoFixable: true,
     guidance:
       'If you do not use Remote Desktop, turn it off (Settings => System => Remote Desktop).',
   },

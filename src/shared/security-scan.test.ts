@@ -36,10 +36,14 @@ describe('security-scan contract', () => {
     }
   });
 
-  it('all security checks are read-only (no auto-fix by default)', () => {
-    // v0.6.0 deliberately ships zero auto-fixes: every candidate security repair
-    // can lock a user out or needs admin. This guards against silently adding one.
-    expect(SECURITY_CHECK_CATALOG.every((definition) => definition.autoFixable === false)).toBe(true);
+  it('auto-fixes exactly the three reversible checks and nothing else', () => {
+    // v0.7.0 ships auto-fix for smb1, guest-account and remote-desktop only.
+    // This guards against silently adding a fourth (every other candidate can
+    // lock a user out or is not reversible through a single value).
+    const autoFixable = SECURITY_CHECK_CATALOG.filter((definition) => definition.autoFixable).map(
+      (definition) => definition.id
+    );
+    expect(autoFixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
   });
 
   describe('computeSecurityScore', () => {

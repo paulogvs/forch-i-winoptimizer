@@ -364,5 +364,33 @@ Si ninguna de estas soluciones funciona:
 3. Si un check debería pasar pero sale "Unknown" de forma persistente, revisa que
    PowerShell no esté restringido y reporta el caso con la evidencia que muestra la UI.
 
-**Nota:** el Security Scan es de solo lectura salvo auto-fix explícito (en v0.6.0
-ningún check se auto-repara; todos muestran guía o acción separada).
+**Nota:** el Security Scan es de solo lectura salvo auto-fix explícito. Desde v0.7.0
+tres checks (`smb1`, `guest-account`, `remote-desktop`) ofrecen auto-fix reversible
+con preview, confirmación y revert; el resto muestra guía o acción separada.
+
+### El auto-fix de seguridad pide administrador
+
+**Síntomas:** el diálogo de auto-fix muestra el cambio, pero el botón *Apply* no está
+disponible o aparece "requires-admin".
+
+**Qué significa:** aplicar `smb1`, `guest-account` o `remote-desktop` es un cambio
+persistente del sistema y **requiere elevación**. La app nunca falla en silencio: si no
+corre como administrador, la acción se **deshabilita con el motivo**.
+
+**Solución:** usá *Reiniciar como administrador* en el mismo diálogo (lanza una
+instancia elevada con `Start-Process -Verb RunAs`) o abrí la app con clic derecho →
+*Ejecutar como administrador*.
+
+### Cómo revertir un auto-fix de seguridad
+
+Abrí el preview del check (botón *Auto-fix*) y usá **Revert**. Restaura el **valor previo
+real** que la app capturó antes de aplicar; si nunca aplicaste ese fix, no hay valor
+guardado y el revert no está disponible. El revert también requiere administrador.
+
+### Una app de arranque se clasifica distinto de lo esperado (Boost)
+
+El impacto de las apps de arranque se calcula por **señales observables** (origen, firma,
+ruta del sistema, CPU/RAM medida en vivo, patrones genéricos del nombre), **no** por
+listas de productos. Es esperable que una app firmada en reposo sea *low* y suba a *high*
+cuando su proceso está consumiendo CPU/RAM. El criterio completo está en
+`docs/STARTUP_APP_IMPACT.md`.
