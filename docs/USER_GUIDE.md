@@ -1,5 +1,10 @@
 # FORCH.iA WinOptimizer — Guía de Usuario
 
+> **Novedades v0.8.0** — catálogos curados en DATOS (19 tweaks / 48 apps),
+> **6 checks de seguridad nuevos** (total 16) y validación **real** de los 3
+> auto-fix (aplicar → revertir, estado final idéntico al inicial). Ver
+> `docs/SECURITY_CHECKS.md` y `docs/CATALOGS.md`.
+
 ## Tabla de Contenidos
 
 1. [Introducción](#introducción)
@@ -272,9 +277,10 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 
 ### Security
 
-Escaneo de seguridad **real y de solo lectura** contra tu máquina (10 chequeos:
+Escaneo de seguridad **real y de solo lectura** contra tu máquina (16 chequeos:
 antivirus, firewall, UAC, SMBv1, Secure Boot, TPM, BitLocker, updates, cuenta Guest,
-RDP), mostrando la **evidencia observada** en cada fila. Tres chequeos ofrecen además
+RDP, política de contraseñas, autorun/autoplay, LM hash, SMB signing, puertos
+escuchando y servicio Windows Update), mostrando la **evidencia observada** en cada fila. Tres chequeos ofrecen además
 **auto-fix reversible** (preview → confirmar → aplicar → revertir): `smb1`,
 `guest-account` y `remote-desktop`. Todo lo demás es guía. Ver
 `docs/SECURITY_CHECKS.md`.

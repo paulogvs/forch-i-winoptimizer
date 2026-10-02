@@ -368,6 +368,19 @@ Si ninguna de estas soluciones funciona:
 tres checks (`smb1`, `guest-account`, `remote-desktop`) ofrecen auto-fix reversible
 con preview, confirmación y revert; el resto muestra guía o acción separada.
 
+### Un scan devuelve todo "Unknown" en una máquina concreta
+
+**Síntomas:** todos (o casi todos) los checks aparecen en "Unknown" con evidencia
+vacía, aunque en otra máquina funcionen.
+
+**Causa:** el scan batchea todos los checks en **un solo** script de PowerShell. Si
+la lista crece, el script puede superar el límite de ~32767 caracteres de la línea
+de comandos de Windows una vez codificado en Base64/UTF-16LE, y `-EncodedCommand`
+no llega a arrancar (resultado vacío).
+
+**Solución (v0.8.0):** `powershell.ts` detecta el caso y ejecuta el script desde un
+`.ps1` temporal con `-File`, que no tiene ese límite. Si ves este síntoma en una
+build antigua, actualiza. Si persiste, adjunta la evidencia que muestra la UI.
 ### El auto-fix de seguridad pide administrador
 
 **Síntomas:** el diálogo de auto-fix muestra el cambio, pero el botón *Apply* no está

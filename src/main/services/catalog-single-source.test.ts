@@ -35,7 +35,10 @@ describe('curated catalogs live in DATA, not code', () => {
   });
 
   it('the app bundles are loaded from the bundled JSON', () => {
-    const raw = fs.readFileSync(path.join(REPO_ROOT, 'catalogs', 'app-bundles-catalog.json'), 'utf8');
+    const raw = fs.readFileSync(
+      path.join(REPO_ROOT, 'catalogs', 'app-bundles-catalog.json'),
+      'utf8'
+    );
     const fromData = JSON.parse(raw).bundles as unknown[];
     expect(fromData.length).toBeGreaterThan(0);
 
@@ -51,10 +54,7 @@ describe('curated catalogs live in DATA, not code', () => {
     // Type-level code such as `op: Extract<..., { kind: 'registry' }>` and
     // parameter names like `wingetId: string` are fine; a quoted package id is
     // not.
-    expect(
-      /wingetId:\s*'/.test(source),
-      `${file} must not hardcode a winget id`
-    ).toBe(false);
+    expect(/wingetId:\s*'/.test(source), `${file} must not hardcode a winget id`).toBe(false);
     // No inline registry-tweak data (`{ kind: 'registry', hive: HKLM, ... }`).
     expect(
       /kind:\s*'registry'\s*,\s*hive:/.test(source),
@@ -71,7 +71,8 @@ describe('curated catalogs live in DATA, not code', () => {
     const found: string[] = [];
     const walk = (dir: string): void => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist') continue;
+        if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist')
+          continue;
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) walk(full);
         else if (entry.name === 'tweaks-catalog.json') found.push(path.relative(REPO_ROOT, full));

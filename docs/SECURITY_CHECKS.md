@@ -1,18 +1,18 @@
-# Security Checks Catalog
+﻿# Security Checks Catalog
 
-> **FORCH.iA WinOptimizer v0.7.0** — live security scanner reference (read-only scan + three reversible auto-fixes).
+> **FORCH.iA WinOptimizer v0.8.0** â€” live security scanner reference (16 read-only checks + three reversible auto-fixes).
 >
 > Built with FORCH.i by Paulo Velasco.
 
 This document is the auditable catalog of every check the Security tab runs.
 It is generated from **one source of truth** in code, `src/shared/security-scan.ts`
 (`SECURITY_CHECK_CATALOG`), and mirrored here for humans. There is no parallel
-list in the renderer — main and renderer both read the shared module.
+list in the renderer â€” main and renderer both read the shared module.
 
 ## How the scan works
 
 - **One PowerShell process** serves every check (the per-spawn cost is ~1.8 s,
-  so 11 spawns would be ~20 s). This mirrors `system-audit.ts`.
+  so 16 spawns would be ~29 s). This mirrors `system-audit.ts`.
 - Each check is wrapped in its own `try/catch` and emits a marker
   (`@@FSEC_n@@`), so **one failing check cannot abort the scan**: it degrades to
   `unknown`/`requires-admin`.
@@ -38,13 +38,13 @@ list in the renderer — main and renderer both read the shared module.
 | `requires-admin` | The datum needs elevation; the observable error is an access-denied. |
 
 **Golden rule:** if a value could not be read, the check is `unknown` or
-`requires-admin` (with the real reason) — never `fail`. A green board over
+`requires-admin` (with the real reason) â€” never `fail`. A green board over
 unmeasured checks is exactly the dishonest behaviour this scanner replaces.
 
 ## Scoring (transparent, documented, and shown in the UI tooltip)
 
 ```
-score = round(100 × Σ(weight(check) × statusScore) / Σ(weight(check)))
+score = round(100 Ã— Î£(weight(check) Ã— statusScore) / Î£(weight(check)))
 ```
 
 - Summed only over checks whose status is **`pass` / `warn` / `fail`**.
@@ -53,7 +53,7 @@ score = round(100 × Σ(weight(check) × statusScore) / Σ(weight(check)))
   could not be measured.
 - `severity` weights: **critical = 4, high = 3, medium = 2, low = 1**.
 - `statusScore`: **pass = 1.0, warn = 0.5, fail = 0**.
-- If the denominator is zero, the score is **`null`** ("not scored") — never a
+- If the denominator is zero, the score is **`null`** ("not scored") â€” never a
   magic number.
 
 ## Auto-fix policy (v0.7.0)
@@ -83,7 +83,7 @@ Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
    single value, so those checks offer `guidance` only.
 
 The unit test `security-scan.test.ts` asserts that the set of `autoFixable` checks
-is **exactly** `{smb1, guest-account, remote-desktop}` — adding a fourth fails CI.
+is **exactly** `{smb1, guest-account, remote-desktop}` â€” adding a fourth fails CI.
 
 ## Check catalog
 
@@ -91,14 +91,28 @@ is **exactly** `{smb1, guest-account, remote-desktop}` — adding a fourth fails
 |----|-------|----------|------------|-------------------|-----------|
 | `antivirus` | Antivirus protection | critical | `SecurityCenter2 => AntiVirusProduct` (live `productState` decode; **no product-name list**) | pass, warn, fail, unknown, requires-admin | no |
 | `firewall` | Windows Firewall | critical | `Get-NetFirewallProfile => Enabled` (registry fallback `EnableFirewall`) | pass, warn, fail, requires-admin, unknown | no |
-| `uac` | User Account Control (UAC) | high | Registry `HKLM\...\Policies\System` → `EnableLUA`, `ConsentPromptBehaviorAdmin`, `PromptOnSecureDesktop` | pass, warn, fail, unknown | no |
+| `uac` | User Account Control (UAC) | high | Registry `HKLM\...\Policies\System` â†’ `EnableLUA`, `ConsentPromptBehaviorAdmin`, `PromptOnSecureDesktop` | pass, warn, fail, unknown | no |
 | `smb1` | SMBv1 protocol | high | `Get-SmbServerConfiguration => EnableSMB1Protocol` (registry fallback) | pass, fail, requires-admin, unknown | **yes** |
 | `secure-boot` | Secure Boot | medium | `Confirm-SecureBootUEFI` + `$env:firmware_type` | pass, fail, not-applicable, requires-admin, unknown | no |
 | `tpm` | TPM (Trusted Platform Module) | medium | `root\cimv2\security\microsofttpm => Win32_Tpm` | pass, warn, not-applicable, requires-admin, unknown | no |
 | `bitlocker` | System drive encryption (BitLocker) | high | `Get-BitLockerVolume -MountPoint %SystemDrive%` + edition detection | pass, fail, not-applicable, requires-admin, unknown | no |
 | `windows-update` | Windows updates | high | `Win32_QuickFixEngineering` (latest `InstalledOn`) + pending-reboot registry flags | pass, warn, fail, unknown | no |
 | `guest-account` | Built-in Guest account | medium | `Win32_UserAccount` where `LocalAccount=True`, matched by **RID 501** (not name) | pass, fail, requires-admin, unknown | **yes** |
-| `remote-desktop` | Remote Desktop (RDP) | medium | Registry `HKLM\SYSTEM\...\Terminal Server` → `fDenyTSConnections` | pass, warn, unknown | **yes** |
+| `remote-desktop` | Remote Desktop (RDP) | medium | Registry `HKLM\SYSTEM\...\Terminal Server` â†’ `fDenyTSConnections` | pass, warn, unknown | **yes** |
+
+### v0.8.0 additions (read-only, dynamic)
+
+| id | Title | Severity | Live query | Possible statuses | Auto-fix? |
+|----|-------|----------|------------|-------------------|-----------|
+| `password-policy` | Account password policy | high | `HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters` → `MaximumPasswordAge`, `MinimumPasswordLength`, `PasswordComplexity`, `LockoutBadCount` (defaults assumed when absent) | pass, warn, fail, unknown | no |
+| `autoplay` | Autorun / Autoplay | medium | Policies `Explorer\NoDriveTypeAutoRun` + `Cdrom\Autorun` | pass, warn, unknown | no |
+| `lm-hash` | LM hash storage (`NoLMHash`) | medium | `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` → `NoLMHash` (absent ⇒ still storing) | pass, warn, fail, unknown | no |
+| `smb-signing` | SMB signing | medium | `Get-SmbServerConfiguration` → `Require/EnableSecuritySignature` (registry fallback) | pass, warn, fail, requires-admin, unknown | no |
+| `listening-ports` | Inbound TCP listeners | medium | `Get-NetTCPConnection -State Listen` (enumerated, deduplicated) | pass, warn, unknown | no |
+| `windows-update-service` | Windows Update service | medium | `Get-Service wuauserv` → `Status` + `StartType` | pass, warn, fail, unknown | no |
+
+All six are **read-only**: the `autoFixable` set remains exactly
+`{smb1, guest-account, remote-desktop}`.
 
 ## Anti-hardcoding guarantees
 
@@ -120,11 +134,11 @@ is **exactly** `{smb1, guest-account, remote-desktop}` — adding a fourth fails
 | Configuration | Expected result |
 |---------------|-----------------|
 | Windows 11 Pro, full | All checks scorable |
-| Windows 10 Home, no BitLocker | `bitlocker` → `not-applicable` (edition), not `fail` |
-| VM without TPM / Secure Boot | `tpm` and `secure-boot` → `not-applicable` |
-| Third-party antivirus | `antivirus` → `pass` from live data (no list) |
-| Running without admin | permission-denied reads → `requires-admin` |
-| Corrupt / non-JSON payload | check → `unknown`, scan continues |
+| Windows 10 Home, no BitLocker | `bitlocker` â†’ `not-applicable` (edition), not `fail` |
+| VM without TPM / Secure Boot | `tpm` and `secure-boot` â†’ `not-applicable` |
+| Third-party antivirus | `antivirus` â†’ `pass` from live data (no list) |
+| Running without admin | permission-denied reads â†’ `requires-admin` |
+| Corrupt / non-JSON payload | check â†’ `unknown`, scan continues |
 
 Every one of these has a dedicated unit test with a fixture
 (`src/main/services/security-scan.test.ts`).

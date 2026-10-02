@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-02
+
+Los **catálogos curados pasan a DATOS**, se validan los 3 auto-fix **en runtime real**
+(aplicar → revertir, sin tocar RDP) y el **scan de seguridad crece a 16 checks** reales
+de sólo lectura. Incluye el arreglo de un fallo silencioso del runner de PowerShell.
+
+### Added
+
+- **Catálogos en DATOS, una sola fuente de verdad** (Fase A):
+  - `catalogs/tweaks-catalog.json` — **19 tweaks** reversibles (antes en código).
+  - `catalogs/app-bundles-catalog.json` — **8 bundles / 48 apps** winget.
+  - `src/main/services/catalog-data.ts` (lector JSON único que reusa
+    `resolveBundledPath`, la misma resolución que `debloat.ts`) y
+    `src/main/services/tweak-catalog.ts` (valida y carga; descarta entradas inválidas).
+  - `docs/CATALOGS.md`: formato, resolución dev/empaquetado y cómo actualizar vía
+    el source-updater.
+- **6 checks de seguridad nuevos** (`src/shared/security-scan.ts` + `security-scan.ts`),
+  dinámicos y de **sólo lectura** (el auto-fix sigue siendo sólo los 3 de v0.7.0):
+  `password-policy`, `autoplay`, `lm-hash`, `smb-signing`, `listening-ports` y
+  `windows-update-service`. Cada uno puede degradar a `unknown` / `not-applicable` /
+  `requires-admin` con la razón real y siempre lleva `evidence` observada.
+- **Documentación**: `docs/SECURITY_CHECKS.md` (16 checks + fórmula de scoring),
+  `USER_GUIDE.md`, `TROUBLESHOOTING.md` y `docs/CATALOGS.md`.
+
+### Changed
+
+- **Duplicación 10 vs 19 resuelta**: la lista nativa de 19 tweaks es la autoritativa;
+  se descartó el import stale de 10 de winutil. Un test
+  (`catalog-single-source.test.ts`) falla si vuelven a divergir o si reaparece una
+  lista de productos en `.ts`.
+- `app-bundles.ts` / `tweaks.ts` conservan sólo validación, motor y composición de
+  PowerShell: **cero listas de productos** en código.
+- El E2E con Electron real exige ahora **≥16 checks** y verifica que cada check nuevo
+  devuelve un estado real de esta máquina.
+
+### Fixed
+
+- **Fallo silencioso del runner de PowerShell (crítico)**: al batchear 16 checks el
+  script supera el límite de ~32767 caracteres de la línea de comandos de Windows una
+  vez codificado en Base64/UTF-16LE (~36.7k), por lo que `-EncodedCommand` no
+  arrancaba y **todos** los checks caían a `unknown` con salida vacía. `powershell.ts`
+  ahora ejecuta los scripts grandes desde un `.ps1` temporal con `-File` (BOM UTF-8),
+  sin ese límite. Cubierto por un test de regresión.
+
+### Validated (runtime, no mocks)
+
+- **Auto-fix real elevado**: `smb1` enabled→disabled→enabled y `guest-account`
+  enabled→disabled→enabled, **restaurando el valor exacto**; `remote-desktop`
+  **saltado** (2 sesiones activas). Estado final == inicial
+  (`SMBv1 enabled, Guest enabled, RDP denied`). Con proceso sin elevar, los 3
+  reportan `requires-admin` y no tocan nada.
+
 ## [0.7.0] - 2026-10-02
 
 Sin listas hardcodeadas, build reproducible y **auto-fix real** (3 checks reversibles).
