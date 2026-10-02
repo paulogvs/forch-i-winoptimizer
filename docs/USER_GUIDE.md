@@ -142,8 +142,8 @@ Herramientas del sistema:
 
 ### Tweaks
 
-Ajustes **seguros y reversibles** de rendimiento, privacidad y Explorador. **Nada se aplica
-automáticamente** y todo se puede restaurar.
+Ajustes **seguros y reversibles** de rendimiento, privacidad, Explorador y accesibilidad.
+**Nada se aplica automáticamente** y todo se puede restaurar.
 
 Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 
@@ -152,15 +152,27 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 - **Prefetch / Superfetch (conservador)** — restaura los valores recomendados por Windows (no lo desactiva)
 - **Background Apps (usuario)** — evita que las apps de la Store corran en segundo plano
 - **Game Mode / HAGS** — **informativo**: detecta y sugiere, nunca fuerza (depende de GPU/driver)
+- **Snappier animations** — `MenuShowDelay=0` y sin animación de minimizar/maximizar
+- **Mouse acceleration off** — puntero 1:1 (raw input), sin "pointer precision"
+- **No delay for startup apps** — quita el retardo artificial de las apps de inicio (`StartupDelayInMSec=0`)
 
 **Privacy**
 - **Telemetry & DiagTrack** — desactiva DiagTrack, fija telemetría al mínimo y apaga tareas CEIP/feedback
 - **Suggested Content & Ads** — quita sugerencias, tips y publicidad de Windows 11
+- **Turn off Copilot** — oculta el botón y desactiva Copilot por política (Windows 11 23H2+)
+- **Turn off Windows Spotlight** — apaga las fotos/sugerencias de la pantalla de bloqueo (HKCU + HKLM)
 
 **Explorer**
 - **Mostrar extensiones de archivos**
 - **Ocultar recientes y frecuentes** (Acceso rápido)
 - **Menú contextual clásico/compacto** (Windows 11)
+- **Taskbar aligned left** — barra de tareas alineada a la izquierda (Windows 11)
+- **Hide taskbar search box** — quita el cuadro de búsqueda de la barra de tareas (Windows 11)
+- **Hide Task View button** — oculta el botón Task View (Win+Tab sigue funcionando) (Windows 11)
+- **Hide Widgets** — oculta el botón de Widgets; sólo registry, el servicio no se toca (Windows 11)
+
+**Accessibility**
+- **Disable Sticky Keys prompts** — corta el aviso de "presioná Shift 5 veces" y apaga Sticky Keys
 
 **Uso:**
 
@@ -174,8 +186,13 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 > capturarlo, usa los valores por defecto de Windows documentados en el tweak.
 >
 > **Administrador:** los tweaks que tocan servicios del sistema, tareas programadas o `HKLM`
-> (SysMain, Prefetch, Telemetry/DiagTrack) requieren ejecutar la app como administrador.
-> Los de `HKCU` (Background Apps, Suggested Content, Explorer) no.
+> (SysMain, Prefetch, Telemetry/DiagTrack, Turn off Windows Spotlight) requieren ejecutar la
+> app como administrador. Los de `HKCU` (Background Apps, Suggested Content, Explorer,
+> Accessibility) no.
+>
+> **Versión de Windows:** los tweaks exclusivos de Windows 11 declaran un build mínimo
+> (`requiresBuild`); si tu build es anterior, Apply falla con un mensaje claro **sin tocar
+> nada** — y Restore nunca se bloquea.
 
 ### Security
 

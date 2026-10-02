@@ -13,9 +13,10 @@ const CATEGORY_LABELS: Record<TweakCategory, string> = {
   performance: 'Performance',
   privacy: 'Privacy',
   explorer: 'Explorer',
+  accessibility: 'Accessibility',
 };
 
-const CATEGORY_ORDER: TweakCategory[] = ['performance', 'privacy', 'explorer'];
+const CATEGORY_ORDER: TweakCategory[] = ['performance', 'privacy', 'explorer', 'accessibility'];
 
 function describeOperation(op: TweakOperation): string {
   switch (op.kind) {

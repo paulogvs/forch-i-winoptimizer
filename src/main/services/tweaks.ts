@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { runPowerShell, parsePowerShellJson, type PowerShellResult } from './powershell';
 import { getStorageDir } from '../source-updater/paths';
@@ -223,6 +224,231 @@ export const TWEAKS: TweakDefinition[] = [
       },
     ],
   },
+
+  // ===================== P1.2 (+10 safe tweaks, v0.4.0) =====================
+  // PERFORMANCE
+  {
+    id: 'snappier-animations',
+    name: 'Snappier animations',
+    description:
+      'Sets the menu show delay to 0 ms and disables the minimize/maximize animation so the shell feels faster.',
+    category: 'performance',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    note: 'Sign out/in or restart Explorer to see the full effect.',
+    apply: [
+      reg(HKCU, 'Control Panel\\Desktop', 'MenuShowDelay', '0', 'String'),
+      reg(HKCU, 'Control Panel\\Desktop\\WindowMetrics', 'MinAnimate', '0', 'String'),
+    ],
+    revert: [
+      reg(HKCU, 'Control Panel\\Desktop', 'MenuShowDelay', '400', 'String'),
+      reg(HKCU, 'Control Panel\\Desktop\\WindowMetrics', 'MinAnimate', '1', 'String'),
+    ],
+  },
+  {
+    id: 'mouse-acceleration-off',
+    name: 'Mouse acceleration (pointer precision)',
+    description:
+      'Turns off pointer precision so mouse movement is 1:1 with raw input — preferred by gamers and CAD users.',
+    category: 'performance',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    note: 'Restore puts back your captured values (Windows defaults: speed 1, thresholds 6/10).',
+    apply: [
+      reg(HKCU, 'Control Panel\\Mouse', 'MouseSpeed', '0', 'String'),
+      reg(HKCU, 'Control Panel\\Mouse', 'MouseThreshold1', '0', 'String'),
+      reg(HKCU, 'Control Panel\\Mouse', 'MouseThreshold2', '0', 'String'),
+    ],
+    revert: [
+      reg(HKCU, 'Control Panel\\Mouse', 'MouseSpeed', '1', 'String'),
+      reg(HKCU, 'Control Panel\\Mouse', 'MouseThreshold1', '6', 'String'),
+      reg(HKCU, 'Control Panel\\Mouse', 'MouseThreshold2', '10', 'String'),
+    ],
+  },
+  {
+    id: 'startup-delay-zero',
+    name: 'No delay for startup apps',
+    description:
+      'Removes the artificial delay Windows adds before launching startup apps, so they start right after sign-in.',
+    category: 'performance',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    apply: [
+      reg(HKCU, 'Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize', 'StartupDelayInMSec', 0),
+    ],
+    revert: [
+      {
+        kind: 'registry',
+        hive: HKCU,
+        path: 'Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize',
+        name: 'StartupDelayInMSec',
+        type: 'DWORD',
+        value: null as unknown as number,
+        removeOnRevert: true,
+      },
+    ],
+  },
+
+  // ===================== EXPLORER (taskbar / shell) =====================
+  {
+    id: 'taskbar-align-left',
+    name: 'Taskbar aligned left',
+    description: 'Moves the Windows 11 taskbar from centered to left-aligned (classic layout).',
+    category: 'explorer',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    requiresBuild: 22000,
+    note: 'Windows 11 only (build 22000+).',
+    apply: [reg(HKCU, EXPLORER_ADVANCED, 'TaskbarAl', 0)],
+    revert: [reg(HKCU, EXPLORER_ADVANCED, 'TaskbarAl', 1)],
+  },
+  {
+    id: 'taskbar-search-hidden',
+    name: 'Hide taskbar search box',
+    description: 'Removes the search box/icon from the taskbar; search stays available from Start.',
+    category: 'explorer',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    requiresBuild: 22000,
+    note: 'Windows 11 only (build 22000+).',
+    apply: [reg(HKCU, EXPLORER_ADVANCED, 'SearchboxTaskbarMode', 0)],
+    revert: [reg(HKCU, EXPLORER_ADVANCED, 'SearchboxTaskbarMode', 1)],
+  },
+  {
+    id: 'hide-task-view-button',
+    name: 'Hide Task View button',
+    description: 'Hides the Task View button from the taskbar (Win+Tab keeps working).',
+    category: 'explorer',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    requiresBuild: 22000,
+    note: 'Windows 11 only (build 22000+).',
+    apply: [reg(HKCU, EXPLORER_ADVANCED, 'ShowTaskViewButton', 0)],
+    revert: [reg(HKCU, EXPLORER_ADVANCED, 'ShowTaskViewButton', 1)],
+  },
+  {
+    id: 'hide-widgets',
+    name: 'Hide Widgets button',
+    description:
+      'Hides the Widgets (news/weather) button from the taskbar. Registry-only: the Widgets service is not touched.',
+    category: 'explorer',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    requiresBuild: 22000,
+    note: 'Windows 11 only (build 22000+).',
+    apply: [reg(HKCU, EXPLORER_ADVANCED, 'TaskbarDa', 0)],
+    revert: [reg(HKCU, EXPLORER_ADVANCED, 'TaskbarDa', 1)],
+  },
+
+  // ===================== PRIVACY =====================
+  {
+    id: 'hide-copilot',
+    name: 'Turn off Copilot',
+    description: 'Hides the Copilot button and disables Windows Copilot via policy for the current user.',
+    category: 'privacy',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    requiresBuild: 22631,
+    note: 'Windows 11 23H2+ (build 22631+). Does not uninstall the app.',
+    apply: [
+      reg(HKCU, EXPLORER_ADVANCED, 'ShowCopilotButton', 0),
+      reg(HKCU, 'Software\\Policies\\Microsoft\\Windows\\WindowsCopilot', 'TurnOffWindowsCopilot', 1),
+    ],
+    revert: [
+      reg(HKCU, EXPLORER_ADVANCED, 'ShowCopilotButton', 1),
+      {
+        kind: 'registry',
+        hive: HKCU,
+        path: 'Software\\Policies\\Microsoft\\Windows\\WindowsCopilot',
+        name: 'TurnOffWindowsCopilot',
+        type: 'DWORD',
+        value: null as unknown as number,
+        removeOnRevert: true,
+      },
+    ],
+  },
+  {
+    id: 'windows-spotlight-off',
+    name: 'Turn off Windows Spotlight',
+    description:
+      'Disables Windows Spotlight (lock screen pictures and suggestions) via user and machine policy.',
+    category: 'privacy',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: true,
+    note: 'Re-enable anytime in Settings > Personalization > Lock screen.',
+    apply: [
+      reg(HKCU, 'Software\\Policies\\Microsoft\\Windows\\CloudContent', 'DisableWindowsSpotlightFeatures', 1),
+      reg(HKLM, 'SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent', 'DisableWindowsSpotlightFeatures', 1),
+    ],
+    revert: [
+      {
+        kind: 'registry',
+        hive: HKCU,
+        path: 'Software\\Policies\\Microsoft\\Windows\\CloudContent',
+        name: 'DisableWindowsSpotlightFeatures',
+        type: 'DWORD',
+        value: null as unknown as number,
+        removeOnRevert: true,
+      },
+      {
+        kind: 'registry',
+        hive: HKLM,
+        path: 'SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent',
+        name: 'DisableWindowsSpotlightFeatures',
+        type: 'DWORD',
+        value: null as unknown as number,
+        removeOnRevert: true,
+      },
+    ],
+  },
+
+  // ===================== ACCESSIBILITY =====================
+  {
+    id: 'sticky-keys-off',
+    name: 'Disable Sticky Keys prompts',
+    description:
+      'Stops the "press Shift five times" Sticky Keys prompt and turns the feature off for the current user.',
+    category: 'accessibility',
+    safety: 'safe',
+    reversible: true,
+    impact: 'low',
+    requiresAdmin: false,
+    note: 'Re-enable anytime in Settings > Accessibility > Keyboard.',
+    apply: [
+      reg(HKCU, 'Control Panel\\Accessibility\\StickyKeys', 'Flags', '506', 'String'),
+      reg(HKCU, 'Control Panel\\Accessibility\\StickyKeys', 'KeyboardPreference', 'On', 'String'),
+    ],
+    revert: [
+      reg(HKCU, 'Control Panel\\Accessibility\\StickyKeys', 'Flags', '510', 'String'),
+      {
+        kind: 'registry',
+        hive: HKCU,
+        path: 'Control Panel\\Accessibility\\StickyKeys',
+        name: 'KeyboardPreference',
+        type: 'String',
+        value: null as unknown as string,
+        removeOnRevert: true,
+      },
+    ],
+  },
 ];
 
 // ===================== Engine =====================
@@ -285,6 +511,22 @@ function findTweak(id: string): TweakDefinition {
   const tweak = TWEAKS.find((t) => t.id === id);
   if (!tweak) throw new Error(`Unknown tweak: ${id}`);
   return tweak;
+}
+
+// ---- Windows build gate (requiresBuild) ----
+
+let windowsBuildOverride: number | null = null;
+
+/** Test hook: override the detected Windows build (null → detect from os.release()). */
+export function setWindowsBuild(build: number | null): void {
+  windowsBuildOverride = build;
+}
+
+function getWindowsBuild(): number {
+  if (windowsBuildOverride !== null) return windowsBuildOverride;
+  const release = os.release(); // e.g. "10.0.26200"
+  const build = Number.parseInt(release.split('.')[2] ?? '', 10);
+  return Number.isFinite(build) ? build : 0;
 }
 
 function isInfoOnly(tweak: TweakDefinition): boolean {
@@ -478,6 +720,18 @@ async function runOperations(ops: TweakOperation[]): Promise<string> {
 
 export async function applyTweak(id: string): Promise<TweakApplyResult> {
   const tweak = findTweak(id);
+
+  // Gate before ANY side effect (capture reads the registry too).
+  if (tweak.requiresBuild) {
+    const build = getWindowsBuild();
+    if (build < tweak.requiresBuild) {
+      return {
+        id,
+        success: false,
+        message: `Requires Windows build ${tweak.requiresBuild}+ (current build: ${build}).`,
+      };
+    }
+  }
 
   if (isInfoOnly(tweak)) {
     return { id, success: true, message: 'Informational tweak: nothing was changed.' };

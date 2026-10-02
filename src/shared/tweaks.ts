@@ -3,7 +3,7 @@
 // Every tweak is *reversible* and *previewable*. Only `safe` tweaks are enabled
 // by default; `advanced` tweaks must be opted into explicitly by the user.
 
-export type TweakCategory = 'performance' | 'privacy' | 'explorer';
+export type TweakCategory = 'performance' | 'privacy' | 'explorer' | 'accessibility';
 export type TweakSafety = 'safe' | 'advanced';
 export type TweakImpact = 'low' | 'medium' | 'high';
 
@@ -51,6 +51,11 @@ export interface TweakDefinition {
   reversible: true;
   impact: TweakImpact;
   requiresAdmin: boolean;
+  /**
+   * Minimum Windows build required to APPLY this tweak (e.g. 22000 for
+   * Windows 11, 22631 for 23H2). Restore is never gated.
+   */
+  requiresBuild?: number;
   /** Optional guidance shown in the UI (e.g. "detect and suggest, don't force"). */
   note?: string;
   apply: TweakOperation[];
