@@ -112,6 +112,42 @@ describe('powershell', () => {
       expect(result.stderr).toBe('Operation timed out');
       expect(result.exitCode).toBe(124);
     });
+
+    it('runs an oversized script from a temp -File instead of -EncodedCommand', async () => {
+      // A script whose Base64/UTF-16LE form would exceed the Windows command
+      // line limit (~32767 chars). Before this fix the spawn failed and every
+      // caller received an empty "success-shaped" result.
+      const oversized = `# ${'x'.repeat(40000)}\nWrite-Output 'OK'`;
+      const actualEncoded = Buffer.from(oversized, 'utf16le').toString('base64').length;
+      expect(actualEncoded).toBeGreaterThan(30_000);
+
+      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+        callback(null, { stdout: 'OK', stderr: '' });
+        return {};
+      }) as unknown as never);
+
+      const result = await runPowerShell(oversized);
+
+      expect(result.success).toBe(true);
+      const args = mockExecFile.mock.calls[0][1] as string[];
+      expect(args).toContain('-File');
+      expect(args).not.toContain('-EncodedCommand');
+      const fileArg = args[args.indexOf('-File') + 1];
+      expect(fileArg).toMatch(/script\.ps1$/);
+    });
+
+    it('still uses -EncodedCommand for a normal-sized script', async () => {
+      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+        callback(null, { stdout: 'ok', stderr: '' });
+        return {};
+      }) as unknown as never);
+
+      await runPowerShell('Get-Process');
+
+      const args = mockExecFile.mock.calls[0][1] as string[];
+      expect(args).toContain('-EncodedCommand');
+      expect(args).not.toContain('-File');
+    });
   });
 
   describe('runPowerShellScript', () => {

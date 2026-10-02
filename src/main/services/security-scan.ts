@@ -185,6 +185,77 @@ export const SECURITY_SCRIPTS: Readonly<Record<string, string>> = {
     if ($deny -eq $null) { $kind = 'unreadable' }
     @{ kind = $kind; deny = $deny } | ConvertTo-Json -Compress
   `,
+
+  // ---- v0.8.0 additions (read-only, dynamic; no product-name lists) ----
+  'password-policy': `
+    $kind = 'policy';
+    $p = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters';
+    $read = { param($n) (Get-ItemProperty -Path $p -Name $n -ErrorAction SilentlyContinue).$n };
+    $maxAge = & $read 'MaximumPasswordAge';
+    $minLen = & $read 'MinimumPasswordLength';
+    $complexity = & $read 'PasswordComplexity';
+    $lockout = & $read 'LockoutBadCount';
+    if ($maxAge -eq $null -and $minLen -eq $null -and $complexity -eq $null -and $lockout -eq $null) { $kind = 'unreadable' }
+    @{ kind = $kind; maxAge = $maxAge; minLength = $minLen; complexity = $complexity; lockout = $lockout } | ConvertTo-Json -Compress
+  `,
+
+  autoplay: `
+    $kind = 'autoplay';
+    $noDrive = (Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoDriveTypeAutoRun' -ErrorAction SilentlyContinue).NoDriveTypeAutoRun;
+    $cdrom = (Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Cdrom' -Name 'Autorun' -ErrorAction SilentlyContinue).Autorun;
+    if ($noDrive -eq $null -and $cdrom -eq $null) { $kind = 'unreadable' }
+    # 0x95 (149) = AutoRun disabled on most drive types (Windows default hardening).
+    $disabled = ($noDrive -ne $null -and ([int]$noDrive -band 0x95) -eq 0x95);
+    @{ kind = $kind; noDriveTypeAutoRun = $noDrive; cdromAutorun = $cdrom; disabled = $disabled } | ConvertTo-Json -Compress
+  `,
+
+  'lm-hash': `
+    $kind = 'lmhash';
+    $v = (Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' -Name 'NoLMHash' -ErrorAction SilentlyContinue).NoLMHash;
+    if ($v -eq $null) { $kind = 'absent' } else { $kind = 'value' }
+    @{ kind = $kind; noLMHash = $v } | ConvertTo-Json -Compress
+  `,
+
+  'smb-signing': `
+    $kind = 'smb';
+    $require = $null; $enable = $null;
+    try {
+      $c = Get-SmbServerConfiguration -ErrorAction Stop;
+      $require = [bool]$c.RequireSecuritySignature;
+      $enable = [bool]$c.EnableSecuritySignature;
+    } catch {
+      $kind = 'registry';
+      try {
+        $base = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
+        $r = (Get-ItemProperty -Path $base -Name 'RequireSecuritySignature' -ErrorAction Stop).RequireSecuritySignature;
+        $e = (Get-ItemProperty -Path $base -Name 'EnableSecuritySignature' -ErrorAction SilentlyContinue).EnableSecuritySignature;
+        $require = ([int]$r -eq 1); if ($e -ne $null) { $enable = ([int]$e -eq 1) }
+      } catch { $kind = 'unreadable' }
+    }
+    @{ kind = $kind; require = $require; enable = $enable } | ConvertTo-Json -Compress
+  `,
+
+  'listening-ports': `
+    $kind = 'ports';
+    $ports = @();
+    try {
+      $conns = Get-NetTCPConnection -State Listen -ErrorAction Stop | Select-Object -ExpandProperty LocalPort -Unique;
+      $ports = @($conns | Sort-Object);
+    } catch { $kind = 'unreadable' }
+    @{ kind = $kind; count = $ports.Count; ports = $ports } | ConvertTo-Json -Compress -Depth 4
+  `,
+
+  'windows-update-service': `
+    $kind = 'service';
+    $status = ''; $startType = ''; $found = $false;
+    try {
+      $s = Get-Service -Name 'wuauserv' -ErrorAction Stop;
+      $found = $true;
+      $status = [string]$s.Status;
+      $startType = [string]$s.StartType;
+    } catch { $found = $false }
+    @{ kind = $kind; found = $found; status = $status; startType = $startType } | ConvertTo-Json -Compress
+  `,
 };
 
 /** Build the single batched script (env + every catalog check, in order). */
@@ -642,6 +713,164 @@ function remoteDesktop(p: Obj | null): SecurityCheckResult {
     : { id: 'remote-desktop', status: 'warn', evidence, reason: 'Remote Desktop is enabled.' };
 }
 
+// ---- v0.8.0 builders ----
+
+function passwordPolicy(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'unreadable' || kind === 'exception') {
+    return {
+      id: 'password-policy',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Account password policy could not be read.',
+    };
+  }
+
+  // Windows defaults when the key is absent: 42-day expiry, no minimum length,
+  // complexity off. 0 or 0xFFFFFFFF for MaximumPasswordAge means "never expires".
+  const maxAge = asNumber(p.maxAge);
+  const minLength = asNumber(p.minLength);
+  const complexity = asNumber(p.complexity);
+  const lockout = asNumber(p.lockout);
+
+  const neverExpires = maxAge === null || maxAge === 0 || maxAge === -1 || maxAge === 4294967295;
+  const evidence =
+    `MaximumPasswordAge=${maxAge === null ? 'default (42)' : maxAge}, ` +
+    `MinimumPasswordLength=${minLength === null ? 'default (0)' : minLength}, ` +
+    `PasswordComplexity=${complexity === null ? 'default (off)' : complexity}, ` +
+    `LockoutBadCount=${lockout === null ? 'default (0 = no lockout)' : lockout}`;
+
+  const weakLength = minLength !== null && minLength < 8;
+  const noComplexity = complexity === null || complexity === 0;
+  const noLockout = lockout === null || lockout === 0;
+
+  if (neverExpires && weakLength) {
+    return { id: 'password-policy', status: 'fail', evidence, reason: 'Passwords never expire and there is no minimum length.' };
+  }
+  if (neverExpires || weakLength || (noComplexity && noLockout)) {
+    return { id: 'password-policy', status: 'warn', evidence, reason: 'The password policy is weaker than the recommended baseline.' };
+  }
+  return { id: 'password-policy', status: 'pass', evidence, reason: 'The password policy meets the recommended baseline.' };
+}
+
+function autoplay(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'unreadable' || kind === 'exception') {
+    return {
+      id: 'autoplay',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Autorun/Autoplay policy could not be read.',
+    };
+  }
+  const noDrive = asNumber(p.noDriveTypeAutoRun);
+  const cdrom = asNumber(p.cdromAutorun);
+  const disabled = asBool(p.disabled) ?? false;
+  const evidence =
+    `NoDriveTypeAutoRun=${noDrive === null ? 'not set' : `0x${(noDrive >>> 0).toString(16)}`}, ` +
+    `Cdrom.Autorun=${cdrom === null ? 'not set' : cdrom}`;
+
+  if (disabled) {
+    return { id: 'autoplay', status: 'pass', evidence, reason: 'AutoRun is disabled for the common drive types.' };
+  }
+  if (cdrom !== null && cdrom !== 0) {
+    return { id: 'autoplay', status: 'warn', evidence, reason: 'AutoRun is still enabled for the CD/DVD drive.' };
+  }
+  return { id: 'autoplay', status: 'warn', evidence, reason: 'AutoRun/AutoPlay is not fully disabled for removable media.' };
+}
+
+function lmHash(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'exception') {
+    return { id: 'lm-hash', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'The NoLMHash policy could not be read.' };
+  }
+  if (kind === 'absent') {
+    return {
+      id: 'lm-hash',
+      status: 'warn',
+      evidence: 'NoLMHash is not set (LM hash may still be stored).',
+      reason: 'LAN Manager hashes are still stored on password change.',
+    };
+  }
+  const value = asNumber(p.noLMHash);
+  const evidence = `NoLMHash=${value ?? 'unknown'}`;
+  if (value === 1) {
+    return { id: 'lm-hash', status: 'pass', evidence, reason: 'LM hash storage is disabled.' };
+  }
+  if (value === 0) {
+    return { id: 'lm-hash', status: 'fail', evidence, reason: 'LM hash storage is explicitly enabled.' };
+  }
+  return { id: 'lm-hash', status: 'warn', evidence, reason: 'LM hash storage could not be confirmed as disabled.' };
+}
+
+function smbSigning(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  const require = asBool(p?.require);
+  const enable = asBool(p?.enable);
+  if (!p || kind === 'unreadable' || kind === 'exception' || require === null) {
+    return {
+      id: 'smb-signing',
+      status: readFailureStatus(asString(p?.message)),
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'SMB signing state could not be read.',
+    };
+  }
+  const evidence = `RequireSecuritySignature=${require ? 'True' : 'False'}, EnableSecuritySignature=${enable === null ? 'unknown' : enable ? 'True' : 'False'}`;
+  if (require) {
+    return { id: 'smb-signing', status: 'pass', evidence, reason: 'SMB signing is required.' };
+  }
+  if (enable === true) {
+    return { id: 'smb-signing', status: 'warn', evidence, reason: 'SMB signing is enabled but not required.' };
+  }
+  return { id: 'smb-signing', status: 'fail', evidence, reason: 'SMB signing is not required.' };
+}
+
+function listeningPorts(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'unreadable' || kind === 'exception') {
+    return {
+      id: 'listening-ports',
+      status: readFailureStatus(asString(p?.message)),
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Listening TCP ports could not be read.',
+    };
+  }
+  const ports = toArray(p.ports)
+    .map((v) => asNumber(v))
+    .filter((v): v is number => v !== null)
+    .sort((a, b) => a - b);
+  const count = ports.length;
+  const preview = ports.slice(0, 40).join(', ');
+  const evidence = `${count} listening TCP port(s)${count ? `: ${preview}${count > 40 ? ', ...' : ''}` : ''}`;
+  // Expose everything but flag when a notably large surface is listening.
+  return count > 40
+    ? { id: 'listening-ports', status: 'warn', evidence, reason: 'A large number of TCP ports are listening; review them.' }
+    : { id: 'listening-ports', status: 'pass', evidence, reason: 'Listening TCP ports were enumerated for review.' };
+}
+
+function windowsUpdateService(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'exception') {
+    return { id: 'windows-update-service', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'The Windows Update service could not be read.' };
+  }
+  const found = asBool(p?.found) ?? false;
+  if (!found) {
+    return { id: 'windows-update-service', status: 'fail', evidence: 'wuauserv was not found.', reason: 'The Windows Update service is missing.' };
+  }
+  const status = asString(p?.status);
+  const startType = asString(p?.startType);
+  const evidence = `wuauserv: status=${status || 'unknown'}, startType=${startType || 'unknown'}`;
+  const disabled = /disabled/i.test(startType);
+  const stopped = /stopped/i.test(status);
+  if (disabled) {
+    return { id: 'windows-update-service', status: 'fail', evidence, reason: 'The Windows Update service is disabled.' };
+  }
+  if (stopped) {
+    return { id: 'windows-update-service', status: 'warn', evidence, reason: 'The Windows Update service is not running.' };
+  }
+  return { id: 'windows-update-service', status: 'pass', evidence, reason: 'The Windows Update service is available.' };
+}
+
 const BUILDERS: Readonly<Record<string, (payload: Obj | null) => SecurityCheckResult>> = {
   antivirus,
   firewall,
@@ -653,6 +882,12 @@ const BUILDERS: Readonly<Record<string, (payload: Obj | null) => SecurityCheckRe
   'windows-update': windowsUpdate,
   'guest-account': guestAccount,
   'remote-desktop': remoteDesktop,
+  'password-policy': passwordPolicy,
+  autoplay,
+  'lm-hash': lmHash,
+  'smb-signing': smbSigning,
+  'listening-ports': listeningPorts,
+  'windows-update-service': windowsUpdateService,
 };
 
 /**

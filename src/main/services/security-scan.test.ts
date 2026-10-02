@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   SECURITY_CHECK_CATALOG,
+  computeSecurityScore,
   type SecurityMachineInfo,
   type SecurityCheckStatus,
 } from '@shared/security-scan';
@@ -437,6 +438,12 @@ describe('security-scan engine', () => {
           'windows-update': `{"kind":"wu","last":"${daysAgo(10)}","pendingReboot":false}`,
           'guest-account': '{"kind":"guest","enabled":false}',
           'remote-desktop': '{"kind":"rdp","deny":1}',
+          'password-policy': '{"kind":"policy","maxAge":60,"minLength":12,"complexity":1,"lockout":10}',
+          autoplay: '{"kind":"autoplay","noDriveTypeAutoRun":149,"cdromAutorun":0,"disabled":true}',
+          'lm-hash': '{"kind":"value","noLMHash":1}',
+          'smb-signing': '{"kind":"smb","require":true,"enable":true}',
+          'listening-ports': '{"kind":"ports","count":3,"ports":[135,445,3389]}',
+          'windows-update-service': '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
         }),
         machine()
       );
@@ -534,6 +541,12 @@ describe('security-scan engine', () => {
         'windows-update': `{"kind":"wu","last":"${daysAgo(10)}","pendingReboot":false}`,
         'guest-account': '{"kind":"guest","enabled":false}',
         'remote-desktop': '{"kind":"rdp","deny":1}',
+        'password-policy': '{"kind":"policy","maxAge":60,"minLength":12,"complexity":1,"lockout":10}',
+        autoplay: '{"kind":"autoplay","noDriveTypeAutoRun":149,"cdromAutorun":0,"disabled":true}',
+        'lm-hash': '{"kind":"value","noLMHash":1}',
+        'smb-signing': '{"kind":"smb","require":true,"enable":true}',
+        'listening-ports': '{"kind":"ports","count":3,"ports":[135,445,3389]}',
+        'windows-update-service': '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
       });
       const stdout = [`@@FENV@@\n${env}`]
         .concat(blocks.map((block, index) => `@@FSEC_${index}@@\n${block}`))
@@ -572,6 +585,140 @@ describe('security-scan engine', () => {
       expect(Object.values(report.summary).reduce((sum, count) => sum + count, 0)).toBe(
         SECURITY_CHECK_CATALOG.length
       );
+    });
+  });
+
+  // ===== v0.8.0: expanded, read-only, dynamic security catalog =====
+
+  describe('v0.8.0 catalog expansion', () => {
+    const NEW_IDS = [
+      'password-policy',
+      'autoplay',
+      'lm-hash',
+      'smb-signing',
+      'listening-ports',
+      'windows-update-service',
+    ] as const;
+
+    it('adds the new checks to the shared catalog with honest status sets', () => {
+      expect(SECURITY_CHECK_CATALOG.length).toBeGreaterThanOrEqual(16);
+      for (const id of NEW_IDS) {
+        const def = SECURITY_CHECK_CATALOG.find((d) => d.id === id);
+        expect(def, `missing catalog entry: ${id}`).toBeDefined();
+        // None of the new checks is auto-fixable: v0.7.0's three stay the only ones.
+        expect(def?.autoFixable).toBe(false);
+        expect((def?.reads ?? '').length).toBeGreaterThan(0);
+      }
+      // The three reversible auto-fixes are unchanged.
+      const fixable = SECURITY_CHECK_CATALOG.filter((d) => d.autoFixable).map((d) => d.id);
+      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
+    });
+
+    it('keeps every script wired (no check falls through to a stub)', () => {
+      const script = buildSecurityScript();
+      for (const id of NEW_IDS) {
+        const def = SECURITY_CHECK_CATALOG.find((d) => d.id === id);
+        expect(def, id).toBeDefined();
+      }
+      // One marker per check + the env marker.
+      const markers = script.match(/@@FSEC_\d+@@/g) ?? [];
+      expect(markers).toHaveLength(SECURITY_CHECK_CATALOG.length);
+    });
+
+    it('password-policy: strong policy passes, weak policy warns, never-expire+no-length fails', () => {
+      expect(
+        statusOf('password-policy', {
+          'password-policy': JSON.stringify({ kind: 'policy', maxAge: 60, minLength: 12, complexity: 1, lockout: 10 }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('password-policy', {
+          'password-policy': JSON.stringify({ kind: 'policy', maxAge: 30, minLength: null, complexity: null, lockout: null }),
+        })
+      ).toBe('warn');
+      expect(
+        statusOf('password-policy', {
+          'password-policy': JSON.stringify({ kind: 'policy', maxAge: 0, minLength: 0, complexity: 0, lockout: 0 }),
+        })
+      ).toBe('fail');
+      expect(statusOf('password-policy', { 'password-policy': JSON.stringify({ kind: 'unreadable' }) })).toBe('unknown');
+    });
+
+    it('autoplay: hardened passes, cdrom autorun / unset warns', () => {
+      expect(
+        statusOf('autoplay', {
+          autoplay: JSON.stringify({ kind: 'autoplay', noDriveTypeAutoRun: 0x95, cdromAutorun: 0, disabled: true }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('autoplay', {
+          autoplay: JSON.stringify({ kind: 'autoplay', noDriveTypeAutoRun: null, cdromAutorun: 1, disabled: false }),
+        })
+      ).toBe('warn');
+      expect(statusOf('autoplay', { autoplay: JSON.stringify({ kind: 'unreadable' }) })).toBe('unknown');
+    });
+
+    it('lm-hash: NoLMHash=1 passes, absent warns, 0 fails', () => {
+      expect(statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'value', noLMHash: 1 }) })).toBe('pass');
+      expect(statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'value', noLMHash: 0 }) })).toBe('fail');
+      expect(statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'absent' }) })).toBe('warn');
+    });
+
+    it('smb-signing: required passes, enabled warns, neither fails', () => {
+      expect(
+        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'smb', require: true, enable: true }) })
+      ).toBe('pass');
+      expect(
+        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'smb', require: false, enable: true }) })
+      ).toBe('warn');
+      expect(
+        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'smb', require: false, enable: false }) })
+      ).toBe('fail');
+      expect(
+        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'unreadable' }) })
+      ).toBe('unknown');
+    });
+
+    it('listening-ports: enumerates live ports; a large surface warns', () => {
+      expect(
+        statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'ports', count: 3, ports: [135, 445, 3389] }) })
+      ).toBe('pass');
+      const many = Array.from({ length: 60 }, (_, i) => 1000 + i);
+      expect(
+        statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'ports', count: many.length, ports: many }) })
+      ).toBe('warn');
+      expect(statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'unreadable' }) })).toBe('unknown');
+    });
+
+    it('windows-update-service: running passes, stopped warns, disabled fails', () => {
+      expect(
+        statusOf('windows-update-service', {
+          'windows-update-service': JSON.stringify({ kind: 'service', found: true, status: 'Running', startType: 'Automatic' }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('windows-update-service', {
+          'windows-update-service': JSON.stringify({ kind: 'service', found: true, status: 'Stopped', startType: 'Manual' }),
+        })
+      ).toBe('warn');
+      expect(
+        statusOf('windows-update-service', {
+          'windows-update-service': JSON.stringify({ kind: 'service', found: true, status: 'Stopped', startType: 'Disabled' }),
+        })
+      ).toBe('fail');
+    });
+
+    it('excludes the new non-measurable statuses from the score denominator', () => {
+      const results = buildSecurityCheckResults(
+        payloads({
+          'smb-signing': JSON.stringify({ kind: 'unreadable' }),
+          'listening-ports': JSON.stringify({ kind: 'ports', count: 1, ports: [445] }),
+        }),
+        machine()
+      );
+      const { score, scoredChecks, excludedChecks } = computeSecurityScore(results);
+      expect(scoredChecks + excludedChecks).toBe(SECURITY_CHECK_CATALOG.length);
+      expect(score).not.toBeNull();
     });
   });
 });

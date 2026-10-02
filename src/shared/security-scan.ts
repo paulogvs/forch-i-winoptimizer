@@ -180,6 +180,79 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     guidance:
       'If you do not use Remote Desktop, turn it off (Settings => System => Remote Desktop).',
   },
+  // ===================== v0.8.0 additions (read-only, dynamic) =====================
+  {
+    id: 'password-policy',
+    title: 'Account password policy',
+    category: 'access',
+    severity: 'high',
+    reads:
+      'Get-ItemProperty HKLM\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters (MaximumPasswordAge, MinimumPasswordLength, PasswordComplexity, LockoutBadCount); defaults assumed when absent',
+    possibleStatuses: ['pass', 'warn', 'fail', 'unknown'],
+    autoFixable: false,
+    guidance:
+      'Set a password expiry (<= 365 days), a minimum length (>= 8) and a lockout threshold (e.g. 10) via secpol.msc or `net accounts`.',
+  },
+  {
+    id: 'autoplay',
+    title: 'Autorun / Autoplay for removable drives',
+    category: 'network',
+    severity: 'medium',
+    reads:
+      'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer => NoDriveTypeAutoRun and HKLM ...\\Services\\Cdrom\\Autorun decoded live',
+    possibleStatuses: ['pass', 'warn', 'unknown'],
+    autoFixable: false,
+    guidance:
+      'Disable AutoPlay/AutoRun for removable media (Settings => Bluetooth & devices => AutoPlay, or Group Policy `NoDriveTypeAutoRun`).',
+  },
+  {
+    id: 'lm-hash',
+    title: 'LM hash storage (NoLMHash)',
+    category: 'encryption',
+    severity: 'medium',
+    reads:
+      'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa => NoLMHash (absent means the legacy LM hash is still stored for compatibility)',
+    possibleStatuses: ['pass', 'warn', 'unknown'],
+    autoFixable: false,
+    guidance:
+      'Enable "Do not store LAN Manager hash value on next password change" (secpol.msc => Local Policies => Security Options), then change passwords.',
+  },
+  {
+    id: 'smb-signing',
+    title: 'SMB signing',
+    category: 'network',
+    severity: 'medium',
+    reads:
+      'Get-SmbServerConfiguration => RequireSecuritySignature / EnableSecuritySignature, with registry fallback (LanmanServer\\Parameters)',
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    guidance:
+      'Require SMB signing for the server (`Set-SmbServerConfiguration -RequireSecuritySignature $true`).',
+  },
+  {
+    id: 'listening-ports',
+    title: 'Inbound listening ports',
+    category: 'network',
+    severity: 'medium',
+    reads:
+      'Get-NetTCPConnection -State Listen => LocalPort/Address, summarized and deduplicated (never a fixed port list)',
+    possibleStatuses: ['pass', 'warn', 'unknown'],
+    autoFixable: false,
+    guidance:
+      'Review unexpected listeners and close the service or block the port with the firewall. Some ports are normal (RPC 135, SMB 445 on a file server).',
+  },
+  {
+    id: 'windows-update-service',
+    title: 'Windows Update service',
+    category: 'updates',
+    severity: 'medium',
+    reads:
+      'Get-Service wuauserv (StartType + Status), reporting disabled/stopped honestly instead of guessing',
+    possibleStatuses: ['pass', 'warn', 'fail', 'unknown'],
+    autoFixable: false,
+    guidance:
+      'Keep the Windows Update service (wuauserv) available so security patches can install.',
+  },
 ];
 
 /** Fast lookup by id. */

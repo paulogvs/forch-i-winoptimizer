@@ -1,4 +1,7 @@
 import { execFile } from 'child_process';
+import { promises as fs } from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
@@ -24,18 +27,51 @@ const PREAMBLE =
   ' $OutputEncoding=[System.Text.Encoding]::UTF8;';
 
 /**
+ * Windows caps a process command line at ~32767 characters. `-EncodedCommand`
+ * expands the script to Base64 of UTF-16LE (~2.67x), so a script that is fine
+ * to author can overflow the limit and make PowerShell fail to start — which
+ * used to surface as an empty success-shaped result (every downstream check
+ * degrading to `unknown`). Above this threshold we write the script to a temp
+ * `.ps1` and run it with `-File`, which has no such limit.
+ */
+const ENCODED_COMMAND_LIMIT = 30_000;
+
+async function runViaFile(full: string, timeout: number): Promise<PowerShellResult> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'forchi-ps-'));
+  const file = path.join(dir, 'script.ps1');
+  // UTF-8 BOM: PowerShell 5.1 reads a no-BOM .ps1 as ANSI and mangles accents.
+  await fs.writeFile(file, '\ufeff' + full, 'utf8');
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      POWERSHELL_EXE,
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file],
+      { timeout, maxBuffer: MAX_BUFFER, windowsHide: true }
+    );
+    return { success: true, stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+/**
  * Run an arbitrary PowerShell script safely.
  *
  * The script is passed via `-EncodedCommand` (Base64 of UTF-16LE). This avoids
  * every shell-quoting problem: multi-line scripts, double quotes, single quotes,
  * `$variables`, pipes, etc. all survive intact. Strongly preferred over
  * `-Command "..."`, which silently truncates scripts containing quotes.
+ *
+ * When the encoded form would exceed the Windows command-line limit the script
+ * is run from a temp file instead (see `runViaFile`).
  */
 async function runScript(script: string, timeout: number): Promise<PowerShellResult> {
   const full = `${PREAMBLE} ${script}`;
   const encoded = Buffer.from(full, 'utf16le').toString('base64');
 
   try {
+    if (encoded.length > ENCODED_COMMAND_LIMIT) {
+      return await runViaFile(full, timeout);
+    }
     const { stdout, stderr } = await execFileAsync(
       POWERSHELL_EXE,
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
