@@ -1,136 +1,15 @@
 import { runPowerShell } from './powershell';
-import type { AppBundle } from '@shared/types';
+import type { AppBundle, BundleApp } from '@shared/types';
+import { readBundledCatalog } from './catalog-data';
 
-const APP_BUNDLES: AppBundle[] = [
-  {
-    id: 'browsers',
-    name: 'Web Browsers',
-    description: 'Popular web browsers for all your browsing needs',
-    category: 'browsers',
-    icon: '🌐',
-    apps: [
-      { id: 'chrome', name: 'Google Chrome', wingetId: 'Google.Chrome', description: 'Fast, secure browser by Google', size: 0, isInstalled: false, isSelected: false },
-      { id: 'firefox', name: 'Mozilla Firefox', wingetId: 'Mozilla.Firefox', description: 'Open-source browser by Mozilla', size: 0, isInstalled: false, isSelected: false },
-      { id: 'edge', name: 'Microsoft Edge', wingetId: 'Microsoft.Edge', description: 'Chromium-based browser by Microsoft', size: 0, isInstalled: false, isSelected: false },
-      { id: 'brave', name: 'Brave Browser', wingetId: 'Brave.Brave', description: 'Privacy-focused browser with ad-blocking', size: 0, isInstalled: false, isSelected: false },
-      { id: 'opera', name: 'Opera', wingetId: 'Opera.Opera', description: 'Feature-rich browser with built-in VPN', size: 0, isInstalled: false, isSelected: false },
-      { id: 'vivaldi', name: 'Vivaldi', wingetId: 'Vivaldi.Vivaldi', description: 'Highly customizable browser', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-  {
-    id: 'media',
-    name: 'Media Players',
-    description: 'Music and video players for your media library',
-    category: 'media',
-    icon: '🎵',
-    apps: [
-      { id: 'vlc', name: 'VLC Media Player', wingetId: 'VideoLAN.VLC', description: 'Free, open-source multimedia player', size: 0, isInstalled: false, isSelected: false },
-      { id: 'spotify', name: 'Spotify', wingetId: 'Spotify.Spotify', description: 'Music streaming service', size: 0, isInstalled: false, isSelected: false },
-      { id: 'foobar2000', name: 'foobar2000', wingetId: 'foobar2000.foobar2000', description: 'Lightweight audio player', size: 0, isInstalled: false, isSelected: false },
-      { id: 'mpc-hc', name: 'MPC-HC', wingetId: 'clsid2227a280-3aea-1069-a2de-08002b30309d', description: 'Media Player Classic - Home Cinema', size: 0, isInstalled: false, isSelected: false },
-      { id: 'kodi', name: 'Kodi', wingetId: 'XBMCFoundation.Kodi', description: 'Media center and entertainment hub', size: 0, isInstalled: false, isSelected: false },
-      { id: 'handbrake', name: 'HandBrake', wingetId: 'HandBrake.HandBrake', description: 'Video transcoder', size: 0, isInstalled: false, isSelected: false },
-      { id: 'ffmpeg', name: 'FFmpeg', wingetId: 'Gyan.FFmpeg', description: 'Swiss-army knife for audio/video processing', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-  {
-    id: 'devtools',
-    name: 'Development Tools',
-    description: 'Essential tools for developers',
-    category: 'devtools',
-    icon: '💻',
-    apps: [
-      { id: 'vscode', name: 'Visual Studio Code', wingetId: 'Microsoft.VisualStudioCode', description: 'Popular code editor by Microsoft', size: 0, isInstalled: false, isSelected: false },
-      { id: 'git', name: 'Git', wingetId: 'Git.Git', description: 'Distributed version control system', size: 0, isInstalled: false, isSelected: false },
-      { id: 'nodejs', name: 'Node.js LTS', wingetId: 'OpenJS.NodeJS.LTS', description: 'JavaScript runtime built on Chrome V8 (LTS channel)', size: 0, isInstalled: false, isSelected: false },
-      { id: 'python', name: 'Python', wingetId: 'Python.Python.3.13', description: 'Popular programming language', size: 0, isInstalled: false, isSelected: false },
-      { id: 'docker', name: 'Docker Desktop', wingetId: 'Docker.DockerDesktop', description: 'Containerization platform', size: 0, isInstalled: false, isSelected: false },
-      { id: 'postman', name: 'Postman', wingetId: 'Postman.Postman', description: 'API development and testing tool', size: 0, isInstalled: false, isSelected: false },
-      { id: 'sublime', name: 'Sublime Text', wingetId: 'SublimeHQ.SublimeText.4', description: 'Sophisticated text editor', size: 0, isInstalled: false, isSelected: false },
-      { id: 'notepadpp', name: 'Notepad++', wingetId: 'Notepad++.Notepad++', description: 'Free source code editor', size: 0, isInstalled: false, isSelected: false },
-      { id: 'windowsterminal', name: 'Windows Terminal', wingetId: 'Microsoft.WindowsTerminal', description: 'Modern terminal with tabs, panes and Unicode support', size: 0, isInstalled: false, isSelected: false },
-      { id: 'powershell', name: 'PowerShell', wingetId: 'Microsoft.PowerShell', description: 'Cross-platform task automation shell (PS 7)', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-  {
-    id: 'utilities',
-    name: 'System Utilities',
-    description: 'Handy utilities for everyday tasks',
-    category: 'utilities',
-    icon: '🔧',
-    apps: [
-      { id: '7zip', name: '7-Zip', wingetId: '7zip.7zip', description: 'File archiver with high compression ratio', size: 0, isInstalled: false, isSelected: false },
-      { id: 'winrar', name: 'WinRAR', wingetId: 'RARLab.WinRAR', description: 'Archive manager for Windows', size: 0, isInstalled: false, isSelected: false },
-      { id: 'ccleaner', name: 'CCleaner', wingetId: 'Piriform.CCleaner', description: 'System optimization and cleaning tool', size: 0, isInstalled: false, isSelected: false },
-      { id: 'recuva', name: 'Recuva', wingetId: 'Piriform.Recuva', description: 'File recovery tool', size: 0, isInstalled: false, isSelected: false },
-      { id: 'everything', name: 'Everything', wingetId: 'voidtools.Everything', description: 'Fast file search utility', size: 0, isInstalled: false, isSelected: false },
-      { id: 'sharex', name: 'ShareX', wingetId: 'ShareX.ShareX', description: 'Screen capture and file sharing tool', size: 0, isInstalled: false, isSelected: false },
-      { id: 'obs', name: 'OBS Studio', wingetId: 'OBSProject.OBSStudio', description: 'Free, open-source streaming and recording software', size: 0, isInstalled: false, isSelected: false },
-      { id: 'gimp', name: 'GIMP', wingetId: 'GIMP.GIMP', description: 'Free, open-source image editor', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-  {
-    id: 'games',
-    name: 'Gaming',
-    description: 'Game launchers and gaming utilities',
-    category: 'games',
-    icon: '🎮',
-    apps: [
-      { id: 'steam', name: 'Steam', wingetId: 'Valve.Steam', description: 'Popular gaming platform', size: 0, isInstalled: false, isSelected: false },
-      { id: 'epic', name: 'Epic Games Launcher', wingetId: 'EpicGames.EpicGamesLauncher', description: 'Epic Games store and launcher', size: 0, isInstalled: false, isSelected: false },
-      { id: 'discord', name: 'Discord', wingetId: 'Discord.Discord', description: 'Voice, video, and text communication', size: 0, isInstalled: false, isSelected: false },
-      { id: 'geforce', name: 'NVIDIA GeForce Experience', wingetId: 'Nvidia.GeForceExperience', description: 'NVIDIA driver updates and game optimization', size: 0, isInstalled: false, isSelected: false },
-      // OBS Studio lives once in the 'utilities' bundle (unique winget ids enforced by test).
-    ],
-  },
-  // ===================== P1.3 (+3 bundles, v0.4.0) =====================
-  {
-    id: 'productivity',
-    name: 'Productivity',
-    description: 'Tools to focus, organize and get more out of Windows',
-    category: 'productivity',
-    icon: '💼',
-    apps: [
-      { id: 'powertoys', name: 'Microsoft PowerToys', wingetId: 'Microsoft.PowerToys', description: 'Microsoft power-user utilities (FancyZones, PowerRename, Run)', size: 0, isInstalled: false, isSelected: false },
-      { id: 'obsidian', name: 'Obsidian', wingetId: 'Obsidian.Obsidian', description: 'Local markdown notes and knowledge base', size: 0, isInstalled: false, isSelected: false },
-      { id: 'notion', name: 'Notion', wingetId: 'Notion.Notion', description: 'All-in-one workspace for notes and projects', size: 0, isInstalled: false, isSelected: false },
-      { id: 'flowlauncher', name: 'Flow Launcher', wingetId: 'Flow-Launcher.Flow-Launcher', description: 'Keyboard-driven launcher (Spotlight-style) for Windows', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-  {
-    id: 'communication',
-    name: 'Communication',
-    description: 'Messaging, meetings and team collaboration',
-    category: 'communication',
-    icon: '💬',
-    apps: [
-      { id: 'zoom', name: 'Zoom', wingetId: 'Zoom.Zoom', description: 'Video meetings and webinars', size: 0, isInstalled: false, isSelected: false },
-      { id: 'telegram', name: 'Telegram Desktop', wingetId: 'Telegram.TelegramDesktop', description: 'Fast cloud-based messaging client', size: 0, isInstalled: false, isSelected: false },
-      { id: 'whatsapp', name: 'WhatsApp', wingetId: '9NKSQGP7F2NH', description: 'WhatsApp desktop (Microsoft Store)', size: 0, isInstalled: false, isSelected: false },
-      { id: 'slack', name: 'Slack', wingetId: 'SlackTechnologies.Slack', description: 'Team chat organized by channels', size: 0, isInstalled: false, isSelected: false },
-      { id: 'signal', name: 'Signal', wingetId: 'OpenWhisperSystems.Signal', description: 'Encrypted messaging with strong privacy', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-  {
-    id: 'security',
-    name: 'Security & Privacy',
-    description: 'Password managers, network inspection and protection',
-    category: 'security',
-    icon: '🛡️',
-    apps: [
-      { id: 'bitwarden', name: 'Bitwarden', wingetId: 'Bitwarden.Bitwarden', description: 'Open-source password manager', size: 0, isInstalled: false, isSelected: false },
-      { id: 'keepassxc', name: 'KeePassXC', wingetId: 'KeePassXCTeam.KeePassXC', description: 'Offline password database, local files only', size: 0, isInstalled: false, isSelected: false },
-      { id: 'malwarebytes', name: 'Malwarebytes', wingetId: 'Malwarebytes.Malwarebytes', description: 'On-demand anti-malware scanner', size: 0, isInstalled: false, isSelected: false },
-      { id: 'wireshark', name: 'Wireshark', wingetId: 'WiresharkFoundation.Wireshark', description: 'Network protocol analyzer', size: 0, isInstalled: false, isSelected: false },
-    ],
-  },
-];
-
-export function getAppBundles(): AppBundle[] {
-  return APP_BUNDLES;
-}
-
-// ===== P0.2: winget exit-code handling + package id validation =====
+/**
+ * App bundles (P1.3 / Phase A).
+ *
+ * The curated product list lives in DATA (`catalogs/app-bundles-catalog.json`),
+ * never in code: the renderer sends bundle/app ids, and every winget id is
+ * still validated against a strict grammar before it can reach a PowerShell
+ * command line. See `docs/CATALOGS.md`.
+ */
 
 /**
  * winget package ids are dot-separated identifiers (e.g. `Google.Chrome`,
@@ -139,6 +18,96 @@ export function getAppBundles(): AppBundle[] {
  * script, which closes the command-injection gap.
  */
 const WINGET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+
+const BUNDLE_CATEGORIES = new Set<AppBundle['category']>([
+  'browsers',
+  'media',
+  'devtools',
+  'utilities',
+  'games',
+  'productivity',
+  'communication',
+  'security',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isValidBundleApp(raw: unknown): raw is Omit<BundleApp, 'isInstalled' | 'isSelected'> {
+  if (!isRecord(raw)) return false;
+  return (
+    typeof raw.id === 'string' &&
+    raw.id.length > 0 &&
+    typeof raw.name === 'string' &&
+    raw.name.length > 0 &&
+    typeof raw.description === 'string' &&
+    raw.description.length > 0 &&
+    typeof raw.wingetId === 'string' &&
+    WINGET_ID_PATTERN.test(raw.wingetId) &&
+    typeof raw.size === 'number'
+  );
+}
+
+function toBundleApp(raw: Omit<BundleApp, 'isInstalled' | 'isSelected'>): BundleApp {
+  return {
+    id: raw.id,
+    name: raw.name,
+    wingetId: raw.wingetId,
+    description: raw.description,
+    size: raw.size,
+    isInstalled: false,
+    isSelected: false,
+  };
+}
+
+/**
+ * Read and validate the bundled app-bundle catalog. Invalid bundles/apps are
+ * dropped (never surfaced); a missing/corrupt file yields [].
+ */
+export function loadAppBundleCatalog(): AppBundle[] {
+  const envelope = readBundledCatalog<{ bundles?: unknown }>('app-bundles-catalog.json');
+  if (!envelope || !Array.isArray(envelope.bundles)) return [];
+
+  const bundles: AppBundle[] = [];
+  for (const raw of envelope.bundles) {
+    if (!isRecord(raw)) continue;
+    if (
+      typeof raw.id !== 'string' ||
+      raw.id.length === 0 ||
+      typeof raw.name !== 'string' ||
+      raw.name.length === 0 ||
+      typeof raw.description !== 'string' ||
+      raw.description.length === 0 ||
+      typeof raw.icon !== 'string' ||
+      raw.icon.length === 0 ||
+      typeof raw.category !== 'string' ||
+      !BUNDLE_CATEGORIES.has(raw.category as AppBundle['category']) ||
+      !Array.isArray(raw.apps)
+    ) {
+      continue;
+    }
+    const apps = raw.apps.filter(isValidBundleApp).map(toBundleApp);
+    if (apps.length === 0) continue;
+    bundles.push({
+      id: raw.id,
+      name: raw.name,
+      description: raw.description,
+      category: raw.category as AppBundle['category'],
+      icon: raw.icon,
+      apps,
+    });
+  }
+  return bundles;
+}
+
+const APP_BUNDLES: AppBundle[] = loadAppBundleCatalog();
+
+export function getAppBundles(): AppBundle[] {
+  return APP_BUNDLES;
+}
+
+// ===== P0.2: winget exit-code handling + package id validation =====
 
 function invalidIdResult(action: 'install' | 'uninstall'): { success: false; message: string } {
   return { success: false, message: `Invalid package id: refusing to ${action}` };

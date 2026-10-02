@@ -1,188 +1,886 @@
 {
-  "version": "0.1.0",
-  "lastUpdated": "2026-09-30",
+  "version": "1.0.0",
+  "lastUpdated": "2026-10-02",
+  "source": "native (was inline in src/main/services/tweaks.ts; unified with the stale 10-entry winutil import)",
   "tweaks": [
     {
-      "id": "disable-telemetry",
-      "name": "Desactivar Telemetría",
-      "category": "privacy",
-      "protection": "caution",
-      "description": "Reduce la telemetría de Windows al mínimo requerido.",
-      "registry": [
+      "id": "sysmain-toggle",
+      "name": "SysMain (Superfetch)",
+      "description": "Disables the SysMain/Superfetch service, which pre-loads apps into RAM. Recommended only on SSDs if you notice high disk or CPU usage.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "medium",
+      "requiresAdmin": true,
+      "note": "Not recommended on mechanical (HDD) systems. You can restore it at any time.",
+      "apply": [
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+          "kind": "service",
+          "serviceName": "SysMain",
+          "startType": "disabled",
+          "state": "stopped"
+        }
+      ],
+      "revert": [
+        {
+          "kind": "service",
+          "serviceName": "SysMain",
+          "startType": "automatic",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "id": "prefetch-conservative",
+      "name": "Prefetch / Superfetch (conservative)",
+      "description": "Ensures Prefetch and Superfetch use the Windows-recommended values (enabled/app-aware) instead of being disabled. Safe, low impact.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": true,
+      "note": "This does NOT disable prefetch: it restores the conservative defaults.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
+          "name": "EnablePrefetcher",
+          "type": "DWORD",
+          "value": 3
+        },
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
+          "name": "EnableSuperfetch",
+          "type": "DWORD",
+          "value": 3
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
+          "name": "EnablePrefetcher",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        },
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters",
+          "name": "EnableSuperfetch",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ]
+    },
+    {
+      "id": "background-apps",
+      "name": "Background Apps (current user)",
+      "description": "Stops Store/UWP apps from running in the background for the current user. Does not affect desktop apps or system services.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications",
+          "name": "GlobalUserDisabled",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications",
+          "name": "GlobalUserDisabled",
+          "type": "DWORD",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "game-mode-hags",
+      "name": "Game Mode / HAGS",
+      "description": "Informational only: Game Mode and Hardware-Accelerated GPU Scheduling depend on your GPU/driver. WinOptimizer detects and suggests, it never forces them.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Detect-and-suggest only. Enable from Settings > System > Display > Graphics if your hardware supports it.",
+      "apply": [
+        {
+          "kind": "info",
+          "detail": "Detect Game Mode (HKCU GameBar) and HAGS (GPU Scheduler) and surface recommendations; no change is written."
+        }
+      ],
+      "revert": [
+        {
+          "kind": "info",
+          "detail": "Nothing to undo: this tweak never writes to the system."
+        }
+      ]
+    },
+    {
+      "id": "telemetry-diagtrack",
+      "name": "Telemetry & DiagTrack",
+      "description": "Disables the DiagTrack (Connected User Experiences) service, sets the telemetry policy to the minimum, and turns off the main CEIP/feedback tasks.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "medium",
+      "requiresAdmin": true,
+      "apply": [
+        {
+          "kind": "service",
+          "serviceName": "DiagTrack",
+          "startType": "disabled",
+          "state": "stopped"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
           "name": "AllowTelemetry",
           "type": "DWORD",
           "value": 0
-        }
-      ],
-      "source": "winutil"
-    },
-    {
-      "id": "disable-activity-history",
-      "name": "Desactivar Historial de Actividad",
-      "category": "privacy",
-      "protection": "safe",
-      "description": "Desactiva el historial de actividad y envío a Microsoft.",
-      "registry": [
-        {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
-          "name": "EnableActivityFeed",
-          "type": "DWORD",
-          "value": 0
         },
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
-          "name": "PublishUserActivities",
-          "type": "DWORD",
-          "value": 0
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Application Experience\\",
+          "taskName": "Microsoft Compatibility Appraiser",
+          "disable": true
         },
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
-          "name": "UploadUserActivities",
-          "type": "DWORD",
-          "value": 0
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\",
+          "taskName": "Consolidator",
+          "disable": true
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\",
+          "taskName": "UsbCeip",
+          "disable": true
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Feedback\\Siuf\\",
+          "taskName": "DmClient",
+          "disable": true
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Feedback\\Siuf\\",
+          "taskName": "DmClientOnScenarioDownload",
+          "disable": true
         }
       ],
-      "source": "winutil"
-    },
-    {
-      "id": "disable-cortana",
-      "name": "Desactivar Cortana",
-      "category": "privacy",
-      "protection": "caution",
-      "description": "Desactiva Cortana completamente.",
-      "registry": [
+      "revert": [
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
-          "name": "AllowCortana",
-          "type": "DWORD",
-          "value": 0
-        }
-      ],
-      "source": "winutil"
-    },
-    {
-      "id": "disable-web-search",
-      "name": "Desactivar Búsqueda Web en Start",
-      "category": "privacy",
-      "protection": "safe",
-      "description": "Evita que la búsqueda en Start consulte Bing.",
-      "registry": [
+          "kind": "service",
+          "serviceName": "DiagTrack",
+          "startType": "automatic",
+          "state": "running"
+        },
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
-          "name": "DisableWebSearch",
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+          "name": "AllowTelemetry",
           "type": "DWORD",
           "value": 1
         },
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
-          "name": "ConnectedSearchUseWeb",
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Application Experience\\",
+          "taskName": "Microsoft Compatibility Appraiser",
+          "disable": false
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\",
+          "taskName": "Consolidator",
+          "disable": false
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\",
+          "taskName": "UsbCeip",
+          "disable": false
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Feedback\\Siuf\\",
+          "taskName": "DmClient",
+          "disable": false
+        },
+        {
+          "kind": "scheduled-task",
+          "taskPath": "\\Microsoft\\Windows\\Feedback\\Siuf\\",
+          "taskName": "DmClientOnScenarioDownload",
+          "disable": false
+        }
+      ]
+    },
+    {
+      "id": "suggested-content",
+      "name": "Suggested Content & Ads",
+      "description": "Turns off Windows 11 tips, suggestions, ads and silent app installs in Start, Settings and the lock screen.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338388Enabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338389Enabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-353694Enabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-353696Enabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SystemPaneSuggestionsEnabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SilentInstalledAppsEnabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "RotatingLockScreenOverlayEnabled",
           "type": "DWORD",
           "value": 0
         }
       ],
-      "source": "winutil"
-    },
-    {
-      "id": "show-hidden-files",
-      "name": "Mostrar Archivos Ocultos",
-      "category": "ux",
-      "protection": "safe",
-      "description": "Muestra archivos y carpetas ocultas en el Explorador.",
-      "registry": [
+      "revert": [
         {
-          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
-          "name": "Hidden",
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338388Enabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338389Enabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-353694Enabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-353696Enabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SystemPaneSuggestionsEnabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SilentInstalledAppsEnabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "RotatingLockScreenOverlayEnabled",
           "type": "DWORD",
           "value": 1
         }
-      ],
-      "source": "winutil"
+      ]
     },
     {
       "id": "show-file-extensions",
-      "name": "Mostrar Extensiones de Archivo",
-      "category": "ux",
-      "protection": "safe",
-      "description": "Muestra las extensión de archivo en el Explorador.",
-      "registry": [
+      "name": "Show file extensions",
+      "description": "Shows known file extensions in File Explorer. Useful for spotting double-extension malware.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
         {
-          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
           "name": "HideFileExt",
           "type": "DWORD",
           "value": 0
         }
       ],
-      "source": "winutil"
-    },
-    {
-      "id": "disable-lock-screen",
-      "name": "Desactivar Pantalla de Bloqueo",
-      "category": "performance",
-      "protection": "safe",
-      "description": "Desactiva la pantalla de bloqueo para ir directo al login.",
-      "registry": [
+      "revert": [
         {
-          "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization",
-          "name": "NoLockScreen",
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "HideFileExt",
           "type": "DWORD",
           "value": 1
         }
-      ],
-      "source": "winutil"
+      ]
     },
     {
-      "id": "disable-startup-delay",
-      "name": "Eliminar Delay de Inicio de Apps",
-      "category": "performance",
-      "protection": "safe",
-      "description": "Reduce el delay de inicio de apps del Start.",
-      "registry": [
+      "id": "hide-recent-files",
+      "name": "Hide recent & frequent items",
+      "description": "Stops File Explorer Quick Access from showing recently used and frequently used files.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
         {
-          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+          "name": "ShowRecent",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+          "name": "ShowFrequent",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+          "name": "ShowRecent",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+          "name": "ShowFrequent",
+          "type": "DWORD",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "classic-context-menu",
+      "name": "Classic context menu (compact)",
+      "description": "Restores the compact Windows 10-style right-click menu in Windows 11 (no \"Show more options\").",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32",
+          "name": "(default)",
+          "type": "String",
+          "value": ""
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32",
+          "name": "(default)",
+          "type": "String",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ]
+    },
+    {
+      "id": "snappier-animations",
+      "name": "Snappier animations",
+      "description": "Sets the menu show delay to 0 ms and disables the minimize/maximize animation so the shell feels faster.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Sign out/in or restart Explorer to see the full effect.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Desktop",
+          "name": "MenuShowDelay",
+          "type": "String",
+          "value": "0"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Desktop\\WindowMetrics",
+          "name": "MinAnimate",
+          "type": "String",
+          "value": "0"
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Desktop",
+          "name": "MenuShowDelay",
+          "type": "String",
+          "value": "400"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Desktop\\WindowMetrics",
+          "name": "MinAnimate",
+          "type": "String",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "mouse-acceleration-off",
+      "name": "Mouse acceleration (pointer precision)",
+      "description": "Turns off pointer precision so mouse movement is 1:1 with raw input — preferred by gamers and CAD users.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Restore puts back your captured values (Windows defaults: speed 1, thresholds 6/10).",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Mouse",
+          "name": "MouseSpeed",
+          "type": "String",
+          "value": "0"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Mouse",
+          "name": "MouseThreshold1",
+          "type": "String",
+          "value": "0"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Mouse",
+          "name": "MouseThreshold2",
+          "type": "String",
+          "value": "0"
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Mouse",
+          "name": "MouseSpeed",
+          "type": "String",
+          "value": "1"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Mouse",
+          "name": "MouseThreshold1",
+          "type": "String",
+          "value": "6"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Mouse",
+          "name": "MouseThreshold2",
+          "type": "String",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "id": "startup-delay-zero",
+      "name": "No delay for startup apps",
+      "description": "Removes the artificial delay Windows adds before launching startup apps, so they start right after sign-in.",
+      "category": "performance",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
           "name": "StartupDelayInMSec",
           "type": "DWORD",
           "value": 0
         }
       ],
-      "source": "winutil"
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
+          "name": "StartupDelayInMSec",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ]
     },
     {
-      "id": "context-menu-clean",
-      "name": "Limpiar Menú Contextual",
-      "category": "ux",
-      "protection": "caution",
-      "description": "Limpia entradas innecesarias del menú contextual.",
-      "registry": [
+      "id": "taskbar-align-left",
+      "name": "Taskbar aligned left",
+      "description": "Moves the Windows 11 taskbar from centered to left-aligned (classic layout).",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22000,
+      "note": "Windows 11 only (build 22000+).",
+      "apply": [
         {
-          "path": "HKCR\\Directory\\Background\\shellex\\ContextMenuHandlers\\WorkFolders",
-          "action": "delete"
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarAl",
+          "type": "DWORD",
+          "value": 0
         }
       ],
-      "source": "winutil"
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarAl",
+          "type": "DWORD",
+          "value": 1
+        }
+      ]
     },
     {
-      "id": "disable-game-bar",
-      "name": "Desactivar Game Bar",
-      "category": "gaming",
-      "protection": "safe",
-      "description": "Desactiva la Game Bar y su overlay.",
-      "registry": [
+      "id": "taskbar-search-hidden",
+      "name": "Hide taskbar search box",
+      "description": "Removes the search box/icon from the taskbar; search stays available from Start.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22000,
+      "note": "Windows 11 only (build 22000+).",
+      "apply": [
         {
-          "path": "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
-          "name": "AppCaptureEnabled",
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "SearchboxTaskbarMode",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "SearchboxTaskbarMode",
+          "type": "DWORD",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "hide-task-view-button",
+      "name": "Hide Task View button",
+      "description": "Hides the Task View button from the taskbar (Win+Tab keeps working).",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22000,
+      "note": "Windows 11 only (build 22000+).",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowTaskViewButton",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowTaskViewButton",
+          "type": "DWORD",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "hide-widgets",
+      "name": "Hide Widgets button",
+      "description": "Hides the Widgets (news/weather) button from the taskbar. Registry-only: the Widgets service is not touched.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22000,
+      "note": "Windows 11 only (build 22000+).",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarDa",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarDa",
+          "type": "DWORD",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "hide-copilot",
+      "name": "Turn off Copilot",
+      "description": "Hides the Copilot button and disables Windows Copilot via policy for the current user.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22631,
+      "note": "Windows 11 23H2+ (build 22631+). Does not uninstall the app.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowCopilotButton",
           "type": "DWORD",
           "value": 0
         },
         {
-          "path": "HKCU\\System\\GameConfigStore",
-          "name": "GameDVR_Enabled",
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\WindowsCopilot",
+          "name": "TurnOffWindowsCopilot",
           "type": "DWORD",
-          "value": 0
+          "value": 1
         }
       ],
-      "source": "winutil"
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowCopilotButton",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\WindowsCopilot",
+          "name": "TurnOffWindowsCopilot",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ]
+    },
+    {
+      "id": "windows-spotlight-off",
+      "name": "Turn off Windows Spotlight",
+      "description": "Disables Windows Spotlight (lock screen pictures and suggestions) via user and machine policy.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": true,
+      "note": "Re-enable anytime in Settings > Personalization > Lock screen.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsSpotlightFeatures",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsSpotlightFeatures",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsSpotlightFeatures",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        },
+        {
+          "kind": "registry",
+          "hive": "HKLM",
+          "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsSpotlightFeatures",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ]
+    },
+    {
+      "id": "sticky-keys-off",
+      "name": "Disable Sticky Keys prompts",
+      "description": "Stops the \"press Shift five times\" Sticky Keys prompt and turns the feature off for the current user.",
+      "category": "accessibility",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Re-enable anytime in Settings > Accessibility > Keyboard.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Accessibility\\StickyKeys",
+          "name": "Flags",
+          "type": "String",
+          "value": "506"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Accessibility\\StickyKeys",
+          "name": "KeyboardPreference",
+          "type": "String",
+          "value": "On"
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Accessibility\\StickyKeys",
+          "name": "Flags",
+          "type": "String",
+          "value": "510"
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Control Panel\\Accessibility\\StickyKeys",
+          "name": "KeyboardPreference",
+          "type": "String",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ]
     }
   ]
 }
