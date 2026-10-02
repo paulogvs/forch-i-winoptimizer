@@ -5,13 +5,19 @@ import { DEFAULT_SETTINGS, type AppSettings, type AppEnvironment } from '@shared
 
 type Api = Record<string, unknown>;
 
-const environment: AppEnvironment = { portable: false, loginItemSupported: true, platform: 'win32' };
+const environment: AppEnvironment = {
+  portable: false,
+  loginItemSupported: true,
+  platform: 'win32',
+};
 
-function makeApi(options: {
-  settings?: Partial<AppSettings>;
-  environment?: Partial<AppEnvironment>;
-  updateSettings?: (patch: Partial<AppSettings>) => Promise<unknown>;
-} = {}): Api {
+function makeApi(
+  options: {
+    settings?: Partial<AppSettings>;
+    environment?: Partial<AppEnvironment>;
+    updateSettings?: (patch: Partial<AppSettings>) => Promise<unknown>;
+  } = {}
+): Api {
   const settings = { ...DEFAULT_SETTINGS, ...(options.settings ?? {}) };
   const env = { ...environment, ...(options.environment ?? {}) };
   return {
@@ -25,7 +31,8 @@ function makeApi(options: {
           ok: true,
           message: 'Settings saved.',
         })),
-    getUpdateStatus: () => Promise.resolve({ state: 'idle', version: null, percent: null, message: null }),
+    getUpdateStatus: () =>
+      Promise.resolve({ state: 'idle', version: null, percent: null, message: null }),
     checkForUpdates: () =>
       Promise.resolve({
         currentVersion: '0.5.0',
@@ -36,8 +43,10 @@ function makeApi(options: {
         publishedAt: new Date(),
         size: 0,
       }),
-    checkForUpdatesNow: () => Promise.resolve({ state: 'checking', version: null, percent: null, message: null }),
-    downloadUpdateNow: () => Promise.resolve({ state: 'downloading', version: null, percent: 0, message: null }),
+    checkForUpdatesNow: () =>
+      Promise.resolve({ state: 'checking', version: null, percent: null, message: null }),
+    downloadUpdateNow: () =>
+      Promise.resolve({ state: 'downloading', version: null, percent: 0, message: null }),
     installUpdateNow: () => Promise.resolve({ success: true, message: 'ok' }),
     onUpdateStatus: () => () => {},
     onUpdateProgress: () => () => {},
@@ -57,7 +66,9 @@ describe('Settings page', () => {
     render(<Settings theme="dark" onThemeToggle={() => {}} />);
     await screen.findByText('Start with Windows');
     expect(screen.queryByTitle('Not implemented yet')).not.toBeInTheDocument();
-    expect(screen.queryByTitle('Accent color customization is not implemented yet')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTitle('Accent color customization is not implemented yet')
+    ).not.toBeInTheDocument();
   });
 
   it('persists a toggle change through updateSettings', async () => {

@@ -6,11 +6,7 @@ export interface BadgeProps {
   className?: string;
 }
 
-export const Badge: React.FC<BadgeProps> = ({
-  variant = 'neutral',
-  children,
-  className = '',
-}) => {
+export const Badge: React.FC<BadgeProps> = ({ variant = 'neutral', children, className = '' }) => {
   const variantClass = `badge-${variant}`;
   const classes = ['badge', variantClass, className].filter(Boolean).join(' ');
 

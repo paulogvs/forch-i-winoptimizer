@@ -7,6 +7,7 @@
 **Síntomas:** Al ejecutar el .exe, no aparece ninguna ventana o se cierra inmediatamente.
 
 **Soluciones:**
+
 1. Verifica que tengas Windows 10 (1809+) o Windows 11
 2. Ejecuta como administrador (click derecho → "Ejecutar como administrador")
 3. Revisa el archivo de log en `%APPDATA%/forch-i-winoptimizer/logs/`
@@ -20,6 +21,7 @@
 **Síntomas:** Al intentar eliminar archivos basura, aparece un error de "Access denied".
 
 **Soluciones:**
+
 1. Ejecuta la aplicación como administrador
 2. Verifica que los archivos no estén en uso por otro programa
 3. Cierra los navegadores antes de limpiar la caché
@@ -32,6 +34,7 @@
 **Síntomas:** Al intentar desactivar un servicio, no se aplica el cambio.
 
 **Soluciones:**
+
 1. Verifica que estés ejecutando como administrador
 2. Algunos servicios están protegidos y no se pueden desactivar
 3. Verifica que el servicio no sea esencial para el sistema
@@ -44,6 +47,7 @@
 **Síntomas:** La aplicación no puede ejecutar comandos PowerShell.
 
 **Soluciones:**
+
 1. Verifica que PowerShell esté instalado (viene con Windows por defecto)
 2. Abre PowerShell manualmente para verificar que funciona
 3. Revisa la variable de entorno PATH incluya `C:\Windows\System32\WindowsPowerShell\v1.0\`
@@ -56,6 +60,7 @@
 **Síntomas:** Al intentar descargar una actualización, falla o se queda en 0%.
 
 **Soluciones:**
+
 1. Verifica tu conexión a internet
 2. Revisa que el firewall no bloquee la aplicación
 3. Intenta descargar manualmente desde GitHub
@@ -69,6 +74,7 @@
 **Síntomas:** La interfaz se siente lenta o las operaciones tardan mucho.
 
 **Soluciones:**
+
 1. Cierra otras aplicaciones para liberar recursos
 2. Reinicia el sistema
 3. Verifica que tu PC cumpla los requisitos mínimos (4 GB RAM)
@@ -82,6 +88,7 @@
 **Síntomas:** El escaneo no encuentra archivos para limpiar.
 
 **Soluciones:**
+
 1. Verifica que los permisos sean correctos (ejecuta como administrador)
 2. Los archivos pueden haber sido limpiados previamente
 3. Verifica que las rutas de escaneo sean correctas
@@ -94,6 +101,7 @@
 **Síntomas:** La aplicación se cierra sin mostrar error.
 
 **Soluciones:**
+
 1. Revisa los logs en `%APPDATA%/forch-i-winoptimizer/logs/`
 2. Verifica que no haya conflictos con otros programas
 3. Actualiza a la última versión
@@ -107,6 +115,7 @@
 **Síntomas:** Al intentar desinstalar una app, falla.
 
 **Soluciones:**
+
 1. Ejecuta como administrador
 2. Verifica que la app no esté en uso
 3. Intenta desinstalar manualmente desde "Agregar o quitar programas"
@@ -119,6 +128,7 @@
 **Síntomas:** El tema o idioma no se aplica correctamente.
 
 **Soluciones:**
+
 1. Reinicia la aplicación
 2. Verifica que el archivo de configuración no esté corrupto
 3. Elimina la carpeta `%APPDATA%/forch-i-winoptimizer/` y reinicia
@@ -138,7 +148,8 @@ ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requ
 **Causa:** electron-builder extrae el paquete `winCodeSign`, que incluye enlaces simbólicos de macOS (`darwin/*.dylib`). Windows necesita el privilegio `SeCreateSymbolicLinkPrivilege` (Modo Desarrollador o Administrador) para crearlos.
 
 **Soluciones (elige una):**
-1. **Activar Modo Desarrollador** (recomendado): Configuración → Privacidad y seguridad → Para desarrolladores → *Modo para desarrolladores* = Activado. Vuelve a ejecutar `npm run electron:build`.
+
+1. **Activar Modo Desarrollador** (recomendado): Configuración → Privacidad y seguridad → Para desarrolladores → _Modo para desarrolladores_ = Activado. Vuelve a ejecutar `npm run electron:build`.
 2. **Ejecutar la terminal como Administrador.**
 3. **Workaround sin privilegios** — pre-extraer `winCodeSign` excluyendo `darwin`:
    ```powershell
@@ -158,22 +169,22 @@ ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requ
 
 Muchas funciones leen o modifican el sistema y requieren **ejecutar la app como administrador**:
 
-| Módulo | ¿Requiere admin? |
-|--------|:---:|
-| Dashboard / System Info | No |
-| Cleaner (limpiar `C:\Windows\*`, caché de Windows Update) | Sí |
-| Boost / Servicios (cambiar tipo de inicio, detener) | Sí |
-| App Manager (desinstalar apps UWP/Win32) | Sí |
-| Debloat (remover paquetes UWP) | Sí |
-| Free RAM (liberar memoria de la app) | No |
-| Bundles (instalar vía `winget`) | No |
-| Drivers (punto de restauración, `pnputil`) | Sí |
-| Network Fixer (reset TCP/IP, Winsock, firewall) | Sí |
-| Scheduled Cleaning (crear tareas programadas) | Sí |
-| Audit / Benchmark (lectura de HKLM) | Parcial |
-| Tweaks — Performance: SysMain, Prefetch (`HKLM`/servicios) | Sí |
-| Tweaks — Privacy: Telemetry/DiagTrack (servicio + tareas + `HKLM`) | Sí |
-| Tweaks — Background Apps, Suggested Content, Explorer (`HKCU`) | No |
+| Módulo                                                             | ¿Requiere admin? |
+| ------------------------------------------------------------------ | :--------------: |
+| Dashboard / System Info                                            |        No        |
+| Cleaner (limpiar `C:\Windows\*`, caché de Windows Update)          |        Sí        |
+| Boost / Servicios (cambiar tipo de inicio, detener)                |        Sí        |
+| App Manager (desinstalar apps UWP/Win32)                           |        Sí        |
+| Debloat (remover paquetes UWP)                                     |        Sí        |
+| Free RAM (liberar memoria de la app)                               |        No        |
+| Bundles (instalar vía `winget`)                                    |        No        |
+| Drivers (punto de restauración, `pnputil`)                         |        Sí        |
+| Network Fixer (reset TCP/IP, Winsock, firewall)                    |        Sí        |
+| Scheduled Cleaning (crear tareas programadas)                      |        Sí        |
+| Audit / Benchmark (lectura de HKLM)                                |     Parcial      |
+| Tweaks — Performance: SysMain, Prefetch (`HKLM`/servicios)         |        Sí        |
+| Tweaks — Privacy: Telemetry/DiagTrack (servicio + tareas + `HKLM`) |        Sí        |
+| Tweaks — Background Apps, Suggested Content, Explorer (`HKCU`)     |        No        |
 
 **Portable:** si las acciones fallan, cerrá la app y reabrí con clic derecho → **Ejecutar como administrador**.
 
@@ -187,6 +198,7 @@ Muchas funciones leen o modifican el sistema y requieren **ejecutar la app como 
 el **subset seguro**; no hay tweaks destructivos ni "Remove All".
 
 **Reversibilidad (garantizada):**
+
 1. Antes de aplicar, la app **captura el estado previo** (valor de registro, tipo de inicio del
    servicio, estado de la tarea programada) y lo persiste en
    `%APPDATA%/forch-i-winoptimizer/tweaks-state.json`.
@@ -197,6 +209,7 @@ el **subset seguro**; no hay tweaks destructivos ni "Remove All".
 servicios y tareas que se tocan (Apply y Restore).
 
 **Un tweak falla o no tiene efecto:**
+
 - Ejecutá la app **como administrador** para los tweaks de servicios/`HKLM` (SysMain, Prefetch,
   Telemetry/DiagTrack).
 - El mensaje de error se muestra en la tarjeta del tweak (motivo real de PowerShell).
@@ -229,6 +242,7 @@ vez, en FIFO** (26 canales: tweaks, apps, bundles, limpiezas, debloat, Free RAM�
 **comportamiento normal**, no un bug.
 
 **Soluciones:**
+
 1. **Esperá a que termine** — el badge se apaga y los botones se reactivan solos
 2. Mirá el módulo implicado: si la operación falló, el error aparece ahí y el lock se
    libera igual (el badge no queda pegado por errores)
@@ -244,6 +258,7 @@ vez, en FIFO** (26 canales: tweaks, apps, bundles, limpiezas, debloat, Free RAM�
 removiste algo y lo querés de vuelta.
 
 **Por qué ocurre:**
+
 - **`protected` (4 paquetes)** — nunca se remueven; la casilla queda deshabilitada y el
   backend los rechaza aunque la UI se eluda. A salvo: Microsoft Store y apps clave.
 - **"not installed"** — el paquete no está en tu sistema; la casilla está deshabilitada.
@@ -263,8 +278,8 @@ paquete arbitrarios); ids desconocidos, duplicados o con caracteres inválidos s
 
 ### 17. SmartScreen: "Windows protegió tu PC" (binarios sin firmar)
 
-**Síntomas:** al ejecutar el Setup o el Portable, Windows muestra *"Windows protegió tu
-PC — Microsoft Defender SmartScreen impidió el inicio de una aplicación no reconocida"*.
+**Síntomas:** al ejecutar el Setup o el Portable, Windows muestra _"Windows protegió tu
+PC — Microsoft Defender SmartScreen impidió el inicio de una aplicación no reconocida"_.
 
 **Por qué ocurre:** los binarios **no están firmados con un certificado de code signing**.
 Sin firma Authenticode, SmartScreen desconfía de un `.exe` descargado de internet. **No
@@ -272,7 +287,8 @@ es un bug de la app ni se puede arreglar con código** — requiere un certifica
 pago**.
 
 **Qué podés hacer (usuario):**
-1. *Más información* → *Ejecutar de todas formas* (el flujo esperado para software open
+
+1. _Más información_ → _Ejecutar de todas formas_ (el flujo esperado para software open
    source sin firmar).
 2. Verificá la integridad primero: compará el SHA-256 con `checksums.sha256` de la Release
    (`Get-FileHash ".\FORCH.iA-WinOptimizer-Portable-x.y.z.exe" -Algorithm SHA256`).
@@ -286,10 +302,11 @@ Signing** (inmediato). Pasos, coste y wiring del build en
 
 ### 18. Actualizaciones automáticas no funcionan (v0.5.0)
 
-**Síntomas:** en *Settings → Updates*, *Automatic updates* está deshabilitado, o el estado
+**Síntomas:** en _Settings → Updates_, _Automatic updates_ está deshabilitado, o el estado
 queda en error, o el chequeo nunca encuentra nada.
 
 **Por qué ocurre:**
+
 - **Build portable** — el `.exe` portable se auto-extrae a una carpeta temporal; el
   `electron-updater` no puede reemplazarlo en caliente. Por eso el toggle se deshabilita y se
   explica en pantalla. **Solución:** usá la build instalable (NSIS) o descargá el Setup más
@@ -299,8 +316,8 @@ queda en error, o el chequeo nunca encuentra nada.
   Se publica siempre junto a los binarios.
 - **Sin conexión / firewall** — el chequeo consulta GitHub Releases. Verificá tu red.
 
-**Recordatorio:** el botón *Check for Updates* de la tarjeta consulta la API de GitHub
-(informativo); *Check now* dispara el chequeo del updater de fondo.
+**Recordatorio:** el botón _Check for Updates_ de la tarjeta consulta la API de GitHub
+(informativo); _Check now_ dispara el chequeo del updater de fondo.
 
 ---
 
@@ -311,8 +328,8 @@ queda en error, o el chequeo nunca encuentra nada.
 **Por qué ocurre:** en la build **portable** no aplica (la ruta del ejecutable es temporal), y
 se muestra deshabilitado con la explicación. En la build instalable el toggle **lee el estado
 real** de Windows: si el registro de arranque no se pudo escribir, el toggle refleja la
-verdad en lugar de mentir. Verificá en *Administrador de tareas → Inicio* o en
-*Configuración → Aplicaciones → Inicio*.
+verdad en lugar de mentir. Verificá en _Administrador de tareas → Inicio_ o en
+_Configuración → Aplicaciones → Inicio_.
 
 ---
 
@@ -321,7 +338,7 @@ verdad en lugar de mentir. Verificá en *Administrador de tareas → Inicio* o e
 **Síntomas:** la página Statistics muestra el empty state o gráficos vacíos.
 
 **Por qué ocurre:** es **honesto**: todavía no hay eventos reales registrados. Los datos se
-crean al usar el Cleaner (escaneo/limpieza), ejecutar una auditoría o *Free RAM*. No se
+crean al usar el Cleaner (escaneo/limpieza), ejecutar una auditoría o _Free RAM_. No se
 inventan valores. El **Export CSV** funciona igualmente (exporta el encabezado).
 
 ---
@@ -342,7 +359,7 @@ Si ninguna de estas soluciones funciona:
 
 ---
 
-*Build. Learn. Evolve.*
+_Build. Learn. Evolve._
 
 ---
 
@@ -351,12 +368,14 @@ Si ninguna de estas soluciones funciona:
 **Síntomas:** El Security Scan muestra checks en "Unknown" o "Requires admin".
 
 **Qué significa:**
+
 - **Unknown**: el dato no se pudo leer (no es un error de permisos). El scanner no
   inventa resultados — prefiere declarar que no midió.
 - **Requires admin**: el dato necesita elevación. El error observable fue "acceso
   denegado".
 
 **Soluciones:**
+
 1. Ejecuta la app como administrador si quieres medir los checks que requieren
    privilegios (ej. TPM, BitLocker).
 2. Consulta `docs/SECURITY_CHECKS.md` para ver exactamente qué consulta hace cada
@@ -381,22 +400,23 @@ no llega a arrancar (resultado vacío).
 **Solución (v0.8.0):** `powershell.ts` detecta el caso y ejecuta el script desde un
 `.ps1` temporal con `-File`, que no tiene ese límite. Si ves este síntoma en una
 build antigua, actualiza. Si persiste, adjunta la evidencia que muestra la UI.
+
 ### El auto-fix de seguridad pide administrador
 
-**Síntomas:** el diálogo de auto-fix muestra el cambio, pero el botón *Apply* no está
+**Síntomas:** el diálogo de auto-fix muestra el cambio, pero el botón _Apply_ no está
 disponible o aparece "requires-admin".
 
 **Qué significa:** aplicar `smb1`, `guest-account` o `remote-desktop` es un cambio
 persistente del sistema y **requiere elevación**. La app nunca falla en silencio: si no
 corre como administrador, la acción se **deshabilita con el motivo**.
 
-**Solución:** usá *Reiniciar como administrador* en el mismo diálogo (lanza una
+**Solución:** usá _Reiniciar como administrador_ en el mismo diálogo (lanza una
 instancia elevada con `Start-Process -Verb RunAs`) o abrí la app con clic derecho →
-*Ejecutar como administrador*.
+_Ejecutar como administrador_.
 
 ### Cómo revertir un auto-fix de seguridad
 
-Abrí el preview del check (botón *Auto-fix*) y usá **Revert**. Restaura el **valor previo
+Abrí el preview del check (botón _Auto-fix_) y usá **Revert**. Restaura el **valor previo
 real** que la app capturó antes de aplicar; si nunca aplicaste ese fix, no hay valor
 guardado y el revert no está disponible. El revert también requiere administrador.
 
@@ -404,6 +424,6 @@ guardado y el revert no está disponible. El revert también requiere administra
 
 El impacto de las apps de arranque se calcula por **señales observables** (origen, firma,
 ruta del sistema, CPU/RAM medida en vivo, patrones genéricos del nombre), **no** por
-listas de productos. Es esperable que una app firmada en reposo sea *low* y suba a *high*
+listas de productos. Es esperable que una app firmada en reposo sea _low_ y suba a _high_
 cuando su proceso está consumiendo CPU/RAM. El criterio completo está en
 `docs/STARTUP_APP_IMPACT.md`.

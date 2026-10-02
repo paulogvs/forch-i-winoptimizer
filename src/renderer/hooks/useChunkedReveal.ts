@@ -8,7 +8,11 @@ export const DEFAULT_REVEAL_STEP = 60;
 export const DEFAULT_REVEAL_DELAY_MS = 50;
 
 /** Pure helper: how many rows should be visible after one more tick. */
-export function nextRevealCount(total: number, current: number, step: number = DEFAULT_REVEAL_STEP): number {
+export function nextRevealCount(
+  total: number,
+  current: number,
+  step: number = DEFAULT_REVEAL_STEP
+): number {
   if (total <= current) return total;
   return Math.min(total, current + step);
 }

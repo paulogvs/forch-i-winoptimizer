@@ -33,8 +33,18 @@ describe('junk-scanner', () => {
 
     it('should scan and categorize junk files', async () => {
       const mockFiles = [
-        { FullName: 'C:\\Windows\\Temp\\temp1.tmp', Name: 'temp1.tmp', Length: 1024, LastWriteTime: '2024-01-15T10:30:00Z' },
-        { FullName: 'C:\\Windows\\Temp\\temp2.tmp', Name: 'temp2.tmp', Length: 2048, LastWriteTime: '2024-01-15T11:00:00Z' },
+        {
+          FullName: 'C:\\Windows\\Temp\\temp1.tmp',
+          Name: 'temp1.tmp',
+          Length: 1024,
+          LastWriteTime: '2024-01-15T10:30:00Z',
+        },
+        {
+          FullName: 'C:\\Windows\\Temp\\temp2.tmp',
+          Name: 'temp2.tmp',
+          Length: 2048,
+          LastWriteTime: '2024-01-15T11:00:00Z',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -111,19 +121,41 @@ describe('junk-scanner', () => {
   describe('scan options', () => {
     it('filters results by exclude paths', async () => {
       const mockFiles = [
-        { FullName: 'C:\\Windows\\Temp\\keep.tmp', Name: 'keep.tmp', Length: 10, LastWriteTime: '' },
-        { FullName: 'C:\\Windows\\Temp\\skip.tmp', Name: 'skip.tmp', Length: 20, LastWriteTime: '' },
+        {
+          FullName: 'C:\\Windows\\Temp\\keep.tmp',
+          Name: 'keep.tmp',
+          Length: 10,
+          LastWriteTime: '',
+        },
+        {
+          FullName: 'C:\\Windows\\Temp\\skip.tmp',
+          Name: 'skip.tmp',
+          Length: 20,
+          LastWriteTime: '',
+        },
       ];
-      vi.mocked(runPowerShell).mockResolvedValue({ success: true, stdout: '[]', stderr: '', exitCode: 0 });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: '[]',
+        stderr: '',
+        exitCode: 0,
+      });
       vi.mocked(parsePowerShellJson).mockReturnValue(mockFiles);
 
-      const result = await scanForJunkFiles(undefined, { excludePaths: ['C:\\Windows\\Temp\\skip.tmp'] });
+      const result = await scanForJunkFiles(undefined, {
+        excludePaths: ['C:\\Windows\\Temp\\skip.tmp'],
+      });
 
       expect(result.files.map((f) => f.name)).toEqual(['keep.tmp']);
     });
 
     it('restricts the PowerShell targets to the requested categories', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
       vi.mocked(parsePowerShellJson).mockReturnValue(null);
 
       await scanForJunkFiles(undefined, { categories: ['temp'] });

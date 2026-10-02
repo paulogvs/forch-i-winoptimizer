@@ -166,8 +166,9 @@ export async function fixError0x00000709(): Promise<{
 
   return {
     success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
-      ? 'Error 0x00000709 fixed. SMB1 enabled and LanmanWorkstation configured.'
-      : `Failed to fix error 0x00000709: ${result.stderr}`,
+    message:
+      result.success && result.stdout.includes('SUCCESS')
+        ? 'Error 0x00000709 fixed. SMB1 enabled and LanmanWorkstation configured.'
+        : `Failed to fix error 0x00000709: ${result.stderr}`,
   };
 }

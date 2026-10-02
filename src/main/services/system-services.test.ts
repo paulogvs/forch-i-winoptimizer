@@ -45,8 +45,20 @@ describe('system-services', () => {
 
     it('should return parsed services', async () => {
       const mockServices = [
-        { Name: 'WSearch', DisplayName: 'Windows Search', Description: 'Search service', Status: 'Running', StartType: 'Automatic' },
-        { Name: 'SysMain', DisplayName: 'SysMain', Description: 'Superfetch', Status: 'Running', StartType: 'Automatic' },
+        {
+          Name: 'WSearch',
+          DisplayName: 'Windows Search',
+          Description: 'Search service',
+          Status: 'Running',
+          StartType: 'Automatic',
+        },
+        {
+          Name: 'SysMain',
+          DisplayName: 'SysMain',
+          Description: 'Superfetch',
+          Status: 'Running',
+          StartType: 'Automatic',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -68,7 +80,13 @@ describe('system-services', () => {
 
     it('should mark protected services correctly', async () => {
       const mockServices = [
-        { Name: 'WinDefend', DisplayName: 'Windows Defender', Description: 'Antivirus', Status: 'Running', StartType: 'Automatic' },
+        {
+          Name: 'WinDefend',
+          DisplayName: 'Windows Defender',
+          Description: 'Antivirus',
+          Status: 'Running',
+          StartType: 'Automatic',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -87,7 +105,13 @@ describe('system-services', () => {
 
     it('should mark optimizable services correctly', async () => {
       const mockServices = [
-        { Name: 'DiagTrack', DisplayName: 'Connected User Experiences', Description: 'Telemetry', Status: 'Running', StartType: 'Automatic' },
+        {
+          Name: 'DiagTrack',
+          DisplayName: 'Connected User Experiences',
+          Description: 'Telemetry',
+          Status: 'Running',
+          StartType: 'Automatic',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -107,7 +131,13 @@ describe('system-services', () => {
 
     it('should handle services with missing fields', async () => {
       const mockServices = [
-        { Name: 'TestService', DisplayName: null, Description: null, Status: 'Stopped', StartType: 'Manual' },
+        {
+          Name: 'TestService',
+          DisplayName: null,
+          Description: null,
+          Status: 'Stopped',
+          StartType: 'Manual',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({

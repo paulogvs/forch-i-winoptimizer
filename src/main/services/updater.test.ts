@@ -32,7 +32,9 @@ describe('updater', () => {
         name: 'v0.1.0',
         body: 'Release notes',
         published_at: '2024-01-15T10:30:00Z',
-        assets: [{ name: 'setup.exe', browser_download_url: 'https://example.com/setup.exe', size: 1024 }],
+        assets: [
+          { name: 'setup.exe', browser_download_url: 'https://example.com/setup.exe', size: 1024 },
+        ],
       };
 
       vi.mocked(global.fetch).mockResolvedValue({
@@ -53,7 +55,9 @@ describe('updater', () => {
         name: 'v0.2.0',
         body: 'New features',
         published_at: '2024-01-15T10:30:00Z',
-        assets: [{ name: 'setup.exe', browser_download_url: 'https://example.com/setup.exe', size: 2048 }],
+        assets: [
+          { name: 'setup.exe', browser_download_url: 'https://example.com/setup.exe', size: 2048 },
+        ],
       };
 
       vi.mocked(global.fetch).mockResolvedValue({
@@ -136,7 +140,9 @@ describe('updater', () => {
         statusText: 'Not Found',
       } as unknown as Response);
 
-      await expect(downloadUpdate('https://example.com/update.exe')).rejects.toThrow('Download failed');
+      await expect(downloadUpdate('https://example.com/update.exe')).rejects.toThrow(
+        'Download failed'
+      );
     });
 
     it('should throw error when response body is null', async () => {
@@ -146,7 +152,9 @@ describe('updater', () => {
         headers: new Headers(),
       } as unknown as Response);
 
-      await expect(downloadUpdate('https://example.com/update.exe')).rejects.toThrow('Failed to read response body');
+      await expect(downloadUpdate('https://example.com/update.exe')).rejects.toThrow(
+        'Failed to read response body'
+      );
     });
   });
 });

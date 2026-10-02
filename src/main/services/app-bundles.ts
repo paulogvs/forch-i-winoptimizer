@@ -122,7 +122,9 @@ function invalidIdResult(action: 'install' | 'uninstall'): { success: false; mes
 function wingetScript(action: 'install' | 'uninstall', wingetId: string): string {
   const flags =
     action === 'install'
-      ? 'install --id ' + wingetId + ' --silent --accept-package-agreements --accept-source-agreements'
+      ? 'install --id ' +
+        wingetId +
+        ' --silent --accept-package-agreements --accept-source-agreements'
       : 'uninstall --id ' + wingetId + ' --silent';
   return `
     $out = winget ${flags} 2>&1 | Out-String;
@@ -135,7 +137,11 @@ function wingetScript(action: 'install' | 'uninstall', wingetId: string): string
   `;
 }
 
-function failureMessage(action: 'install' | 'uninstall', wingetId: string, result: { stdout: string; stderr: string }): string {
+function failureMessage(
+  action: 'install' | 'uninstall',
+  wingetId: string,
+  result: { stdout: string; stderr: string }
+): string {
   const combined = `${result.stdout}\n${result.stderr}`;
   const marker = combined.indexOf('FAILED:');
   const detail = (marker >= 0 ? combined.slice(marker) : combined).trim();
@@ -157,7 +163,9 @@ export async function checkInstalledApps(): Promise<Map<string, boolean>> {
       // so `installedNames.some(...)` used to throw on that string and the
       // catch swallowed it -> every app reported as "not installed".
       const parsed: unknown = JSON.parse(result.stdout);
-      const installedNames = (Array.isArray(parsed) ? parsed : [parsed]).map((name) => String(name));
+      const installedNames = (Array.isArray(parsed) ? parsed : [parsed]).map((name) =>
+        String(name)
+      );
       for (const bundle of APP_BUNDLES) {
         for (const app of bundle.apps) {
           const isInstalled = installedNames.some((name) =>
@@ -166,7 +174,9 @@ export async function checkInstalledApps(): Promise<Map<string, boolean>> {
           installed.set(app.id, isInstalled);
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   return installed;

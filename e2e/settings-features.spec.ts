@@ -11,7 +11,9 @@ test.describe('Settings — live controls (v0.5.0)', () => {
 
   test('renders no disabled "Not implemented yet" stubs', async ({ page }) => {
     await expect(page.locator('[title="Not implemented yet"]')).toHaveCount(0);
-    await expect(page.locator('button[title="Accent color customization is not implemented yet"]')).toHaveCount(0);
+    await expect(
+      page.locator('button[title="Accent color customization is not implemented yet"]')
+    ).toHaveCount(0);
   });
 
   test('persists a toggle change and reflects the authoritative state', async ({ page }) => {
@@ -55,7 +57,9 @@ test.describe('Settings — live controls (v0.5.0)', () => {
     await page.click('.sidebar >> text=Settings');
 
     await expect(page.getByRole('switch', { name: 'Start with Windows' })).toBeDisabled();
-    await expect(page.getByText(/Start with Windows is not available in the portable build/i)).toBeVisible();
+    await expect(
+      page.getByText(/Start with Windows is not available in the portable build/i)
+    ).toBeVisible();
   });
 
   test('exposes the automatic updates status panel with a Check now action', async ({ page }) => {

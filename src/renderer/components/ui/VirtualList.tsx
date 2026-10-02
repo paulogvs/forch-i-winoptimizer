@@ -44,7 +44,10 @@ export function VirtualList<T>({
       style={{ maxHeight, overflowY: 'auto' }}
       data-testid={testId}
     >
-      <div className="virtual-list-inner" style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+      <div
+        className="virtual-list-inner"
+        style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+      >
         {virtualItems.map((virtualItem) => {
           const item = items[virtualItem.index];
           if (item === undefined) return null;

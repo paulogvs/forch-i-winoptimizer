@@ -34,29 +34,217 @@ export interface DNSBenchmarkResult {
 
 const PRIVACY_SETTINGS: PrivacySetting[] = [
   // Telemetry
-  { id: 'telemetry-level', name: 'Telemetry Level', description: 'Set telemetry to minimum', category: 'telemetry', registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection', valueName: 'AllowTelemetry', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'high' },
-  { id: 'telemetry-disable', name: 'Disable Telemetry Service', description: 'Disable the Connected User Experiences and Telemetry service', category: 'telemetry', registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\DiagTrack', valueName: 'Start', recommendedValue: 4, currentValue: null, isApplied: false, impact: 'high' },
+  {
+    id: 'telemetry-level',
+    name: 'Telemetry Level',
+    description: 'Set telemetry to minimum',
+    category: 'telemetry',
+    registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection',
+    valueName: 'AllowTelemetry',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'high',
+  },
+  {
+    id: 'telemetry-disable',
+    name: 'Disable Telemetry Service',
+    description: 'Disable the Connected User Experiences and Telemetry service',
+    category: 'telemetry',
+    registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\DiagTrack',
+    valueName: 'Start',
+    recommendedValue: 4,
+    currentValue: null,
+    isApplied: false,
+    impact: 'high',
+  },
 
   // Privacy
-  { id: 'disable-cortana', name: 'Disable Cortana', description: 'Disable Cortana assistant', category: 'privacy', registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search', valueName: 'AllowCortana', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'medium' },
-  { id: 'disable-ads', name: 'Disable Ads', description: 'Disable personalized ads', category: 'privacy', registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo', valueName: 'Enabled', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'low' },
-  { id: 'disable-activity-history', name: 'Disable Activity History', description: 'Disable activity history collection', category: 'privacy', registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System', valueName: 'EnableActivityFeed', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'medium' },
-  { id: 'disable-location', name: 'Disable Location', description: 'Disable location tracking', category: 'privacy', registryPath: 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DeviceAccess\\Global\\{BFA794E4-F964-4FDB-90F6-51056CFE4B44}', valueName: 'Value', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'medium' },
-  { id: 'disable-feedback', name: 'Disable Feedback', description: 'Disable feedback notifications', category: 'privacy', registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Siuf\\Rules', valueName: 'NumberOfSIUFInPeriod', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'low' },
-  { id: 'disable-tailored', name: 'Disable Tailored Experiences', description: 'Disable tailored experiences', category: 'privacy', registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Privacy', valueName: 'TailoredExperiencesWithDiagnosticDataEnabled', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'low' },
-  { id: 'disable-app-diag', name: 'Disable App Diagnostics', description: 'Disable app diagnostics', category: 'privacy', registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppDiagnostics', valueName: 'AppDiagnosticsEnabled', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'low' },
-  { id: 'disable-input-personalization', name: 'Disable Input Personalization', description: 'Disable input personalization and typing data collection', category: 'privacy', registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\InputPersonalization', valueName: 'RestrictImplicitInkCollection', recommendedValue: 1, currentValue: null, isApplied: false, impact: 'low' },
-  { id: 'disable-speech', name: 'Disable Speech Recognition', description: 'Disable online speech recognition', category: 'privacy', registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Speech_OneCore\\Settings\\OnlineSpeechPrivacy', valueName: 'HasAccepted', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'medium' },
+  {
+    id: 'disable-cortana',
+    name: 'Disable Cortana',
+    description: 'Disable Cortana assistant',
+    category: 'privacy',
+    registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search',
+    valueName: 'AllowCortana',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
+  {
+    id: 'disable-ads',
+    name: 'Disable Ads',
+    description: 'Disable personalized ads',
+    category: 'privacy',
+    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo',
+    valueName: 'Enabled',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'low',
+  },
+  {
+    id: 'disable-activity-history',
+    name: 'Disable Activity History',
+    description: 'Disable activity history collection',
+    category: 'privacy',
+    registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System',
+    valueName: 'EnableActivityFeed',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
+  {
+    id: 'disable-location',
+    name: 'Disable Location',
+    description: 'Disable location tracking',
+    category: 'privacy',
+    registryPath:
+      'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DeviceAccess\\Global\\{BFA794E4-F964-4FDB-90F6-51056CFE4B44}',
+    valueName: 'Value',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
+  {
+    id: 'disable-feedback',
+    name: 'Disable Feedback',
+    description: 'Disable feedback notifications',
+    category: 'privacy',
+    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Siuf\\Rules',
+    valueName: 'NumberOfSIUFInPeriod',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'low',
+  },
+  {
+    id: 'disable-tailored',
+    name: 'Disable Tailored Experiences',
+    description: 'Disable tailored experiences',
+    category: 'privacy',
+    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Privacy',
+    valueName: 'TailoredExperiencesWithDiagnosticDataEnabled',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'low',
+  },
+  {
+    id: 'disable-app-diag',
+    name: 'Disable App Diagnostics',
+    description: 'Disable app diagnostics',
+    category: 'privacy',
+    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppDiagnostics',
+    valueName: 'AppDiagnosticsEnabled',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'low',
+  },
+  {
+    id: 'disable-input-personalization',
+    name: 'Disable Input Personalization',
+    description: 'Disable input personalization and typing data collection',
+    category: 'privacy',
+    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\InputPersonalization',
+    valueName: 'RestrictImplicitInkCollection',
+    recommendedValue: 1,
+    currentValue: null,
+    isApplied: false,
+    impact: 'low',
+  },
+  {
+    id: 'disable-speech',
+    name: 'Disable Speech Recognition',
+    description: 'Disable online speech recognition',
+    category: 'privacy',
+    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Speech_OneCore\\Settings\\OnlineSpeechPrivacy',
+    valueName: 'HasAccepted',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
 
   // Security
-  { id: 'disable-remote-assist', name: 'Disable Remote Assistance', description: 'Disable remote assistance', category: 'security', registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Remote Assistance', valueName: 'fAllowToGetHelp', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'medium' },
-  { id: 'disable-autorun', name: 'Disable Autorun', description: 'Disable autorun for all drives', category: 'security', registryPath: 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer', valueName: 'NoDriveTypeAutoRun', recommendedValue: 255, currentValue: null, isApplied: false, impact: 'medium' },
-  { id: 'enable-uac', name: 'Enable UAC', description: 'Enable User Account Control', category: 'security', registryPath: 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System', valueName: 'EnableLUA', recommendedValue: 1, currentValue: null, isApplied: false, impact: 'high' },
-  { id: 'disable-smb1', name: 'Disable SMBv1', description: 'Disable SMBv1 protocol (security risk)', category: 'security', registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters', valueName: 'SMB1', recommendedValue: 0, currentValue: null, isApplied: false, impact: 'high' },
+  {
+    id: 'disable-remote-assist',
+    name: 'Disable Remote Assistance',
+    description: 'Disable remote assistance',
+    category: 'security',
+    registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Remote Assistance',
+    valueName: 'fAllowToGetHelp',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
+  {
+    id: 'disable-autorun',
+    name: 'Disable Autorun',
+    description: 'Disable autorun for all drives',
+    category: 'security',
+    registryPath: 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer',
+    valueName: 'NoDriveTypeAutoRun',
+    recommendedValue: 255,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
+  {
+    id: 'enable-uac',
+    name: 'Enable UAC',
+    description: 'Enable User Account Control',
+    category: 'security',
+    registryPath: 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System',
+    valueName: 'EnableLUA',
+    recommendedValue: 1,
+    currentValue: null,
+    isApplied: false,
+    impact: 'high',
+  },
+  {
+    id: 'disable-smb1',
+    name: 'Disable SMBv1',
+    description: 'Disable SMBv1 protocol (security risk)',
+    category: 'security',
+    registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters',
+    valueName: 'SMB1',
+    recommendedValue: 0,
+    currentValue: null,
+    isApplied: false,
+    impact: 'high',
+  },
 
   // Updates
-  { id: 'disable-auto-update', name: 'Disable Automatic Updates', description: 'Disable automatic Windows updates', category: 'updates', registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU', valueName: 'NoAutoUpdate', recommendedValue: 1, currentValue: null, isApplied: false, impact: 'medium' },
-  { id: 'disable-update-restart', name: 'Disable Update Restart', description: 'Disable automatic restart after updates', category: 'updates', registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU', valueName: 'NoAutoRebootWithLoggedOnUsers', recommendedValue: 1, currentValue: null, isApplied: false, impact: 'medium' },
+  {
+    id: 'disable-auto-update',
+    name: 'Disable Automatic Updates',
+    description: 'Disable automatic Windows updates',
+    category: 'updates',
+    registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU',
+    valueName: 'NoAutoUpdate',
+    recommendedValue: 1,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
+  {
+    id: 'disable-update-restart',
+    name: 'Disable Update Restart',
+    description: 'Disable automatic restart after updates',
+    category: 'updates',
+    registryPath: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU',
+    valueName: 'NoAutoRebootWithLoggedOnUsers',
+    recommendedValue: 1,
+    currentValue: null,
+    isApplied: false,
+    impact: 'medium',
+  },
 ];
 
 const SECURITY_ACTIONS: SecurityAction[] = [
@@ -73,7 +261,8 @@ const SECURITY_ACTIONS: SecurityAction[] = [
       Set-MpPreference -DisableScriptScanning $true;
       Write-Output "DEFENDER_DISABLED"
     `,
-    warning: 'WARNING: Disabling Windows Defender will leave your system vulnerable to malware. Only disable if you have an alternative antivirus installed.',
+    warning:
+      'WARNING: Disabling Windows Defender will leave your system vulnerable to malware. Only disable if you have an alternative antivirus installed.',
     isReversible: true,
   },
   {
@@ -155,11 +344,46 @@ const SECURITY_ACTIONS: SecurityAction[] = [
 ];
 
 const DNS_SERVERS: DNSBenchmarkResult[] = [
-  { name: 'Cloudflare', primaryDNS: '1.1.1.1', secondaryDNS: '1.0.0.1', avgLatency: 0, reliability: 0, isRecommended: true },
-  { name: 'Google', primaryDNS: '8.8.8.8', secondaryDNS: '8.8.4.4', avgLatency: 0, reliability: 0, isRecommended: true },
-  { name: 'Quad9', primaryDNS: '9.9.9.9', secondaryDNS: '149.112.112.112', avgLatency: 0, reliability: 0, isRecommended: true },
-  { name: 'OpenDNS', primaryDNS: '208.67.222.222', secondaryDNS: '208.67.220.220', avgLatency: 0, reliability: 0, isRecommended: false },
-  { name: 'Level3', primaryDNS: '4.2.2.1', secondaryDNS: '4.2.2.2', avgLatency: 0, reliability: 0, isRecommended: false },
+  {
+    name: 'Cloudflare',
+    primaryDNS: '1.1.1.1',
+    secondaryDNS: '1.0.0.1',
+    avgLatency: 0,
+    reliability: 0,
+    isRecommended: true,
+  },
+  {
+    name: 'Google',
+    primaryDNS: '8.8.8.8',
+    secondaryDNS: '8.8.4.4',
+    avgLatency: 0,
+    reliability: 0,
+    isRecommended: true,
+  },
+  {
+    name: 'Quad9',
+    primaryDNS: '9.9.9.9',
+    secondaryDNS: '149.112.112.112',
+    avgLatency: 0,
+    reliability: 0,
+    isRecommended: true,
+  },
+  {
+    name: 'OpenDNS',
+    primaryDNS: '208.67.222.222',
+    secondaryDNS: '208.67.220.220',
+    avgLatency: 0,
+    reliability: 0,
+    isRecommended: false,
+  },
+  {
+    name: 'Level3',
+    primaryDNS: '4.2.2.1',
+    secondaryDNS: '4.2.2.2',
+    avgLatency: 0,
+    reliability: 0,
+    isRecommended: false,
+  },
 ];
 
 export async function getPrivacySettings(): Promise<PrivacySetting[]> {
@@ -185,7 +409,9 @@ ${lookups}
   `);
 
   const parsed = result.success
-    ? parsePowerShellJson<Array<{ Path?: string; ValueName?: string; Value?: number | string | null }>>(result.stdout)
+    ? parsePowerShellJson<
+        Array<{ Path?: string; ValueName?: string; Value?: number | string | null }>
+      >(result.stdout)
     : null;
 
   const currentByKey = new Map<string, number | null>();
@@ -229,9 +455,10 @@ export async function applyPrivacySetting(settingId: string): Promise<{
 
   return {
     success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
-      ? `Successfully applied: ${setting.name}`
-      : `Failed to apply setting: ${result.stderr}`,
+    message:
+      result.success && result.stdout.includes('SUCCESS')
+        ? `Successfully applied: ${setting.name}`
+        : `Failed to apply setting: ${result.stderr}`,
   };
 }
 
@@ -271,9 +498,10 @@ export async function runSecurityAction(actionId: string): Promise<{
 
   return {
     success: result.success && !result.stdout.includes('FAILED'),
-    message: result.success && !result.stdout.includes('FAILED')
-      ? `Successfully executed: ${action.name}`
-      : `Failed to execute action: ${result.stderr}`,
+    message:
+      result.success && !result.stdout.includes('FAILED')
+        ? `Successfully executed: ${action.name}`
+        : `Failed to execute action: ${result.stderr}`,
   };
 }
 
@@ -313,7 +541,10 @@ export async function benchmarkDNS(): Promise<DNSBenchmarkResult[]> {
   return results;
 }
 
-export async function setDNS(primaryDNS: string, secondaryDNS: string): Promise<{
+export async function setDNS(
+  primaryDNS: string,
+  secondaryDNS: string
+): Promise<{
   success: boolean;
   message: string;
 }> {
@@ -333,8 +564,9 @@ export async function setDNS(primaryDNS: string, secondaryDNS: string): Promise<
 
   return {
     success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
-      ? `DNS set to ${primaryDNS} / ${secondaryDNS}`
-      : `Failed to set DNS: ${result.stderr}`,
+    message:
+      result.success && result.stdout.includes('SUCCESS')
+        ? `DNS set to ${primaryDNS} / ${secondaryDNS}`
+        : `Failed to set DNS: ${result.stderr}`,
   };
 }

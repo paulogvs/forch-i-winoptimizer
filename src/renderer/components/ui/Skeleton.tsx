@@ -8,7 +8,12 @@ interface SkeletonProps {
 }
 
 /** Base shimmering placeholder. Shape is always overridable. */
-export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = 16, radius, className }) => (
+export const Skeleton: React.FC<SkeletonProps> = ({
+  width = '100%',
+  height = 16,
+  radius,
+  className,
+}) => (
   <span
     className={`skeleton ${className ?? ''}`}
     style={{ width, height, borderRadius: radius }}
@@ -26,7 +31,10 @@ export const SkeletonText: React.FC<{ lines?: number }> = ({ lines = 3 }) => (
 );
 
 /** Table-shaped skeleton (rows x columns). */
-export const SkeletonTable: React.FC<{ rows?: number; columns?: number }> = ({ rows = 6, columns = 4 }) => (
+export const SkeletonTable: React.FC<{ rows?: number; columns?: number }> = ({
+  rows = 6,
+  columns = 4,
+}) => (
   <div className="skeleton-table" aria-hidden="true" data-testid="skeleton-table">
     {Array.from({ length: rows }).map((_, r) => (
       <div className="skeleton-table-row" key={r}>

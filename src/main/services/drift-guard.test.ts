@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkForDrift, reapplyTweak, reapplyAllTweaks, getDriftStatus, startDriftMonitoring, stopDriftMonitoring } from './drift-guard';
+import {
+  checkForDrift,
+  reapplyTweak,
+  reapplyAllTweaks,
+  getDriftStatus,
+  startDriftMonitoring,
+  stopDriftMonitoring,
+} from './drift-guard';
 
 vi.mock('./powershell', () => ({
   runPowerShell: vi.fn(),

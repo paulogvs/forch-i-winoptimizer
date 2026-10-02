@@ -14,9 +14,12 @@ interface PnPDevice {
 
 function detectManufacturer(name: string, manufacturer: string): DriverInfo['manufacturer'] {
   const combined = `${name} ${manufacturer}`.toLowerCase();
-  if (combined.includes('nvidia') || combined.includes('geforce') || combined.includes('quadro')) return 'NVIDIA';
-  if (combined.includes('amd') || combined.includes('radeon') || combined.includes('ati ')) return 'AMD';
-  if (combined.includes('intel') || combined.includes('iris') || combined.includes('hd graphics')) return 'Intel';
+  if (combined.includes('nvidia') || combined.includes('geforce') || combined.includes('quadro'))
+    return 'NVIDIA';
+  if (combined.includes('amd') || combined.includes('radeon') || combined.includes('ati '))
+    return 'AMD';
+  if (combined.includes('intel') || combined.includes('iris') || combined.includes('hd graphics'))
+    return 'Intel';
   return 'Generic';
 }
 
@@ -44,12 +47,28 @@ function formatDriverDate(value: string | null | undefined): string {
 }
 
 // Simulated latest version database (in production, this would query manufacturer APIs)
-const LATEST_DRIVERS: Record<string, { version: string; date: string; url: string; size: number }> = {
-  NVIDIA: { version: '551.86', date: '2025-03-15', url: 'https://www.nvidia.com/download/index.aspx', size: 650_000_000 },
-  AMD: { version: '25.3.1', date: '2025-03-01', url: 'https://www.amd.com/support', size: 450_000_000 },
-  Intel: { version: '31.0.101.5522', date: '2025-02-20', url: 'https://www.intel.com/content/www/us/en/download-center', size: 1_200_000_000 },
-  Generic: { version: '', date: '', url: '', size: 0 },
-};
+const LATEST_DRIVERS: Record<string, { version: string; date: string; url: string; size: number }> =
+  {
+    NVIDIA: {
+      version: '551.86',
+      date: '2025-03-15',
+      url: 'https://www.nvidia.com/download/index.aspx',
+      size: 650_000_000,
+    },
+    AMD: {
+      version: '25.3.1',
+      date: '2025-03-01',
+      url: 'https://www.amd.com/support',
+      size: 450_000_000,
+    },
+    Intel: {
+      version: '31.0.101.5522',
+      date: '2025-02-20',
+      url: 'https://www.intel.com/content/www/us/en/download-center',
+      size: 1_200_000_000,
+    },
+    Generic: { version: '', date: '', url: '', size: 0 },
+  };
 
 export async function scanDrivers(reporter?: ScanProgressReporter): Promise<DriverScanResult> {
   const progress = reporter ?? createNoopReporter('drivers');
@@ -78,7 +97,13 @@ export async function scanDrivers(reporter?: ScanProgressReporter): Promise<Driv
 
   if (!result.success || !result.stdout) {
     progress.fail('Driver scan failed');
-    return { drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() };
+    return {
+      drivers: [],
+      totalDevices: 0,
+      outdatedCount: 0,
+      upToDateCount: 0,
+      scanDate: new Date(),
+    };
   }
 
   progress.report('parse', 65, 'Parsing device list...');
@@ -86,7 +111,13 @@ export async function scanDrivers(reporter?: ScanProgressReporter): Promise<Driv
   const devices: PnPDevice[] = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
   if (devices.length === 0) {
     progress.done('No devices found');
-    return { drivers: [], totalDevices: 0, outdatedCount: 0, upToDateCount: 0, scanDate: new Date() };
+    return {
+      drivers: [],
+      totalDevices: 0,
+      outdatedCount: 0,
+      upToDateCount: 0,
+      scanDate: new Date(),
+    };
   }
 
   progress.report('normalize', 85, 'Comparing driver versions...');
@@ -100,7 +131,9 @@ export async function scanDrivers(reporter?: ScanProgressReporter): Promise<Driv
     const manufacturer = detectManufacturer(device.Name, device.Manufacturer ?? '');
     const latest = LATEST_DRIVERS[manufacturer];
     const latestVersion = latest?.version ?? device.DriverVersion;
-    const isUpToDate = latest?.version ? !compareVersions(device.DriverVersion, latest.version) : true;
+    const isUpToDate = latest?.version
+      ? !compareVersions(device.DriverVersion, latest.version)
+      : true;
 
     if (!isUpToDate) outdatedCount++;
     else upToDateCount++;
@@ -131,7 +164,9 @@ export async function scanDrivers(reporter?: ScanProgressReporter): Promise<Driv
   };
 }
 
-export async function createRestorePoint(description: string): Promise<{ success: boolean; message: string }> {
+export async function createRestorePoint(
+  description: string
+): Promise<{ success: boolean; message: string }> {
   const result = await runPowerShell(`
     try {
       Enable-ComputerRestore -Drive "C:\\";
@@ -144,13 +179,17 @@ export async function createRestorePoint(description: string): Promise<{ success
 
   return {
     success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
-      ? 'Restore point created successfully'
-      : `Failed to create restore point: ${result.stderr}`,
+    message:
+      result.success && result.stdout.includes('SUCCESS')
+        ? 'Restore point created successfully'
+        : `Failed to create restore point: ${result.stderr}`,
   };
 }
 
-export async function installDriver(driverId: string, downloadUrl: string): Promise<{
+export async function installDriver(
+  driverId: string,
+  downloadUrl: string
+): Promise<{
   success: boolean;
   message: string;
 }> {
@@ -161,7 +200,8 @@ export async function installDriver(driverId: string, downloadUrl: string): Prom
     shell.openExternal(downloadUrl);
     return {
       success: true,
-      message: 'Opened manufacturer download page. Please download and install the driver manually.',
+      message:
+        'Opened manufacturer download page. Please download and install the driver manually.',
     };
   }
 
@@ -206,8 +246,9 @@ export async function rollbackDriver(driverId: string): Promise<{
 
   return {
     success: result.success && result.stdout.includes('SUCCESS'),
-    message: result.success && result.stdout.includes('SUCCESS')
-      ? 'Device restarted successfully'
-      : `Failed to rollback driver: ${result.stderr}`,
+    message:
+      result.success && result.stdout.includes('SUCCESS')
+        ? 'Device restarted successfully'
+        : `Failed to rollback driver: ${result.stderr}`,
   };
 }

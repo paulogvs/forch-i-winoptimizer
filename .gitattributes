@@ -1,0 +1,19 @@
+# Normalise line endings to LF so `prettier --check` (endOfLine: lf) is stable
+# across checkouts, regardless of each machine's core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows scripts must keep CRLF to run correctly.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets must never be normalised.
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.pdf binary
+*.exe binary
+*.dll binary
+*.node binary

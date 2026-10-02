@@ -23,12 +23,7 @@
 export type StartupImpact = 'low' | 'medium' | 'high';
 
 export type StartupOrigin =
-  | 'hkcu-run'
-  | 'hklm-run'
-  | 'startup-folder'
-  | 'scheduled-task'
-  | 'service'
-  | 'unknown';
+  'hkcu-run' | 'hklm-run' | 'startup-folder' | 'scheduled-task' | 'service' | 'unknown';
 
 export type SignatureStatus = 'signed' | 'unsigned' | 'not-verifiable' | 'unknown';
 

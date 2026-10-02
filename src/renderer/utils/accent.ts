@@ -89,7 +89,10 @@ export function accentTokens(hex: string): AccentTokens {
  * Apply the derived tokens to the document root. Returns false for an invalid
  * colour (callers should keep the previous accent).
  */
-export function applyAccentColor(hex: string, root: HTMLElement = document.documentElement): boolean {
+export function applyAccentColor(
+  hex: string,
+  root: HTMLElement = document.documentElement
+): boolean {
   const tokens = normalizeHex(hex);
   if (!tokens) return false;
   const { accent, hover, muted, focus } = accentTokens(tokens);

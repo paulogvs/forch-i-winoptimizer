@@ -56,17 +56,26 @@ const CHANNELS = [
   {
     channel: 'system:get-info',
     call: () => systemInfo.getSystemInfo(),
-    sanity: (r) => (r && r.cpu ? `cpu=${r.cpu.model ? 'ok' : 'missing'} mem=${r.memory?.total ? 'ok' : 'missing'}` : 'EMPTY'),
+    sanity: (r) =>
+      r && r.cpu
+        ? `cpu=${r.cpu.model ? 'ok' : 'missing'} mem=${r.memory?.total ? 'ok' : 'missing'}`
+        : 'EMPTY',
   },
   {
     channel: 'drivers:scan',
     call: () => drivers.scanDrivers(),
-    sanity: (r) => (r && typeof r.totalDevices === 'number' ? `devices=${r.totalDevices} outdated=${r.outdatedCount}` : 'EMPTY'),
+    sanity: (r) =>
+      r && typeof r.totalDevices === 'number'
+        ? `devices=${r.totalDevices} outdated=${r.outdatedCount}`
+        : 'EMPTY',
   },
   {
     channel: 'bundles:check-installed',
     call: () => bundles.checkInstalledApps(),
-    sanity: (r) => (r instanceof Map ? `apps=${r.size} installed=${[...r.values()].filter(Boolean).length}` : 'EMPTY'),
+    sanity: (r) =>
+      r instanceof Map
+        ? `apps=${r.size} installed=${[...r.values()].filter(Boolean).length}`
+        : 'EMPTY',
   },
 ];
 

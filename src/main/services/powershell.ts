@@ -84,7 +84,12 @@ async function runScript(script: string, timeout: number): Promise<PowerShellRes
       exitCode: 0,
     };
   } catch (error: unknown) {
-    const err = error as { stdout?: string; stderr?: string; code?: number | string; killed?: boolean };
+    const err = error as {
+      stdout?: string;
+      stderr?: string;
+      code?: number | string;
+      killed?: boolean;
+    };
     return {
       success: false,
       stdout: (err.stdout ?? '').trim(),
@@ -111,9 +116,7 @@ export function parsePowerShellJson<T>(output: string): T | null {
     return JSON.parse(trimmed) as T;
   } catch {
     // Some scripts emit a BOM or leading text before the JSON payload.
-    const start = Math.min(
-      ...[trimmed.indexOf('{'), trimmed.indexOf('[')].filter((i) => i >= 0)
-    );
+    const start = Math.min(...[trimmed.indexOf('{'), trimmed.indexOf('[')].filter((i) => i >= 0));
     if (Number.isFinite(start) && start >= 0) {
       try {
         return JSON.parse(trimmed.slice(start)) as T;

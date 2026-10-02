@@ -1,12 +1,6 @@
 /** Update lifecycle status emitted by the background electron-updater. */
 export type UpdateStatusState =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'not-available'
-  | 'downloading'
-  | 'downloaded'
-  | 'error';
+  'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
 
 export interface UpdateStatus {
   state: UpdateStatusState;

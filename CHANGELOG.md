@@ -72,7 +72,7 @@ Sin listas hardcodeadas, build reproducible y **auto-fix real** (3 checks revers
   **Requiere admin**: sin elevación devuelve `blocked` con motivo `requires-admin` (nunca
   falla en silencio) y ofrece relanzar con `Start-Process -Verb RunAs`. Tras aplicar, el
   check **se vuelve a medir**. Nuevos canales IPC `security:fix-preview` / `fix-apply` /
-  `fix-revert` / `relaunch-elevated` (4 planos) y UI (botón *Auto-fix* + modal) en Security.
+  `fix-revert` / `relaunch-elevated` (4 planos) y UI (botón _Auto-fix_ + modal) en Security.
 - **Clasificador dinámico de apps de arranque** (`src/main/services/startup-impact.ts`):
   el impacto se deriva de señales observables (origen/persistencia, existencia + firma
   del binario, ruta del sistema, **huella CPU/RAM medida en vivo** y gramática genérica
@@ -157,7 +157,7 @@ hardcodeados; catálogo único compartido entre main y renderer.
 
 ## [0.5.0] - 2026-10-02
 
-Todas las funciones que estaban como *stub deshabilitado* pasan a ser reales: los 9
+Todas las funciones que estaban como _stub deshabilitado_ pasan a ser reales: los 9
 controles de **Settings**, el **Export CSV** y los **gráficos** de Statistics, los
 **Fix** de Audit/Security y los lanzadores de **Tools → Utilities**. Sin dependencias
 nuevas (red npm bloqueada): los gráficos son SVG/CSS a mano.
@@ -173,12 +173,12 @@ nuevas (red npm bloqueada): los gráficos son SVG/CSS a mano.
     SO (`app.getLoginItemSettings`) para que el toggle nunca mienta. En portable se
     muestra deshabilitado con explicación honesta.
   - **Minimize to tray on close**: intercepta el cierre, `Tray` con `assets/icons/icon.ico`
-    y menú *Show*/*Quit*; desactivable para cerrar de verdad.
+    y menú _Show_/_Quit_; desactivable para cerrar de verdad.
   - **Enable notifications**: `Notification` de Electron respeta el toggle (gate en el
     servicio de notificaciones).
   - **Automatic updates**: cablea el `electron-updater` existente (`updater.ts`) al toggle;
     UI de estado (idle/checking/available/not-available/downloading/downloaded/error) con
-    *Check now* / *Download* / *Restart & install*. Nunca descarga/instala en tests.
+    _Check now_ / _Download_ / _Restart & install_. Nunca descarga/instala en tests.
   - **Scan browser cache / Scan Windows temp files / Scan recycle bin**: expuestos al
     motor de escaneo existente (`junk-scanner`) como categories; sin duplicar lógica.
   - **Exclude paths**: prefijos ignorados por el escáner (`isExcludedPath`).
@@ -216,7 +216,7 @@ nuevas (red npm bloqueada): los gráficos son SVG/CSS a mano.
 ## [0.4.2] - 2026-10-02
 
 Auditoría funcional + cierre de pendientes de rendimiento: **3 bugs de "lista que degrada a
-0" en servicios Main corregidos**, la única vista con *jank* (Tools → Apps) virtualizada, el
+0" en servicios Main corregidos**, la única vista con _jank_ (Tools → Apps) virtualizada, el
 flake de E2E identificado y endurecido, y el FPS medido bajo carga real. Sin capacidad nueva
 visible al usuario → **0.4.2** (patch).
 
@@ -231,7 +231,7 @@ visible al usuario → **0.4.2** (patch).
 - **`cleaning:get-schedules` / `cleaning:get-history`: fechas que quedaban como strings.**
   El archivo JSON devolvía `nextRun`/`lastRun`/`timestamp` como ISO strings y el renderer
   llama `.toLocaleDateString()` sobre ellas ⇒ `TypeError: ... is not a function` al abrir
-  *Scheduled Cleaning*. Ahora se reviven a `Date` al parsear. Tests: `scheduled-cleaning.test.ts`
+  _Scheduled Cleaning_. Ahora se reviven a `Date` al parsear. Tests: `scheduled-cleaning.test.ts`
   (instancias de `Date`, y tolerancia a payload no-array).
 - **`cleaning:get-schedules`: un archivo corrupto envenenaba el estado del módulo.** Un
   payload no-array se asignaba tal cual a `schedules` (estado de módulo), y luego
@@ -244,10 +244,10 @@ visible al usuario → **0.4.2** (patch).
   de virtualizar): **1 866 → 331 nodos DOM** (48 apps reales) y **2 → 0 frames perdidos** en
   scroll; peor frame **50,2 → 17,0 ms**. Umbral 50 filas, idéntico a Drivers. Fila extraída a
   `AppRow` memoizado. Test nuevo en `e2e/performance.spec.ts` (500 apps ⇒ filas DOM < 120).
-- **Acciones muertas endurecidas** (botones que no hacían nada): *Dashboard* → *Clean Junk* /
-  *Optimize* ahora navegan a Cleaner/Boost; *Tools → Utilities* abre Network/System Info donde
-  existe y marca el resto **"Not available yet"** (deshabilitado); los *Fix* de Audit/Security
-  y *Export CSV* de Statistics quedan deshabilitados con tooltip; los toggles/inputs no
+- **Acciones muertas endurecidas** (botones que no hacían nada): _Dashboard_ → _Clean Junk_ /
+  _Optimize_ ahora navegan a Cleaner/Boost; _Tools → Utilities_ abre Network/System Info donde
+  existe y marca el resto **"Not available yet"** (deshabilitado); los _Fix_ de Audit/Security
+  y _Export CSV_ de Statistics quedan deshabilitados con tooltip; los toggles/inputs no
   implementados de Settings quedan deshabilitados (el toggle de tema sigue vivo).
 - **`scripts/measure-ui-perf.mjs`: nuevo `--load <audit|services|system|drivers>`** que
   mantiene un canal IPC pesado en vuelo durante todo el scroll y reporta `loadMs`, para medir
@@ -326,9 +326,9 @@ Verificado con gates frescos: `tsc --noEmit` 0 · `eslint` 0 warnings · `vitest
 
 - **Bloatware Removal / Debloat (P1.4):** nueva pestaña **Debloat** en Tools con catálogo curado de **30 paquetes UWP** (`catalogs/apps-catalog.json`, fuente winutil: 19 safe / 7 caution / 4 protected). El renderer sólo envía **ids del catálogo** (gramática estricta `^[A-Za-z0-9][A-Za-z0-9._-]*$`), nunca nombres de paquete; las entradas **protected se rechazan server-side** aunque la UI se eluda, y las entradas inválidas se descartan sin llegar a PowerShell. Canales `debloat:get-catalog` (lectura sin caché para que los flags `installed` se mantengan frescos) y `debloat:remove` (**serializado por el mutex global**, etiqueta "Removing apps"). UI: checkboxes con guardas `disabled` (protected / not installed), confirmación con nota de riesgo para "caution", banner de resultado y refresco del catálogo tras remover. E2E: fixture con los 3 niveles de protección + 4 specs (catálogo, guards, remove con confirm, guards tras remover)
 - **Endurecimiento de uninstall strings (P1.4):** `parseUninstallString` valida antes de invocar PowerShell: MSI debe ser exactamente `MsiExec /x {GUID}` con GUID bien formado (sin junk trailing); el exe debe ser ruta absoluta terminada en `.exe` sin metacaracteres de shell (`" $ \` ; | &`…); los **caracteres de control (U+0000–U+001F) se rechazan por código de punto** antes de cualquier regex (cumple `no-control-regex` con idéntico comportamiento); los argumentos trailing (`/S`, `/uninstall`…) se descartan y sólo se ejecuta la ruta validada con flag silencioso
-- **Catálogo winget ampliado (P1.3):** 5 → 8 bundles y 33 → 48 apps, con **todos los IDs validados en vivo contra winget** (2026-10-01). Nuevos bundles: **Productivity** (PowerToys, Obsidian, Notion, Flow Launcher), **Communication** (Zoom, Telegram, WhatsApp vía msstore, Slack, Signal), **Security & Privacy** (Bitwarden, KeePassXC, Malwarebytes, Wireshark). Adds en bundles existentes: Windows Terminal + PowerShell (DevTools), FFmpeg (Media). Actualizados: Python 3.12 → **3.13**, Node → **LTS** (`OpenJS.NodeJS.LTS`). *Nota:* el plan sugería `JustinFinebel.HandBrake` pero **no existe en winget** (se mantiene el oficial `HandBrake.HandBrake`); IDs de WhatsApp/Signal/KeePassXC/Wireshark/Flow corregidos tras búsqueda real. Eliminado el duplicado `obs-gaming` (mismo `wingetId` que `obs`)
+- **Catálogo winget ampliado (P1.3):** 5 → 8 bundles y 33 → 48 apps, con **todos los IDs validados en vivo contra winget** (2026-10-01). Nuevos bundles: **Productivity** (PowerToys, Obsidian, Notion, Flow Launcher), **Communication** (Zoom, Telegram, WhatsApp vía msstore, Slack, Signal), **Security & Privacy** (Bitwarden, KeePassXC, Malwarebytes, Wireshark). Adds en bundles existentes: Windows Terminal + PowerShell (DevTools), FFmpeg (Media). Actualizados: Python 3.12 → **3.13**, Node → **LTS** (`OpenJS.NodeJS.LTS`). _Nota:_ el plan sugería `JustinFinebel.HandBrake` pero **no existe en winget** (se mantiene el oficial `HandBrake.HandBrake`); IDs de WhatsApp/Signal/KeePassXC/Wireshark/Flow corregidos tras búsqueda real. Eliminado el duplicado `obs-gaming` (mismo `wingetId` que `obs`)
 - **Test de integridad del catálogo de apps (P1.3):** bundles nuevos presentes (≥3 apps, icono, descripción), IDs plan presentes, `app.id` y `wingetId` **únicos** en todo el catálogo, y todo `wingetId` cumple la gramática P0.2 (`^[A-Za-z0-9][A-Za-z0-9._+-]*$`) — incluye el ID de Store `9NKSQGP7F2NH`
-- **Catálogo de tweaks +10 (P1.2):** 9 → 19 tweaks seguros y reversibles, con fuentes verificadas (Win11Debloat, CTT winutil, Sophia, Microsoft Q&A). Performance: *Snappier animations* (`MenuShowDelay=0` + `MinAnimate=0`), *Mouse acceleration off* (raw input 1:1), *No delay for startup apps* (`StartupDelayInMSec=0`). Explorer/taskbar: *Taskbar aligned left*, *Hide taskbar search box*, *Hide Task View button*, *Hide Widgets* (todos registry-only, servicios intactos). Privacy: *Turn off Copilot* (botón + política `TurnOffWindowsCopilot`), *Turn off Windows Spotlight* (política HKCU+HKLM). Nueva categoría **Accessibility**: *Disable Sticky Keys prompts* (`Flags=506`)
+- **Catálogo de tweaks +10 (P1.2):** 9 → 19 tweaks seguros y reversibles, con fuentes verificadas (Win11Debloat, CTT winutil, Sophia, Microsoft Q&A). Performance: _Snappier animations_ (`MenuShowDelay=0` + `MinAnimate=0`), _Mouse acceleration off_ (raw input 1:1), _No delay for startup apps_ (`StartupDelayInMSec=0`). Explorer/taskbar: _Taskbar aligned left_, _Hide taskbar search box_, _Hide Task View button_, _Hide Widgets_ (todos registry-only, servicios intactos). Privacy: _Turn off Copilot_ (botón + política `TurnOffWindowsCopilot`), _Turn off Windows Spotlight_ (política HKCU+HKLM). Nueva categoría **Accessibility**: _Disable Sticky Keys prompts_ (`Flags=506`)
 - **Gate `requiresBuild` (P1.2):** los tweaks exclusivos de Windows 11 declaran `requiresBuild` (22000; Copilot 22631) y `applyTweak` los rechaza con un mensaje claro **antes** de invocar PowerShell en builds anteriores. `restoreTweak` **nunca** se gated (se puede deshacer tras un downgrade). Detección vía `os.release()` con test hook `setWindowsBuild()`
 - **Botón "Free RAM" en el header (P1.1):** acción rápida que recorta el working set de la app (main + procesos hijos) vía `EmptyWorkingSet` (psapi.dll), con fallback a GC de .NET, y muestra la RAM liberada (`Freed N MB`, auto-reset a 3 s). Canal `memory:free` serializado por el mutex global. **Medido con `scripts/measure-free-memory.mjs`:** RSS **266 → 13 MB (−253 MB)**, ~3.0 s (spawn frío + Add-Type)
 - **Mutex global de operaciones (P0.3):** cola FIFO `withOperationLock` en Main que serializa los 25 canales IPC que mutan el sistema (tweaks, winget install/uninstall, servicios, cleaner, debloat, DNS, drivers, red, startup, drift, free-ram… — **26 canales con `debloat:remove` en P1.4**). Dos operaciones conflictivas **nunca** corren a la vez; el lock se libera aunque la operación falle. Nuevo canal `system:op-status` + evento `system:op-changed`

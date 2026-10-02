@@ -41,14 +41,14 @@
 - **Tweaks seguros** — 19 ajustes de rendimiento/privacidad/Explorer/accesibilidad, reversibles y con vista previa
 - **Debloat** — 30 paquetes UWP preinstalados con niveles safe/caution/protected (los protected nunca se remueven)
 - **Bundles** — 8 bundles y 48 apps instalables en bloque vía `winget`
-- **Free RAM** — Botón ⚡ en el header: libera al instante la RAM que ocupa **la propia app** (recorta el *working set* de sus procesos, main + renderizadores, sin tocar la de otros programas) y muestra cuánto liberó (`Freed N MB`, se resetea a los 3 s). **Medido:** RSS **266 → 13 MB (~253 MB liberados)** en ~3 s
+- **Free RAM** — Botón ⚡ en el header: libera al instante la RAM que ocupa **la propia app** (recorta el _working set_ de sus procesos, main + renderizadores, sin tocar la de otros programas) y muestra cuánto liberó (`Freed N MB`, se resetea a los 3 s). **Medido:** RSS **266 → 13 MB (~253 MB liberados)** en ~3 s
 - **Mutex global de operaciones** — Una operación del sistema a la vez (ver [Mutex global de operaciones](#mutex-global-de-operaciones))
 - **Multi-idioma** — Español e Inglés
 - **Temas** — Oscuro, claro y más
 
 ### Controles de ventana
 
-La ventana es *frameless* con controles propios en la esquina superior derecha
+La ventana es _frameless_ con controles propios en la esquina superior derecha
 (estilo Windows 11):
 
 - **Minimizar** — envía la ventana a la barra de tareas
@@ -138,6 +138,7 @@ El módulo Cleaner escanea y elimina archivos basura:
 - **Prefetch** — Datos de prefetch de Windows
 
 **Uso:**
+
 1. Ve a **Cleaner** en el menú lateral
 2. Click en **"Scan"** para buscar archivos
 3. Selecciona los archivos a eliminar
@@ -154,6 +155,7 @@ El módulo Boost optimiza el rendimiento del sistema:
 - **Protección** — Los servicios críticos están protegidos
 
 **Uso:**
+
 1. Ve a **Boost** en el menú lateral
 2. Revisa la lista de servicios
 3. Click en **"Optimize"** para aplicar cambios recomendados
@@ -169,6 +171,7 @@ Utilities**, **Gaming**, **Productivity** (PowerToys, Obsidian, Notion, Flow Lau
 (Bitwarden, KeePassXC, Malwarebytes, Wireshark).
 
 **Uso:**
+
 1. Ve a **Bundles** en el menú lateral
 2. Explorá una categoría e instalá una app con **Install**, o marcá varias y usá
    **Install Selected**
@@ -194,11 +197,11 @@ extra se descartan y cualquier otra cosa se rechaza sin ejecutar nada.
 **Debloat** — remoción de **30 paquetes UWP preinstalados** (curados, fuente winutil) con
 tres niveles de protección:
 
-| Nivel | Cantidad | Comportamiento |
-|-------|:---:|----------------|
-| **safe** | 19 | Seleccionable; remoción sin riesgo conocido |
-| **caution** | 7 | Seleccionable, pero la confirmación te avisa para revisar |
-| **protected** | 4 | **Nunca se remueven** — casilla deshabilitada y rechazo server-side aunque la UI se eluda |
+| Nivel         | Cantidad | Comportamiento                                                                            |
+| ------------- | :------: | ----------------------------------------------------------------------------------------- |
+| **safe**      |    19    | Seleccionable; remoción sin riesgo conocido                                               |
+| **caution**   |    7     | Seleccionable, pero la confirmación te avisa para revisar                                 |
+| **protected** |    4     | **Nunca se remueven** — casilla deshabilitada y rechazo server-side aunque la UI se eluda |
 
 Las apps **no instaladas** también quedan deshabilitadas ("not installed"). Flujo:
 
@@ -209,13 +212,13 @@ Las apps **no instaladas** también quedan deshabilitadas ("not installed"). Flu
 
 > **Cómo restaurar:** la remoción usa `Remove-AppxPackage`, que quita el paquete **para tu
 > usuario**. Para volver a tenerlo, reinstalalo desde la **Microsoft Store** o con
-> `winget install <id>`. Los paquetes *protected* jamás se tocan, así que apps clave del
+> `winget install <id>`. Los paquetes _protected_ jamás se tocan, así que apps clave del
 > sistema (como Microsoft Store) están a salvo. Requiere ejecutar la app **como
 > administrador**.
 >
 > **Garantías del backend:** el renderer sólo puede enviar **ids del catálogo** (nunca
 > nombres de paquete arbitrarios); los ids se validan con gramática estricta, las entradas
-> *protected* se rechazan en Main y los ids desconocidos/duplicados se descartan **sin
+> _protected_ se rechazan en Main y los ids desconocidos/duplicados se descartan **sin
 > llegar a PowerShell**.
 
 **Utilities** — accesos a Registry Cleaner, Disk Defragmenter, Privacy Eraser, File
@@ -229,6 +232,7 @@ Ajustes **seguros y reversibles** de rendimiento, privacidad, Explorador y acces
 Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 
 **Performance**
+
 - **SysMain (Superfetch)** — desactiva el servicio; recomendado sólo en SSD si notás uso alto de disco/CPU
 - **Prefetch / Superfetch (conservador)** — restaura los valores recomendados por Windows (no lo desactiva)
 - **Background Apps (usuario)** — evita que las apps de la Store corran en segundo plano
@@ -238,12 +242,14 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 - **No delay for startup apps** — quita el retardo artificial de las apps de inicio (`StartupDelayInMSec=0`)
 
 **Privacy**
+
 - **Telemetry & DiagTrack** — desactiva DiagTrack, fija telemetría al mínimo y apaga tareas CEIP/feedback
 - **Suggested Content & Ads** — quita sugerencias, tips y publicidad de Windows 11
 - **Turn off Copilot** — oculta el botón y desactiva Copilot por política (Windows 11 23H2+)
 - **Turn off Windows Spotlight** — apaga las fotos/sugerencias de la pantalla de bloqueo (HKCU + HKLM)
 
 **Explorer**
+
 - **Mostrar extensiones de archivos**
 - **Ocultar recientes y frecuentes** (Acceso rápido)
 - **Menú contextual clásico/compacto** (Windows 11)
@@ -253,6 +259,7 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 - **Hide Widgets** — oculta el botón de Widgets; sólo registry, el servicio no se toca (Windows 11)
 
 **Accessibility**
+
 - **Disable Sticky Keys prompts** — corta el aviso de "presioná Shift 5 veces" y apaga Sticky Keys
 
 **Uso:**
@@ -306,20 +313,20 @@ Configuración de la aplicación:
 
 ## Atajos de Teclado
 
-| Atajo | Acción |
-|-------|--------|
-| `Ctrl + 1` | Ir al Dashboard |
-| `Ctrl + 2` | Ir a Cleaner |
-| `Ctrl + 3` | Ir a Boost |
-| `Ctrl + 4` | Ir a Tools |
-| `Ctrl + 5` | Ir a Security |
-| `Ctrl + 6` | Ir a Statistics |
-| `Ctrl + 7` | Ir a Settings |
-| `Ctrl + R` | Refrescar página actual |
+| Atajo      | Acción                      |
+| ---------- | --------------------------- |
+| `Ctrl + 1` | Ir al Dashboard             |
+| `Ctrl + 2` | Ir a Cleaner                |
+| `Ctrl + 3` | Ir a Boost                  |
+| `Ctrl + 4` | Ir a Tools                  |
+| `Ctrl + 5` | Ir a Security               |
+| `Ctrl + 6` | Ir a Statistics             |
+| `Ctrl + 7` | Ir a Settings               |
+| `Ctrl + R` | Refrescar página actual     |
 | `Ctrl + D` | Cambiar tema (oscuro/claro) |
-| `Ctrl + L` | Cambiar idioma |
-| `F1` | Abrir ayuda |
-| `Esc` | Cerrar diálogo |
+| `Ctrl + L` | Cambiar idioma              |
+| `F1`       | Abrir ayuda                 |
+| `Esc`      | Cerrar diálogo              |
 
 ---
 
@@ -328,6 +335,7 @@ Configuración de la aplicación:
 ### ¿Es seguro usar FORCH.iA WinOptimizer?
 
 Sí. La aplicación está diseñada con seguridad en mente:
+
 - Los servicios críticos están protegidos y no se pueden desactivar
 - Las aplicaciones de Microsoft están marcadas como "protected"
 - Todas las acciones requieren confirmación del usuario
@@ -336,6 +344,7 @@ Sí. La aplicación está diseñada con seguridad en mente:
 ### ¿Puedo deshacer los cambios?
 
 Sí. La mayoría de los cambios se pueden revertir:
+
 - **Tweaks:** botón **Restore** por tweak (o "Restore selected"); vuelve al estado previo capturado
 - **Servicios:** Se pueden volver a activar manualmente
 - **Archivos eliminados:** Se pueden restaurar desde la papelera (si no se vació)
@@ -420,32 +429,32 @@ checks sigue siendo solo lectura + guía.
 
 Se eliminó la deuda de `@shared/*` que vivía en `node_modules` (no viajaba en el repo ni
 sobrevivía a un `npm ci`). La resolución del alias se registra en runtime desde el propio
-*main*, sin tocar `node_modules`. Ver `docs/BUILD_REPRODUCIBILITY.md`.
+_main_, sin tocar `node_modules`. Ver `docs/BUILD_REPRODUCIBILITY.md`.
 
 ---
 
 ## Novedades v0.5.0
 
-Todas las funciones que antes aparecían como *stub deshabilitado* (“Not implemented yet”)
+Todas las funciones que antes aparecían como _stub deshabilitado_ (“Not implemented yet”)
 ahora funcionan de verdad.
 
 ### Settings
 
 - **Accent color** — elegí un color; se derivan los tokens (`--color-accent`,
   `--color-accent-hover`, `--color-border-focus`, `--color-chart-primary`) y se aplican
-  en vivo. Se guarda y se vuelve a aplicar al abrir la app. *Reset to brand cyan* vuelve al
+  en vivo. Se guarda y se vuelve a aplicar al abrir la app. _Reset to brand cyan_ vuelve al
   cyan de marca.
 - **Start with Windows** — registra la app para que arranque con Windows. El toggle **lee el
   estado real del sistema operativo**, así que nunca miente. En la build **portable** aparece
   deshabilitado con la explicación (no aplica).
 - **Minimize to tray on close** — al cerrar, la app queda en la bandeja del sistema. El menú
-  de la bandeja tiene *Show* y *Quit* (Quit cierra de verdad). Desactivalo para cerrar normal.
+  de la bandeja tiene _Show_ y _Quit_ (Quit cierra de verdad). Desactivalo para cerrar normal.
 - **Enable notifications** — apaga/enciende las notificaciones nativas de Windows.
 - **Automatic updates** — chequeos de fondo cada 4 horas (sólo build instalada, no portable).
   La tarjeta **Updates** muestra el estado (buscando / al día / disponible / descargando /
   error) con **Check now**, **Download** y **Restart & install**.
-- **Cleaner** — *Scan browser cache*, *Scan Windows temp files* y *Scan recycle bin* controlan
-  qué escanea el Cleaner (mismo motor, sin lógica duplicada). *Exclude paths* acepta rutas
+- **Cleaner** — _Scan browser cache_, _Scan Windows temp files_ y _Scan recycle bin_ controlan
+  qué escanea el Cleaner (mismo motor, sin lógica duplicada). _Exclude paths_ acepta rutas
   separadas por comas (se aplican al perder el foco) que el escáner ignora.
 
 ### Statistics
@@ -459,8 +468,8 @@ ahora funcionan de verdad.
 ### Audit y Security
 
 - El botón **Fix** ya no está muerto. Como la auditoría **no** debe tocar la máquina a ciegas,
-  *Fix* abre el flujo reversible que resuelve el hallazgo: Audit → *Security · Privacy*,
-  *Tweaks*, *Cleaner* o *Network* según el caso; Security → pestaña *Privacy*. El tooltip
+  _Fix_ abre el flujo reversible que resuelve el hallazgo: Audit → _Security · Privacy_,
+  _Tweaks_, _Cleaner_ o _Network_ según el caso; Security → pestaña _Privacy_. El tooltip
   indica el destino.
 
 ### Tools → Utilities
@@ -481,7 +490,7 @@ ahora funcionan de verdad.
 
 ---
 
-*Build. Learn. Evolve.*
+_Build. Learn. Evolve._
 
 ---
 
@@ -495,16 +504,16 @@ icono. Los estados posibles son:
 - **Warning** — parcial / mejorable.
 - **Fail** — no cumple.
 - **Unknown** — no se pudo leer el dato (y no es un problema de permisos). No se
-  inventa: un dato no leído nunca se marca como *fail*.
+  inventa: un dato no leído nunca se marca como _fail_.
 - **Not applicable** — el chequeo no aplica a esta PC (ej. Secure Boot en BIOS legacy,
   BitLocker en edición Home sin el cmdlet).
 - **Requires admin** — el dato necesita elevación; el error observable fue "acceso
   denegado".
 
 El **puntaje** usa una fórmula explícita (visible en el tooltip): excluye del
-denominador los checks *unknown* / *not-applicable* / *requires-admin*, porque no
+denominador los checks _unknown_ / _not-applicable_ / _requires-admin_, porque no
 tiene sentido penalizar lo que no aplica ni lo que no se pudo medir. Si nada es
-medible, muestra *not scored* en vez de un número.
+medible, muestra _not scored_ en vez de un número.
 
 Por qué un check puede salir **unknown** o **requires-admin** y cómo interpretarlo:
 ver `docs/SECURITY_CHECKS.md`.

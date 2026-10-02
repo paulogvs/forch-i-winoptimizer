@@ -53,9 +53,7 @@ describe('startup-impact classifier', () => {
 
   it('raises impact when the binary is unsigned', () => {
     const signed = classifyStartupImpact(baseSignals());
-    const unsigned = classifyStartupImpact(
-      baseSignals({ signature: 'unsigned', signer: null })
-    );
+    const unsigned = classifyStartupImpact(baseSignals({ signature: 'unsigned', signer: null }));
     expect(unsigned.score).toBeGreaterThan(signed.score);
     expect(unsigned.impact).toBe('medium');
     expect(unsigned.publisher).toBe('Unknown');

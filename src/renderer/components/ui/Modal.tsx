@@ -56,7 +56,12 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
           </h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M4 4L12 12M12 4L4 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>

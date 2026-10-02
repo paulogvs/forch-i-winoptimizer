@@ -13,13 +13,7 @@ export interface JunkFile {
 }
 
 export type JunkCategory =
-  | 'temp'
-  | 'cache'
-  | 'logs'
-  | 'thumbnails'
-  | 'recycle-bin'
-  | 'browser-cache'
-  | 'windows-update';
+  'temp' | 'cache' | 'logs' | 'thumbnails' | 'recycle-bin' | 'browser-cache' | 'windows-update';
 
 export interface JunkScanResult {
   files: JunkFile[];
@@ -66,13 +60,12 @@ export interface JunkScanOptions {
 export function isExcludedPath(filePath: string, excludePaths: readonly string[]): boolean {
   const lower = filePath.toLowerCase();
   return excludePaths.some((raw) => {
-    const prefix = raw.trim().toLowerCase().replace(/[\\/]+$/, '');
+    const prefix = raw
+      .trim()
+      .toLowerCase()
+      .replace(/[\\/]+$/, '');
     if (prefix.length === 0) return false;
-    return (
-      lower === prefix ||
-      lower.startsWith(`${prefix}\\`) ||
-      lower.startsWith(`${prefix}/`)
-    );
+    return lower === prefix || lower.startsWith(`${prefix}\\`) || lower.startsWith(`${prefix}/`);
   });
 }
 
@@ -207,7 +200,10 @@ export async function scanForJunkFiles(
   progress.report('discover', 8, 'Preparing junk scan targets...');
 
   const targetLiterals = buildTargets(options.categories)
-    .map((t) => `[pscustomobject]@{ Category=${psQuote(t.category)}; Path=${psQuote(t.path)}; Filter=${psQuote(t.pattern)} }`)
+    .map(
+      (t) =>
+        `[pscustomobject]@{ Category=${psQuote(t.category)}; Path=${psQuote(t.path)}; Filter=${psQuote(t.pattern)} }`
+    )
     .join(', ');
 
   const script = `

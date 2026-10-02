@@ -10,15 +10,39 @@ function setApi(api: Api): void {
 }
 
 const events: StatsEvent[] = [
-  { id: '1', type: 'scan', timestamp: '2026-01-01T10:00:00.000Z', files: 4, bytes: 4096, score: null },
-  { id: '2', type: 'clean', timestamp: '2026-01-01T10:05:00.000Z', files: 4, bytes: 4096, score: null },
+  {
+    id: '1',
+    type: 'scan',
+    timestamp: '2026-01-01T10:00:00.000Z',
+    files: 4,
+    bytes: 4096,
+    score: null,
+  },
+  {
+    id: '2',
+    type: 'clean',
+    timestamp: '2026-01-01T10:05:00.000Z',
+    files: 4,
+    bytes: 4096,
+    score: null,
+  },
   { id: '3', type: 'audit', timestamp: '2026-01-01T10:10:00.000Z', files: 0, bytes: 0, score: 88 },
-  { id: '4', type: 'boost', timestamp: '2026-01-01T10:15:00.000Z', files: 0, bytes: 2048, score: null },
+  {
+    id: '4',
+    type: 'boost',
+    timestamp: '2026-01-01T10:15:00.000Z',
+    files: 0,
+    bytes: 2048,
+    score: null,
+  },
 ];
 
 describe('Statistics page', () => {
   beforeEach(() => {
-    setApi({ getStats: () => Promise.resolve([]), exportStats: () => Promise.resolve({ success: true, message: 'ok' }) });
+    setApi({
+      getStats: () => Promise.resolve([]),
+      exportStats: () => Promise.resolve({ success: true, message: 'ok' }),
+    });
   });
 
   it('shows an honest empty state with no recorded activity', async () => {
@@ -38,7 +62,9 @@ describe('Statistics page', () => {
   });
 
   it('exports CSV through the main process and reports the result', async () => {
-    const exportStats = vi.fn().mockResolvedValue({ success: true, message: 'Exported 4 event(s).' });
+    const exportStats = vi
+      .fn()
+      .mockResolvedValue({ success: true, message: 'Exported 4 event(s).' });
     setApi({ getStats: () => Promise.resolve(events), exportStats });
     render(<Statistics />);
 

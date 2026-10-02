@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getAppBundles, checkInstalledApps, installApp, installApps, uninstallApp } from './app-bundles';
+import {
+  getAppBundles,
+  checkInstalledApps,
+  installApp,
+  installApps,
+  uninstallApp,
+} from './app-bundles';
 
 vi.mock('./powershell', () => ({
   runPowerShell: vi.fn(),

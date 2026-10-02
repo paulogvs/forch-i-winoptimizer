@@ -47,7 +47,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleThemeToggle = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
 
   const handleSearch = useCallback((query: string) => {
@@ -56,21 +56,36 @@ const App: React.FC = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard': return <Dashboard onNavigate={setCurrentPage} />;
-      case 'cleaner': return <Cleaner />;
-      case 'boost': return <Boost />;
-      case 'tools': return <Tools onNavigate={setCurrentPage} />;
-      case 'drivers': return <Drivers />;
-      case 'network': return <Network />;
-      case 'audit': return <Audit onNavigate={setCurrentPage} />;
-      case 'benchmark': return <Benchmark />;
-      case 'bundles': return <Bundles />;
-      case 'cleaning': return <Cleaning />;
-      case 'tweaks': return <Tweaks />;
-      case 'statistics': return <Statistics />;
-      case 'security': return <Security />;
-      case 'settings': return <Settings theme={theme} onThemeToggle={handleThemeToggle} />;
-      default: return <Dashboard />;
+      case 'dashboard':
+        return <Dashboard onNavigate={setCurrentPage} />;
+      case 'cleaner':
+        return <Cleaner />;
+      case 'boost':
+        return <Boost />;
+      case 'tools':
+        return <Tools onNavigate={setCurrentPage} />;
+      case 'drivers':
+        return <Drivers />;
+      case 'network':
+        return <Network />;
+      case 'audit':
+        return <Audit onNavigate={setCurrentPage} />;
+      case 'benchmark':
+        return <Benchmark />;
+      case 'bundles':
+        return <Bundles />;
+      case 'cleaning':
+        return <Cleaning />;
+      case 'tweaks':
+        return <Tweaks />;
+      case 'statistics':
+        return <Statistics />;
+      case 'security':
+        return <Security />;
+      case 'settings':
+        return <Settings theme={theme} onThemeToggle={handleThemeToggle} />;
+      default:
+        return <Dashboard />;
     }
   };
 

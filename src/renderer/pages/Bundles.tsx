@@ -134,9 +134,7 @@ export const Bundles: React.FC = () => {
           <Card
             key={bundle.id}
             title={`${bundle.icon} ${bundle.name}`}
-            footer={
-              <div className="text-sm text-fg-secondary">{bundle.description}</div>
-            }
+            footer={<div className="text-sm text-fg-secondary">{bundle.description}</div>}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {bundle.apps.map((app) => (
@@ -151,9 +149,7 @@ export const Bundles: React.FC = () => {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-fg-primary">{app.name}</span>
-                    {app.isInstalled && (
-                      <Badge variant="success">Installed</Badge>
-                    )}
+                    {app.isInstalled && <Badge variant="success">Installed</Badge>}
                   </div>
                   <p className="text-xs text-fg-tertiary mb-2">{app.description}</p>
                   <div className="flex items-center justify-between">

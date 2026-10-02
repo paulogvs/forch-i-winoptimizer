@@ -22,42 +22,42 @@
 /* === DARK MODE (default) === */
 :root {
   /* Backgrounds */
-  --color-bg-primary: #0A0E1A;        /* Deep space black-blue */
-  --color-bg-secondary: #111827;      /* Panel background */
-  --color-bg-tertiary: #1F2937;       /* Card/elevated surface */
-  --color-bg-hover: #374151;          /* Hover state */
-  --color-bg-active: #4B5563;         /* Active/pressed state */
+  --color-bg-primary: #0a0e1a; /* Deep space black-blue */
+  --color-bg-secondary: #111827; /* Panel background */
+  --color-bg-tertiary: #1f2937; /* Card/elevated surface */
+  --color-bg-hover: #374151; /* Hover state */
+  --color-bg-active: #4b5563; /* Active/pressed state */
 
   /* Foreground */
-  --color-fg-primary: #F9FAFB;        /* Primary text */
-  --color-fg-secondary: #D1D5DB;      /* Secondary text */
-  --color-fg-tertiary: #9CA3AF;       /* Tertiary/muted text */
-  --color-fg-disabled: #6B7280;       /* Disabled text */
+  --color-fg-primary: #f9fafb; /* Primary text */
+  --color-fg-secondary: #d1d5db; /* Secondary text */
+  --color-fg-tertiary: #9ca3af; /* Tertiary/muted text */
+  --color-fg-disabled: #6b7280; /* Disabled text */
 
   /* Accent — Cyan (primary brand) */
-  --color-accent: #06B6D4;            /* Primary accent */
-  --color-accent-hover: #22D3EE;      /* Accent hover */
+  --color-accent: #06b6d4; /* Primary accent */
+  --color-accent-hover: #22d3ee; /* Accent hover */
   --color-accent-muted: rgba(6, 182, 212, 0.15); /* Accent background */
 
   /* Semantic — Success */
-  --color-success: #10B981;
+  --color-success: #10b981;
   --color-success-muted: rgba(16, 185, 129, 0.15);
 
   /* Semantic — Warning */
-  --color-warning: #F59E0B;
+  --color-warning: #f59e0b;
   --color-warning-muted: rgba(245, 158, 11, 0.15);
 
   /* Semantic — Error/Danger */
-  --color-error: #EF4444;
+  --color-error: #ef4444;
   --color-error-muted: rgba(239, 68, 68, 0.15);
 
   /* Semantic — Info */
-  --color-info: #3B82F6;
+  --color-info: #3b82f6;
   --color-info-muted: rgba(59, 130, 246, 0.15);
 
   /* Borders */
   --color-border: #374151;
-  --color-border-focus: #06B6D4;
+  --color-border-focus: #06b6d4;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -67,23 +67,23 @@
 }
 
 /* === LIGHT MODE === */
-[data-theme="light"] {
+[data-theme='light'] {
   /* Backgrounds */
-  --color-bg-primary: #F8FAFC;
-  --color-bg-secondary: #FFFFFF;
-  --color-bg-tertiary: #F1F5F9;
-  --color-bg-hover: #E2E8F0;
-  --color-bg-active: #CBD5E1;
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-hover: #e2e8f0;
+  --color-bg-active: #cbd5e1;
 
   /* Foreground */
-  --color-fg-primary: #0F172A;
+  --color-fg-primary: #0f172a;
   --color-fg-secondary: #334155;
-  --color-fg-tertiary: #64748B;
-  --color-fg-disabled: #94A3B8;
+  --color-fg-tertiary: #64748b;
+  --color-fg-disabled: #94a3b8;
 
   /* Accent — Cyan (darker for light mode contrast) */
-  --color-accent: #0891B2;
-  --color-accent-hover: #0E7490;
+  --color-accent: #0891b2;
+  --color-accent-hover: #0e7490;
   --color-accent-muted: rgba(8, 145, 178, 0.12);
 
   /* Semantic — Success */
@@ -91,20 +91,20 @@
   --color-success-muted: rgba(5, 150, 105, 0.12);
 
   /* Semantic — Warning */
-  --color-warning: #D97706;
+  --color-warning: #d97706;
   --color-warning-muted: rgba(217, 119, 6, 0.12);
 
   /* Semantic — Error/Danger */
-  --color-error: #DC2626;
+  --color-error: #dc2626;
   --color-error-muted: rgba(220, 38, 38, 0.12);
 
   /* Semantic — Info */
-  --color-info: #2563EB;
+  --color-info: #2563eb;
   --color-info-muted: rgba(37, 99, 235, 0.12);
 
   /* Borders */
-  --color-border: #CBD5E1;
-  --color-border-focus: #0891B2;
+  --color-border: #cbd5e1;
+  --color-border-focus: #0891b2;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -118,12 +118,12 @@
 
 ```css
 :root {
-  --color-chart-primary: #06B6D4;     /* Cyan — primary metric */
-  --color-chart-secondary: #8B5CF6;   /* Violet — secondary */
-  --color-chart-tertiary: #F59E0B;    /* Amber — tertiary */
-  --color-chart-quaternary: #10B981;  /* Green — quaternary */
+  --color-chart-primary: #06b6d4; /* Cyan — primary metric */
+  --color-chart-secondary: #8b5cf6; /* Violet — secondary */
+  --color-chart-tertiary: #f59e0b; /* Amber — tertiary */
+  --color-chart-quaternary: #10b981; /* Green — quaternary */
   --color-chart-grid: rgba(148, 163, 184, 0.15);
-  --color-chart-text: #9CA3AF;
+  --color-chart-text: #9ca3af;
 }
 ```
 
@@ -137,21 +137,21 @@
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  --font-display: 'Inter', sans-serif;  /* Headings */
+  --font-display: 'Inter', sans-serif; /* Headings */
 }
 ```
 
 ### 3.2 Type Scale
 
-| Token | Size | Weight | Line Height | Usage |
-|-------|------|--------|-------------|-------|
-| `--text-xs` | 11px | 400 | 14px | Badges, labels, captions |
-| `--text-sm` | 12px | 400 | 16px | Secondary text, table cells |
-| `--text-base` | 14px | 400 | 20px | Body text, inputs |
-| `--text-md` | 16px | 500 | 24px | Section headers, card titles |
-| `--text-lg` | 18px | 600 | 26px | Page titles |
-| `--text-xl` | 24px | 700 | 30px | Hero numbers, dashboard KPIs |
-| `--text-2xl` | 32px | 700 | 38px | Splash/empty states |
+| Token         | Size | Weight | Line Height | Usage                        |
+| ------------- | ---- | ------ | ----------- | ---------------------------- |
+| `--text-xs`   | 11px | 400    | 14px        | Badges, labels, captions     |
+| `--text-sm`   | 12px | 400    | 16px        | Secondary text, table cells  |
+| `--text-base` | 14px | 400    | 20px        | Body text, inputs            |
+| `--text-md`   | 16px | 500    | 24px        | Section headers, card titles |
+| `--text-lg`   | 18px | 600    | 26px        | Page titles                  |
+| `--text-xl`   | 24px | 700    | 30px        | Hero numbers, dashboard KPIs |
+| `--text-2xl`  | 32px | 700    | 38px        | Splash/empty states          |
 
 ### 3.3 Font Weights
 
@@ -173,13 +173,13 @@
 ```css
 :root {
   --space-0: 0;
-  --space-1: 4px;   /* xs */
-  --space-2: 8px;   /* sm */
-  --space-3: 12px;  /* md */
-  --space-4: 16px;  /* base */
-  --space-5: 20px;  /* lg */
-  --space-6: 24px;  /* xl */
-  --space-8: 32px;  /* 2xl */
+  --space-1: 4px; /* xs */
+  --space-2: 8px; /* sm */
+  --space-3: 12px; /* md */
+  --space-4: 16px; /* base */
+  --space-5: 20px; /* lg */
+  --space-6: 24px; /* xl */
+  --space-8: 32px; /* 2xl */
   --space-10: 40px; /* 3xl */
   --space-12: 48px; /* 4xl */
   --space-16: 64px; /* 5xl */
@@ -188,14 +188,14 @@
 
 ### Spacing Usage
 
-| Context | Value |
-|---------|-------|
+| Context                    | Value                      |
+| -------------------------- | -------------------------- |
 | Component internal padding | `--space-3` to `--space-4` |
-| Card padding | `--space-4` to `--space-6` |
-| Section gap | `--space-6` to `--space-8` |
-| Page padding | `--space-6` to `--space-8` |
-| Sidebar width | 240px (fixed) |
-| Icon + text gap | `--space-2` |
+| Card padding               | `--space-4` to `--space-6` |
+| Section gap                | `--space-6` to `--space-8` |
+| Page padding               | `--space-6` to `--space-8` |
+| Sidebar width              | 240px (fixed)              |
+| Icon + text gap            | `--space-2`                |
 
 ---
 
@@ -204,10 +204,10 @@
 ```css
 :root {
   --radius-none: 0;
-  --radius-sm: 4px;    /* Containers, panels */
-  --radius-md: 6px;    /* Cards */
-  --radius-lg: 8px;    /* Buttons, inputs, interactive */
-  --radius-xl: 12px;   /* Modals, dialogs */
+  --radius-sm: 4px; /* Containers, panels */
+  --radius-md: 6px; /* Cards */
+  --radius-lg: 8px; /* Buttons, inputs, interactive */
+  --radius-xl: 12px; /* Modals, dialogs */
   --radius-full: 9999px; /* Avatars, pills, badges */
 }
 ```
@@ -239,7 +239,7 @@
 /* Variants */
 .btn-primary {
   background: var(--color-accent);
-  color: #FFFFFF;
+  color: #ffffff;
 }
 .btn-primary:hover {
   background: var(--color-accent-hover);
@@ -266,16 +266,28 @@
 
 .btn-danger {
   background: var(--color-error);
-  color: #FFFFFF;
+  color: #ffffff;
 }
 .btn-danger:hover {
-  background: #DC2626;
+  background: #dc2626;
 }
 
 /* Sizes */
-.btn-sm { padding: var(--space-1) var(--space-3); font-size: var(--text-sm); min-height: 28px; }
-.btn-md { padding: var(--space-2) var(--space-4); font-size: var(--text-base); min-height: 36px; }
-.btn-lg { padding: var(--space-3) var(--space-6); font-size: var(--text-md); min-height: 44px; }
+.btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  min-height: 28px;
+}
+.btn-md {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-base);
+  min-height: 36px;
+}
+.btn-lg {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-md);
+  min-height: 44px;
+}
 
 /* States */
 .btn:disabled {
@@ -404,13 +416,13 @@
   transition: transform 200ms ease;
 }
 
-.toggle[aria-checked="true"] {
+.toggle[aria-checked='true'] {
   background: var(--color-accent);
 }
 
-.toggle[aria-checked="true"]::after {
+.toggle[aria-checked='true']::after {
   transform: translateX(20px);
-  background: #FFFFFF;
+  background: #ffffff;
 }
 
 .toggle:focus-visible {
@@ -532,10 +544,18 @@
   transition: width 300ms ease;
 }
 
-.progress-bar-primary { background: var(--color-accent); }
-.progress-bar-success { background: var(--color-success); }
-.progress-bar-warning { background: var(--color-warning); }
-.progress-bar-error { background: var(--color-error); }
+.progress-bar-primary {
+  background: var(--color-accent);
+}
+.progress-bar-success {
+  background: var(--color-success);
+}
+.progress-bar-warning {
+  background: var(--color-warning);
+}
+.progress-bar-error {
+  background: var(--color-error);
+}
 ```
 
 ### 6.8 Tooltip
@@ -562,31 +582,31 @@
 
 ### 7.1 Interactive States
 
-| State | Visual Treatment |
-|-------|-----------------|
-| **Default** | Base appearance |
-| **Hover** | `background: var(--color-bg-hover)`, subtle shadow |
-| **Active/Pressed** | `background: var(--color-bg-active)`, scale(0.98) |
-| **Focus** | `outline: 2px solid var(--color-border-focus)`, offset 2px |
-| **Disabled** | `opacity: 0.5`, `cursor: not-allowed` |
-| **Loading** | Spinner replaces content, `color: transparent` |
+| State              | Visual Treatment                                           |
+| ------------------ | ---------------------------------------------------------- |
+| **Default**        | Base appearance                                            |
+| **Hover**          | `background: var(--color-bg-hover)`, subtle shadow         |
+| **Active/Pressed** | `background: var(--color-bg-active)`, scale(0.98)          |
+| **Focus**          | `outline: 2px solid var(--color-border-focus)`, offset 2px |
+| **Disabled**       | `opacity: 0.5`, `cursor: not-allowed`                      |
+| **Loading**        | Spinner replaces content, `color: transparent`             |
 
 ### 7.2 Semantic States
 
-| State | Color Token | Usage |
-|-------|-------------|-------|
+| State       | Color Token       | Usage                               |
+| ----------- | ----------------- | ----------------------------------- |
 | **Success** | `--color-success` | Operation completed, healthy status |
-| **Warning** | `--color-warning` | Caution, attention needed |
-| **Error** | `--color-error` | Failure, critical issue |
-| **Info** | `--color-info` | Neutral information |
+| **Warning** | `--color-warning` | Caution, attention needed           |
+| **Error**   | `--color-error`   | Failure, critical issue             |
+| **Info**    | `--color-info`    | Neutral information                 |
 
 ### 7.3 Data States
 
-| State | Treatment |
-|-------|-----------|
-| **Empty** | Icon + message + CTA button |
-| **Loading** | Skeleton screens or spinner |
-| **Error** | Error message + retry button |
+| State       | Treatment                           |
+| ----------- | ----------------------------------- |
+| **Empty**   | Icon + message + CTA button         |
+| **Loading** | Skeleton screens or spinner         |
+| **Error**   | Error message + retry button        |
 | **Partial** | Show available data + warning badge |
 
 ---
@@ -632,26 +652,28 @@ useEffect(() => {
 ```html
 <!-- Toggle -->
 <button role="switch" aria-checked="true/false" aria-label="Enable feature">
-
-<!-- Modal -->
-<div role="dialog" aria-modal="true" aria-labelledby="modal-title">
-
-<!-- Progress -->
-<div role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-
-<!-- Navigation -->
-<nav aria-label="Main navigation">
-  <ul role="list">
-    <li><a aria-current="page">Active Page</a></li>
-  </ul>
-</nav>
+  <!-- Modal -->
+  <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <!-- Progress -->
+    <div role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+      <!-- Navigation -->
+      <nav aria-label="Main navigation">
+        <ul role="list">
+          <li><a aria-current="page">Active Page</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</button>
 ```
 
 ### 9.3 Reduced Motion
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -696,12 +718,12 @@ useEffect(() => {
 
 ### 10.4 Responsive Breakpoints
 
-| Breakpoint | Width | Layout |
-|------------|-------|--------|
-| `sm` | 640px | Sidebar collapses to icons |
-| `md` | 768px | Sidebar overlay (hamburger) |
-| `lg` | 1024px | Full sidebar + content |
-| `xl` | 1280px | Max content width |
+| Breakpoint | Width  | Layout                      |
+| ---------- | ------ | --------------------------- |
+| `sm`       | 640px  | Sidebar collapses to icons  |
+| `md`       | 768px  | Sidebar overlay (hamburger) |
+| `lg`       | 1024px | Full sidebar + content      |
+| `xl`       | 1280px | Max content width           |
 
 ---
 
@@ -728,13 +750,13 @@ useEffect(() => {
 
 ### 11.3 Animations
 
-| Animation | Duration | Easing | Usage |
-|-----------|----------|--------|-------|
-| `fadeIn` | 150ms | ease-out | Modal overlay |
-| `slideUp` | 200ms | ease-out | Modal content |
-| `slideIn` | 200ms | ease-out | Sidebar |
-| `spin` | 600ms | linear | Loading spinner |
-| `pulse` | 2s | ease-in-out | Status indicator |
+| Animation | Duration | Easing      | Usage            |
+| --------- | -------- | ----------- | ---------------- |
+| `fadeIn`  | 150ms    | ease-out    | Modal overlay    |
+| `slideUp` | 200ms    | ease-out    | Modal content    |
+| `slideIn` | 200ms    | ease-out    | Sidebar          |
+| `spin`    | 600ms    | linear      | Loading spinner  |
+| `pulse`   | 2s       | ease-in-out | Status indicator |
 
 ---
 
@@ -758,15 +780,15 @@ useEffect(() => {
 
 ### 12.2 Color Reference
 
-| Element | Dark Mode | Light Mode |
-|---------|-----------|------------|
-| Background | `--color-bg-primary` | `--color-bg-primary` |
-| Surface | `--color-bg-secondary` | `--color-bg-secondary` |
-| Text | `--color-fg-primary` | `--color-fg-primary` |
-| Accent | `--color-accent` | `--color-accent` |
-| Success | `--color-success` | `--color-success` |
-| Warning | `--color-warning` | `--color-warning` |
-| Error | `--color-error` | `--color-error` |
+| Element    | Dark Mode              | Light Mode             |
+| ---------- | ---------------------- | ---------------------- |
+| Background | `--color-bg-primary`   | `--color-bg-primary`   |
+| Surface    | `--color-bg-secondary` | `--color-bg-secondary` |
+| Text       | `--color-fg-primary`   | `--color-fg-primary`   |
+| Accent     | `--color-accent`       | `--color-accent`       |
+| Success    | `--color-success`      | `--color-success`      |
+| Warning    | `--color-warning`      | `--color-warning`      |
+| Error      | `--color-error`        | `--color-error`        |
 
 ---
 
@@ -828,18 +850,18 @@ forch-i-winoptimizer/
 
 ## 15. Technical Stack
 
-| Layer | Technology | Version |
-|-------|------------|---------|
-| Runtime | Electron | Latest stable |
-| Frontend | React | 18+ |
-| Language | TypeScript | 5+ (strict mode) |
-| Styling | Tailwind CSS | 4+ (CSS variables) |
-| State | Zustand | Latest |
-| Build | Vite | Latest |
-| Package Manager | pnpm | Latest |
-| Testing | Vitest + Testing Library | Latest |
-| Linting | ESLint + Prettier | Latest |
+| Layer           | Technology               | Version            |
+| --------------- | ------------------------ | ------------------ |
+| Runtime         | Electron                 | Latest stable      |
+| Frontend        | React                    | 18+                |
+| Language        | TypeScript               | 5+ (strict mode)   |
+| Styling         | Tailwind CSS             | 4+ (CSS variables) |
+| State           | Zustand                  | Latest             |
+| Build           | Vite                     | Latest             |
+| Package Manager | pnpm                     | Latest             |
+| Testing         | Vitest + Testing Library | Latest             |
+| Linting         | ESLint + Prettier        | Latest             |
 
 ---
 
-*This DESIGN.md is the single source of truth for FORCH.iA WinOptimizer visual design. All UI components must conform to these tokens and patterns.*
+_This DESIGN.md is the single source of truth for FORCH.iA WinOptimizer visual design. All UI components must conform to these tokens and patterns._

@@ -28,13 +28,20 @@ test.describe('Global operation mutex (P0.3)', () => {
 
   test('exposes the operation status bridge to the renderer', async ({ page }) => {
     const status = await page.evaluate(() =>
-      (window as unknown as { electronAPI: { getOperationStatus: () => Promise<unknown> } }).electronAPI.getOperationStatus()
+      (
+        window as unknown as { electronAPI: { getOperationStatus: () => Promise<unknown> } }
+      ).electronAPI.getOperationStatus()
     );
     expect(status).toEqual({ busy: false, current: null, queued: 0, startedAt: null });
   });
 
   test('shows the busy indicator while an operation owns the lock', async ({ page }) => {
-    await pushStatus(page, { busy: true, current: 'tweaks:apply', queued: 1, startedAt: Date.now() });
+    await pushStatus(page, {
+      busy: true,
+      current: 'tweaks:apply',
+      queued: 1,
+      startedAt: Date.now(),
+    });
 
     const badge = page.locator('[data-testid="op-status"]');
     await expect(badge).toBeVisible();
@@ -43,7 +50,12 @@ test.describe('Global operation mutex (P0.3)', () => {
   });
 
   test('hides the indicator when the lock is released', async ({ page }) => {
-    await pushStatus(page, { busy: true, current: 'bundles:install', queued: 0, startedAt: Date.now() });
+    await pushStatus(page, {
+      busy: true,
+      current: 'bundles:install',
+      queued: 0,
+      startedAt: Date.now(),
+    });
     await expect(page.locator('[data-testid="op-status"]')).toBeVisible();
 
     await pushStatus(page, { busy: false, current: null, queued: 0, startedAt: null });
@@ -57,7 +69,12 @@ test.describe('Global operation mutex (P0.3)', () => {
     const applyButton = page.locator('button:has-text("Apply selected (1)")');
     await expect(applyButton).toBeEnabled();
 
-    await pushStatus(page, { busy: true, current: 'cleaning:run-now', queued: 0, startedAt: Date.now() });
+    await pushStatus(page, {
+      busy: true,
+      current: 'cleaning:run-now',
+      queued: 0,
+      startedAt: Date.now(),
+    });
     await expect(applyButton).toBeDisabled();
 
     await pushStatus(page, { busy: false, current: null, queued: 0, startedAt: null });

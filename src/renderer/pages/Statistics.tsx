@@ -56,7 +56,7 @@ export const Statistics: React.FC = () => {
   const totalFreed = useMemo(() => cleans.reduce((sum, e) => sum + e.bytes, 0), [cleans]);
   const totalFilesCleaned = useMemo(() => cleans.reduce((sum, e) => sum + e.files, 0), [cleans]);
   const totalScanned = useMemo(() => scans.reduce((sum, e) => sum + e.bytes, 0), [scans]);
-  const lastScore = audits.length > 0 ? audits[audits.length - 1]?.score ?? null : null;
+  const lastScore = audits.length > 0 ? (audits[audits.length - 1]?.score ?? null) : null;
 
   const exportCsv = async () => {
     setFeedback(null);
@@ -101,7 +101,9 @@ export const Statistics: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <div className="text-center">
-                <div className="text-2xl font-bold text-fg-primary">{formatBytes(totalScanned)}</div>
+                <div className="text-2xl font-bold text-fg-primary">
+                  {formatBytes(totalScanned)}
+                </div>
                 <div className="text-sm text-fg-secondary">Junk scanned</div>
               </div>
             </Card>

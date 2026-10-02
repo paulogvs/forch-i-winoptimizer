@@ -26,7 +26,12 @@ const ok = (stdout: string) => ({ success: true, stdout, stderr: '', exitCode: 0
 const fail = () => ({ success: false, stdout: '', stderr: 'Access denied', exitCode: 1 });
 
 const BATCH = {
-  Os: { Caption: 'Windows 11 Pro', Version: '10.0.22631', BuildNumber: '22631', LastBootUpTime: '2024-01-15T10:30:00Z' },
+  Os: {
+    Caption: 'Windows 11 Pro',
+    Version: '10.0.22631',
+    BuildNumber: '22631',
+    LastBootUpTime: '2024-01-15T10:30:00Z',
+  },
   Disk: { Size: 512000000000, FreeSpace: 256000000000 },
   Gpu: { Name: 'NVIDIA GeForce RTX 3070', AdapterRAM: 8589934592, DriverVersion: '546.17' },
 };
@@ -79,7 +84,9 @@ describe('system-info', () => {
     vi.mocked(runPowerShell)
       .mockResolvedValueOnce(fail())
       .mockResolvedValueOnce(ok(JSON.stringify({ Size: 1000, FreeSpace: 400 })))
-      .mockResolvedValueOnce(ok(JSON.stringify({ Name: 'Generic GPU', AdapterRAM: 100, DriverVersion: '1.0' })))
+      .mockResolvedValueOnce(
+        ok(JSON.stringify({ Name: 'Generic GPU', AdapterRAM: 100, DriverVersion: '1.0' }))
+      )
       .mockResolvedValueOnce(ok(JSON.stringify({ Caption: 'Windows 10', BuildNumber: '19045' })));
 
     const result = await getSystemInfo();
@@ -162,7 +169,12 @@ describe('system-info', () => {
     const snapshot = cpuSet({ user: 1000, sys: 1000, idle: 8000 });
     expect(computeCpuUsage(snapshot, cpuSet({ user: 1000, sys: 1000, idle: 8000 }))).toBe(0);
     expect(computeCpuUsage([], [])).toBe(0);
-    expect(computeCpuUsage(cpuSet({ user: 1, sys: 1, idle: 1 }, 4), cpuSet({ user: 2, sys: 2, idle: 2 }, 8))).toBe(0);
+    expect(
+      computeCpuUsage(
+        cpuSet({ user: 1, sys: 1, idle: 1 }, 4),
+        cpuSet({ user: 2, sys: 2, idle: 2 }, 8)
+      )
+    ).toBe(0);
   });
 
   it('derives cpu.usage from an os.cpus() sample window, not PowerShell', async () => {

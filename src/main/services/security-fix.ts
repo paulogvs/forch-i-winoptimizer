@@ -97,8 +97,7 @@ const READ_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
 };
 
 const RDP_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server';
-const SMB1_REG_PATH =
-  'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
+const SMB1_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
 
 const APPLY_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
   smb1: `
@@ -224,7 +223,6 @@ export function formatOriginal(checkId: SecurityFixId, token: string | null): st
   }
 }
 
-
 /** Decode a parsed read payload into a typed observation. Pure. */
 export function decodeFixObservation(
   checkId: SecurityFixId,
@@ -317,7 +315,8 @@ export function buildFixPreview(
       if (!observation.available || observation.enabled === null) {
         return blocked('unavailable', current, 'SMBv1 disabled');
       }
-      if (observation.enabled === false) return blocked('already-applied', current, 'SMBv1 disabled');
+      if (observation.enabled === false)
+        return blocked('already-applied', current, 'SMBv1 disabled');
       if (!options.isAdmin) return blocked('requires-admin', current, 'SMBv1 disabled');
       return allowed(current, 'SMBv1 disabled');
     }
@@ -419,7 +418,7 @@ let cachedElevated: boolean | null = null;
 export async function isElevated(): Promise<boolean> {
   if (cachedElevated !== null) return cachedElevated;
   const result = await runPowerShell(
-    "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"
+    '([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)'
   );
   cachedElevated = /true/i.test(result.stdout);
   return cachedElevated;

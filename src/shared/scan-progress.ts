@@ -7,15 +7,7 @@ export type ScanStage = 'discover' | 'query' | 'parse' | 'normalize' | 'done' | 
 // Known modules are listed for autocomplete, but the union stays open so new
 // modules can be added without touching every switch.
 export type ScanModule =
-  | 'junk'
-  | 'drivers'
-  | 'system'
-  | 'apps'
-  | 'network'
-  | 'audit'
-  | 'benchmark'
-  | 'tweaks'
-  | string;
+  'junk' | 'drivers' | 'system' | 'apps' | 'network' | 'audit' | 'benchmark' | 'tweaks' | string;
 
 export interface ScanProgressEvent {
   module: ScanModule;

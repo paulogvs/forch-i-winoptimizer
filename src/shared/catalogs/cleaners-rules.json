@@ -7,10 +7,7 @@
       "name": "Temporary Files",
       "description": "Windows and user temporary files",
       "category": "temp",
-      "paths": [
-        "C:\\Windows\\Temp\\*",
-        "C:\\Users\\%USERNAME%\\AppData\\Local\\Temp\\*"
-      ],
+      "paths": ["C:\\Windows\\Temp\\*", "C:\\Users\\%USERNAME%\\AppData\\Local\\Temp\\*"],
       "filePatterns": ["*.tmp", "*.temp", "*.bak", "~$*"],
       "safeToDelete": true,
       "requiresConfirmation": false
@@ -34,9 +31,7 @@
       "name": "Windows Update Cache",
       "description": "Downloaded Windows Update files",
       "category": "windows-update",
-      "paths": [
-        "C:\\Windows\\SoftwareDistribution\\Download\\*"
-      ],
+      "paths": ["C:\\Windows\\SoftwareDistribution\\Download\\*"],
       "filePatterns": ["*"],
       "safeToDelete": true,
       "requiresConfirmation": true
@@ -46,9 +41,7 @@
       "name": "Recycle Bin",
       "description": "Files in the recycle bin",
       "category": "recycle-bin",
-      "paths": [
-        "C:\\$Recycle.Bin\\*"
-      ],
+      "paths": ["C:\\$Recycle.Bin\\*"],
       "filePatterns": ["*"],
       "safeToDelete": true,
       "requiresConfirmation": true
@@ -58,9 +51,7 @@
       "name": "Thumbnail Cache",
       "description": "Windows thumbnail cache",
       "category": "thumbnails",
-      "paths": [
-        "C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Windows\\Explorer\\*"
-      ],
+      "paths": ["C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Windows\\Explorer\\*"],
       "filePatterns": ["thumbcache_*.db", "iconcache_*.db"],
       "safeToDelete": true,
       "requiresConfirmation": false
@@ -98,9 +89,7 @@
       "name": "Prefetch Data",
       "description": "Windows prefetch data",
       "category": "cache",
-      "paths": [
-        "C:\\Windows\\Prefetch\\*"
-      ],
+      "paths": ["C:\\Windows\\Prefetch\\*"],
       "filePatterns": ["*.pf"],
       "safeToDelete": true,
       "requiresConfirmation": false

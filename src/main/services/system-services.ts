@@ -114,19 +114,22 @@ const PROTECTED_SERVICES = [
   'xboxnetapi',
 ];
 
-const OPTIMIZABLE_SERVICES: Record<string, { action: 'disable' | 'manual'; impact: 'low' | 'medium' | 'high'; reason: string }> = {
-  'DiagTrack': { action: 'disable', impact: 'low', reason: 'Telemetry service' },
-  'dmwappushservice': { action: 'disable', impact: 'low', reason: 'WAP Push service' },
-  'MapsBroker': { action: 'disable', impact: 'low', reason: 'Downloaded Maps Manager' },
-  'RetailDemo': { action: 'disable', impact: 'low', reason: 'Retail Demo service' },
-  'SysMain': { action: 'disable', impact: 'medium', reason: 'Superfetch - not needed on SSDs' },
-  'WSearch': { action: 'manual', impact: 'high', reason: 'Windows Search - affects Start search' },
-  'XblAuthManager': { action: 'disable', impact: 'low', reason: 'Xbox Live Auth Manager' },
-  'XblGameSave': { action: 'disable', impact: 'low', reason: 'Xbox Live Game Save' },
-  'XboxNetApiSvc': { action: 'disable', impact: 'low', reason: 'Xbox Net API' },
-  'BITS': { action: 'manual', impact: 'low', reason: 'Background Intelligent Transfer' },
-  'Themes': { action: 'disable', impact: 'low', reason: 'Themes service' },
-  'TabletInputService': { action: 'disable', impact: 'low', reason: 'Tablet PC Input' },
+const OPTIMIZABLE_SERVICES: Record<
+  string,
+  { action: 'disable' | 'manual'; impact: 'low' | 'medium' | 'high'; reason: string }
+> = {
+  DiagTrack: { action: 'disable', impact: 'low', reason: 'Telemetry service' },
+  dmwappushservice: { action: 'disable', impact: 'low', reason: 'WAP Push service' },
+  MapsBroker: { action: 'disable', impact: 'low', reason: 'Downloaded Maps Manager' },
+  RetailDemo: { action: 'disable', impact: 'low', reason: 'Retail Demo service' },
+  SysMain: { action: 'disable', impact: 'medium', reason: 'Superfetch - not needed on SSDs' },
+  WSearch: { action: 'manual', impact: 'high', reason: 'Windows Search - affects Start search' },
+  XblAuthManager: { action: 'disable', impact: 'low', reason: 'Xbox Live Auth Manager' },
+  XblGameSave: { action: 'disable', impact: 'low', reason: 'Xbox Live Game Save' },
+  XboxNetApiSvc: { action: 'disable', impact: 'low', reason: 'Xbox Net API' },
+  BITS: { action: 'manual', impact: 'low', reason: 'Background Intelligent Transfer' },
+  Themes: { action: 'disable', impact: 'low', reason: 'Themes service' },
+  TabletInputService: { action: 'disable', impact: 'low', reason: 'Tablet PC Input' },
 };
 
 export async function getSystemServices(): Promise<SystemService[]> {
@@ -181,7 +184,10 @@ export async function getSystemServices(): Promise<SystemService[]> {
   });
 }
 
-export async function toggleService(serviceName: string, enabled: boolean): Promise<{
+export async function toggleService(
+  serviceName: string,
+  enabled: boolean
+): Promise<{
   success: boolean;
   message: string;
 }> {
@@ -190,13 +196,19 @@ export async function toggleService(serviceName: string, enabled: boolean): Prom
       const result = await runPowerShell(`Start-Service -Name "${serviceName}" -ErrorAction Stop`);
       return {
         success: result.success,
-        message: result.success ? `Service ${serviceName} started` : `Failed to start service: ${result.stderr}`,
+        message: result.success
+          ? `Service ${serviceName} started`
+          : `Failed to start service: ${result.stderr}`,
       };
     } else {
-      const result = await runPowerShell(`Stop-Service -Name "${serviceName}" -Force -ErrorAction Stop`);
+      const result = await runPowerShell(
+        `Stop-Service -Name "${serviceName}" -Force -ErrorAction Stop`
+      );
       return {
         success: result.success,
-        message: result.success ? `Service ${serviceName} stopped` : `Failed to stop service: ${result.stderr}`,
+        message: result.success
+          ? `Service ${serviceName} stopped`
+          : `Failed to stop service: ${result.stderr}`,
       };
     }
   } catch {
@@ -207,15 +219,22 @@ export async function toggleService(serviceName: string, enabled: boolean): Prom
   }
 }
 
-export async function setServiceStartType(serviceName: string, startType: 'automatic' | 'manual' | 'disabled'): Promise<{
+export async function setServiceStartType(
+  serviceName: string,
+  startType: 'automatic' | 'manual' | 'disabled'
+): Promise<{
   success: boolean;
   message: string;
 }> {
   try {
-    const result = await runPowerShell(`Set-Service -Name "${serviceName}" -StartupType ${startType} -ErrorAction Stop`);
+    const result = await runPowerShell(
+      `Set-Service -Name "${serviceName}" -StartupType ${startType} -ErrorAction Stop`
+    );
     return {
       success: result.success,
-      message: result.success ? `Service ${serviceName} set to ${startType}` : `Failed to set service start type: ${result.stderr}`,
+      message: result.success
+        ? `Service ${serviceName} set to ${startType}`
+        : `Failed to set service start type: ${result.stderr}`,
     };
   } catch {
     return {

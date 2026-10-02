@@ -226,7 +226,10 @@ export async function getStartupApps(): Promise<StartupApp[]> {
   return apps;
 }
 
-export async function toggleStartupApp(appId: string, enabled: boolean): Promise<{
+export async function toggleStartupApp(
+  appId: string,
+  enabled: boolean
+): Promise<{
   success: boolean;
   message: string;
 }> {
@@ -248,7 +251,9 @@ export async function toggleStartupApp(appId: string, enabled: boolean): Promise
       `);
       return {
         success: result.success,
-        message: result.success ? `Startup app ${app.name} enabled` : 'Failed to enable startup app',
+        message: result.success
+          ? `Startup app ${app.name} enabled`
+          : 'Failed to enable startup app',
       };
     } else {
       // Disable by removing from registry
@@ -259,7 +264,9 @@ export async function toggleStartupApp(appId: string, enabled: boolean): Promise
       `);
       return {
         success: result.success,
-        message: result.success ? `Startup app ${app.name} disabled` : 'Failed to disable startup app',
+        message: result.success
+          ? `Startup app ${app.name} disabled`
+          : 'Failed to disable startup app',
       };
     }
   } catch {

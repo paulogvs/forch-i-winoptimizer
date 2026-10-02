@@ -1,0 +1,13 @@
+# Build outputs and caches (mirrors .gitignore; Prettier 3 also honours it).
+node_modules/
+dist/
+release/
+out/
+coverage/
+.vite/
+playwright-report/
+test-results/
+blob-report/
+
+# Machine-generated performance captures (data, not source).
+docs/perf/

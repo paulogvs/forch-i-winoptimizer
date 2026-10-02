@@ -70,8 +70,7 @@ export function isValidAccentColor(value: unknown): value is string {
 
 /** Normalise an untrusted partial settings object into a complete, valid one. */
 export function normalizeSettings(raw: unknown): AppSettings {
-  const input =
-    raw !== null && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const input = raw !== null && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 
   const bool = (key: keyof AppSettings, fallback: boolean): boolean =>
     typeof input[key] === 'boolean' ? (input[key] as boolean) : fallback;

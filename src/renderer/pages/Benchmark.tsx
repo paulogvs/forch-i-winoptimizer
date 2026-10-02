@@ -60,9 +60,7 @@ export const Benchmark: React.FC = () => {
         </div>
       </div>
 
-      {running && (
-        <Progress value={progress} label="Running benchmark tests..." className="mb-4" />
-      )}
+      {running && <Progress value={progress} label="Running benchmark tests..." className="mb-4" />}
 
       {report && !running && (
         <>
@@ -75,19 +73,25 @@ export const Benchmark: React.FC = () => {
             </Card>
             <Card>
               <div className="text-center">
-                <div className="text-lg font-semibold text-fg-primary truncate">{report.systemInfo.cpu}</div>
+                <div className="text-lg font-semibold text-fg-primary truncate">
+                  {report.systemInfo.cpu}
+                </div>
                 <div className="text-sm text-fg-secondary">CPU</div>
               </div>
             </Card>
             <Card>
               <div className="text-center">
-                <div className="text-lg font-semibold text-fg-primary">{report.systemInfo.memory} GB</div>
+                <div className="text-lg font-semibold text-fg-primary">
+                  {report.systemInfo.memory} GB
+                </div>
                 <div className="text-sm text-fg-secondary">Memory</div>
               </div>
             </Card>
             <Card>
               <div className="text-center">
-                <div className="text-lg font-semibold text-fg-primary truncate">{report.systemInfo.gpu}</div>
+                <div className="text-lg font-semibold text-fg-primary truncate">
+                  {report.systemInfo.gpu}
+                </div>
                 <div className="text-sm text-fg-secondary">GPU</div>
               </div>
             </Card>

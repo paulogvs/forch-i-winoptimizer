@@ -280,7 +280,15 @@ export interface AppBundle {
   id: string;
   name: string;
   description: string;
-  category: 'browsers' | 'media' | 'devtools' | 'utilities' | 'games' | 'productivity' | 'communication' | 'security';
+  category:
+    | 'browsers'
+    | 'media'
+    | 'devtools'
+    | 'utilities'
+    | 'games'
+    | 'productivity'
+    | 'communication'
+    | 'security';
   apps: BundleApp[];
   icon: string;
 }
@@ -362,17 +370,31 @@ export interface FreeMemoryResult {
 export interface ElectronAPI {
   getSystemInfo: (options?: CacheOptions) => Promise<SystemInfo>;
   scanForJunkFiles: (options?: CacheOptions) => Promise<JunkScanResult>;
-  deleteFiles: (files: string[]) => Promise<{ success: boolean; deleted: number; failed: number; errors: string[] }>;
+  deleteFiles: (
+    files: string[]
+  ) => Promise<{ success: boolean; deleted: number; failed: number; errors: string[] }>;
   getStartupApps: (options?: CacheOptions) => Promise<StartupApp[]>;
-  toggleStartupApp: (appId: string, enabled: boolean) => Promise<{ success: boolean; message: string }>;
+  toggleStartupApp: (
+    appId: string,
+    enabled: boolean
+  ) => Promise<{ success: boolean; message: string }>;
   getInstalledApps: (options?: CacheOptions) => Promise<InstalledApp[]>;
-  uninstallApp: (appId: string, uninstallString: string) => Promise<{ success: boolean; message: string }>;
+  uninstallApp: (
+    appId: string,
+    uninstallString: string
+  ) => Promise<{ success: boolean; message: string }>;
   // Bloatware removal (P1.4)
   getBloatwareCatalog: () => Promise<DebloatCandidate[]>;
   removeBloatware: (ids: string[]) => Promise<DebloatResult>;
   getSystemServices: (options?: CacheOptions) => Promise<SystemService[]>;
-  toggleService: (serviceId: string, enabled: boolean) => Promise<{ success: boolean; message: string }>;
-  setServiceStartType: (serviceId: string, startType: 'automatic' | 'manual' | 'disabled') => Promise<{ success: boolean; message: string }>;
+  toggleService: (
+    serviceId: string,
+    enabled: boolean
+  ) => Promise<{ success: boolean; message: string }>;
+  setServiceStartType: (
+    serviceId: string,
+    startType: 'automatic' | 'manual' | 'disabled'
+  ) => Promise<{ success: boolean; message: string }>;
   checkForUpdates: () => Promise<UpdateInfo>;
   downloadUpdate: (url: string) => Promise<string>;
   onUpdateProgress: (callback: (percent: number) => void) => () => void;
@@ -488,7 +510,10 @@ export interface WinOptimizerAPI {
     getSchedules: () => Promise<CleaningSchedule[]>;
     getDefaultSchedules: () => Promise<CleaningSchedule[]>;
     createSchedule: (schedule: CleaningSchedule) => Promise<CleaningSchedule>;
-    updateSchedule: (id: string, updates: Partial<CleaningSchedule>) => Promise<CleaningSchedule | null>;
+    updateSchedule: (
+      id: string,
+      updates: Partial<CleaningSchedule>
+    ) => Promise<CleaningSchedule | null>;
     deleteSchedule: (id: string) => Promise<boolean>;
     runNow: (id: string) => Promise<RunScheduleResult>;
     getHistory: () => Promise<CleaningHistoryEntry[]>;

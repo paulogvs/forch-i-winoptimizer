@@ -100,7 +100,7 @@ export default {
         slow: 'var(--duration-slow)',
       },
       transitionTimingFunction: {
-        'out': 'var(--ease-out)',
+        out: 'var(--ease-out)',
         'in-out': 'var(--ease-in-out)',
       },
     },

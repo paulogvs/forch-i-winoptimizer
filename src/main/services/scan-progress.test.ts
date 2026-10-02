@@ -58,7 +58,11 @@ describe('ScanProgressReporter', () => {
   it('throttles rapid percent updates but keeps stage changes', () => {
     let now = 0;
     const sent: ScanProgressEvent[] = [];
-    const reporter = new ScanProgressReporter('system', (e) => sent.push(e), () => now);
+    const reporter = new ScanProgressReporter(
+      'system',
+      (e) => sent.push(e),
+      () => now
+    );
 
     reporter.report('query', 10);
     now += 50;

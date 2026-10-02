@@ -114,11 +114,18 @@ const PRIVACY_SCRIPTS: string[] = [
   `,
 ];
 
-function buildPrivacyChecks(
-  outputs: readonly CheckOutput[]
-): AuditCheck[] {
+function buildPrivacyChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
   const checks: AuditCheck[] = [];
-  const [telemetryResult = EMPTY_OUTPUT, cortanaResult = EMPTY_OUTPUT, activityResult = EMPTY_OUTPUT, adIdResult = EMPTY_OUTPUT, locationResult = EMPTY_OUTPUT, feedbackResult = EMPTY_OUTPUT, diagResult = EMPTY_OUTPUT, tailoredResult = EMPTY_OUTPUT] = outputs;
+  const [
+    telemetryResult = EMPTY_OUTPUT,
+    cortanaResult = EMPTY_OUTPUT,
+    activityResult = EMPTY_OUTPUT,
+    adIdResult = EMPTY_OUTPUT,
+    locationResult = EMPTY_OUTPUT,
+    feedbackResult = EMPTY_OUTPUT,
+    diagResult = EMPTY_OUTPUT,
+    tailoredResult = EMPTY_OUTPUT,
+  ] = outputs;
 
   const telemetryValue = telemetryResult.stdout.trim();
   checks.push({
@@ -126,7 +133,12 @@ function buildPrivacyChecks(
     name: 'Telemetry Level',
     category: 'privacy',
     status: telemetryValue === '0' ? 'pass' : telemetryValue === '1' ? 'warning' : 'critical',
-    description: telemetryValue === '0' ? 'Telemetry is disabled' : telemetryValue === '1' ? 'Telemetry is set to minimum' : 'Telemetry is at default level',
+    description:
+      telemetryValue === '0'
+        ? 'Telemetry is disabled'
+        : telemetryValue === '1'
+          ? 'Telemetry is set to minimum'
+          : 'Telemetry is at default level',
     recommendation: 'Set telemetry to 0 (Security) via Group Policy or registry',
     impact: 'medium',
     autoFixable: true,
@@ -150,7 +162,8 @@ function buildPrivacyChecks(
     name: 'Activity History',
     category: 'privacy',
     status: activityValue === '0' ? 'pass' : 'warning',
-    description: activityValue === '0' ? 'Activity history is disabled' : 'Activity history is enabled',
+    description:
+      activityValue === '0' ? 'Activity history is disabled' : 'Activity history is enabled',
     recommendation: 'Disable activity history tracking',
     impact: 'low',
     autoFixable: true,
@@ -174,7 +187,8 @@ function buildPrivacyChecks(
     name: 'Location Tracking',
     category: 'privacy',
     status: locationValue === 'Deny' ? 'pass' : 'warning',
-    description: locationValue === 'Deny' ? 'Location tracking is disabled' : 'Location tracking is enabled',
+    description:
+      locationValue === 'Deny' ? 'Location tracking is disabled' : 'Location tracking is enabled',
     recommendation: 'Disable location tracking',
     impact: 'medium',
     autoFixable: true,
@@ -186,7 +200,10 @@ function buildPrivacyChecks(
     name: 'Feedback Notifications',
     category: 'privacy',
     status: feedbackValue === '0' ? 'pass' : 'warning',
-    description: feedbackValue === '0' ? 'Feedback notifications are disabled' : 'Feedback notifications are enabled',
+    description:
+      feedbackValue === '0'
+        ? 'Feedback notifications are disabled'
+        : 'Feedback notifications are enabled',
     recommendation: 'Disable feedback notifications',
     impact: 'low',
     autoFixable: true,
@@ -210,7 +227,10 @@ function buildPrivacyChecks(
     name: 'Tailored Experiences',
     category: 'privacy',
     status: tailoredValue === '0' ? 'pass' : 'warning',
-    description: tailoredValue === '0' ? 'Tailored experiences are disabled' : 'Tailored experiences are enabled',
+    description:
+      tailoredValue === '0'
+        ? 'Tailored experiences are disabled'
+        : 'Tailored experiences are enabled',
     recommendation: 'Disable tailored experiences',
     impact: 'low',
     autoFixable: true,
@@ -218,7 +238,6 @@ function buildPrivacyChecks(
 
   return checks;
 }
-
 
 const PERFORMANCE_SCRIPTS: string[] = [
   // Power plan
@@ -270,20 +289,30 @@ const PERFORMANCE_SCRIPTS: string[] = [
   `,
 ];
 
-function buildPerformanceChecks(
-  outputs: readonly CheckOutput[]
-): AuditCheck[] {
+function buildPerformanceChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
   const checks: AuditCheck[] = [];
-  const [powerResult = EMPTY_OUTPUT, visualResult = EMPTY_OUTPUT, pageFileResult = EMPTY_OUTPUT, startupResult = EMPTY_OUTPUT, sysMainResult = EMPTY_OUTPUT, hiberResult = EMPTY_OUTPUT, searchResult = EMPTY_OUTPUT, bgAppsResult = EMPTY_OUTPUT] = outputs;
+  const [
+    powerResult = EMPTY_OUTPUT,
+    visualResult = EMPTY_OUTPUT,
+    pageFileResult = EMPTY_OUTPUT,
+    startupResult = EMPTY_OUTPUT,
+    sysMainResult = EMPTY_OUTPUT,
+    hiberResult = EMPTY_OUTPUT,
+    searchResult = EMPTY_OUTPUT,
+    bgAppsResult = EMPTY_OUTPUT,
+  ] = outputs;
 
   const powerPlan = powerResult.stdout;
-  const isHighPerformance = powerPlan.includes('High performance') || powerPlan.includes('Ultimate Performance');
+  const isHighPerformance =
+    powerPlan.includes('High performance') || powerPlan.includes('Ultimate Performance');
   checks.push({
     id: 'perf-power-plan',
     name: 'Power Plan',
     category: 'performance',
     status: isHighPerformance ? 'pass' : 'warning',
-    description: isHighPerformance ? 'High performance power plan is active' : 'Power plan is not optimized for performance',
+    description: isHighPerformance
+      ? 'High performance power plan is active'
+      : 'Power plan is not optimized for performance',
     recommendation: 'Set power plan to High Performance for better performance',
     impact: 'high',
     autoFixable: true,
@@ -295,7 +324,10 @@ function buildPerformanceChecks(
     name: 'Visual Effects',
     category: 'performance',
     status: visualValue === '2' ? 'pass' : 'warning',
-    description: visualValue === '2' ? 'Visual effects are optimized for performance' : 'Visual effects are not optimized',
+    description:
+      visualValue === '2'
+        ? 'Visual effects are optimized for performance'
+        : 'Visual effects are not optimized',
     recommendation: 'Adjust visual effects for best performance',
     impact: 'medium',
     autoFixable: true,
@@ -307,7 +339,10 @@ function buildPerformanceChecks(
     name: 'Page File Configuration',
     category: 'performance',
     status: pageFileValue && pageFileValue !== 'NOT_SET' ? 'pass' : 'warning',
-    description: pageFileValue && pageFileValue !== 'NOT_SET' ? 'Page file is configured' : 'Page file is not configured',
+    description:
+      pageFileValue && pageFileValue !== 'NOT_SET'
+        ? 'Page file is configured'
+        : 'Page file is not configured',
     recommendation: 'Ensure page file is system managed or set to 1.5x RAM',
     impact: 'medium',
     autoFixable: false,
@@ -331,7 +366,10 @@ function buildPerformanceChecks(
     name: 'SysMain (Superfetch)',
     category: 'performance',
     status: sysMainStatus === 'Stopped' ? 'pass' : 'warning',
-    description: sysMainStatus === 'Stopped' ? 'SysMain is disabled (recommended for SSDs)' : 'SysMain is running',
+    description:
+      sysMainStatus === 'Stopped'
+        ? 'SysMain is disabled (recommended for SSDs)'
+        : 'SysMain is running',
     recommendation: 'Disable SysMain if using an SSD',
     impact: 'medium',
     autoFixable: true,
@@ -355,7 +393,10 @@ function buildPerformanceChecks(
     name: 'Windows Search Indexing',
     category: 'performance',
     status: searchStatus === 'Running' ? 'warning' : 'pass',
-    description: searchStatus === 'Running' ? 'Search indexing is running (uses resources)' : 'Search indexing is disabled',
+    description:
+      searchStatus === 'Running'
+        ? 'Search indexing is running (uses resources)'
+        : 'Search indexing is disabled',
     recommendation: 'Consider disabling search indexing if not needed',
     impact: 'medium',
     autoFixable: true,
@@ -367,7 +408,8 @@ function buildPerformanceChecks(
     name: 'Background Apps',
     category: 'performance',
     status: bgAppsValue === '1' ? 'pass' : 'warning',
-    description: bgAppsValue === '1' ? 'Background apps are disabled' : 'Background apps are enabled',
+    description:
+      bgAppsValue === '1' ? 'Background apps are disabled' : 'Background apps are enabled',
     recommendation: 'Disable background apps to save resources',
     impact: 'medium',
     autoFixable: true,
@@ -375,7 +417,6 @@ function buildPerformanceChecks(
 
   return checks;
 }
-
 
 const MEMORY_SCRIPTS: string[] = [
   // Memory usage
@@ -403,11 +444,13 @@ const MEMORY_SCRIPTS: string[] = [
   `,
 ];
 
-function buildMemoryChecks(
-  outputs: readonly CheckOutput[]
-): AuditCheck[] {
+function buildMemoryChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
   const checks: AuditCheck[] = [];
-  const [memResult = EMPTY_OUTPUT, virtMemResult = EMPTY_OUTPUT, memCompressionResult = EMPTY_OUTPUT] = outputs;
+  const [
+    memResult = EMPTY_OUTPUT,
+    virtMemResult = EMPTY_OUTPUT,
+    memCompressionResult = EMPTY_OUTPUT,
+  ] = outputs;
 
   const memUsage = parseFloat(memResult.stdout.trim()) || 0;
   checks.push({
@@ -439,7 +482,10 @@ function buildMemoryChecks(
     name: 'Memory Compression',
     category: 'memory',
     status: memCompressionValue === '1' ? 'pass' : 'warning',
-    description: memCompressionValue === '1' ? 'Memory compression is enabled' : 'Memory compression is disabled',
+    description:
+      memCompressionValue === '1'
+        ? 'Memory compression is enabled'
+        : 'Memory compression is disabled',
     recommendation: 'Enable memory compression for better performance',
     impact: 'low',
     autoFixable: true,
@@ -447,7 +493,6 @@ function buildMemoryChecks(
 
   return checks;
 }
-
 
 const STORAGE_SCRIPTS: string[] = [
   // Disk space
@@ -487,11 +532,15 @@ const STORAGE_SCRIPTS: string[] = [
   `,
 ];
 
-function buildStorageChecks(
-  outputs: readonly CheckOutput[]
-): AuditCheck[] {
+function buildStorageChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
   const checks: AuditCheck[] = [];
-  const [diskResult = EMPTY_OUTPUT, tempResult = EMPTY_OUTPUT, recycleResult = EMPTY_OUTPUT, wuResult = EMPTY_OUTPUT, fragResult = EMPTY_OUTPUT] = outputs;
+  const [
+    diskResult = EMPTY_OUTPUT,
+    tempResult = EMPTY_OUTPUT,
+    recycleResult = EMPTY_OUTPUT,
+    wuResult = EMPTY_OUTPUT,
+    fragResult = EMPTY_OUTPUT,
+  ] = outputs;
 
   const freePercent = parseFloat(diskResult.stdout.trim()) || 0;
   checks.push({
@@ -556,7 +605,6 @@ function buildStorageChecks(
   return checks;
 }
 
-
 const STARTUP_SCRIPTS: string[] = [
   // Startup apps
   `
@@ -589,11 +637,10 @@ const STARTUP_SCRIPTS: string[] = [
   `,
 ];
 
-function buildStartupChecks(
-  outputs: readonly CheckOutput[]
-): AuditCheck[] {
+function buildStartupChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
   const checks: AuditCheck[] = [];
-  const [startupResult = EMPTY_OUTPUT, bootResult = EMPTY_OUTPUT, tasksResult = EMPTY_OUTPUT] = outputs;
+  const [startupResult = EMPTY_OUTPUT, bootResult = EMPTY_OUTPUT, tasksResult = EMPTY_OUTPUT] =
+    outputs;
 
   const startupCount = countFromJson(startupResult.stdout);
   checks.push({
@@ -634,7 +681,6 @@ function buildStartupChecks(
   return checks;
 }
 
-
 const NETWORK_SCRIPTS: string[] = [
   // DNS configuration
   `
@@ -670,11 +716,14 @@ const NETWORK_SCRIPTS: string[] = [
   `,
 ];
 
-function buildNetworkChecks(
-  outputs: readonly CheckOutput[]
-): AuditCheck[] {
+function buildNetworkChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
   const checks: AuditCheck[] = [];
-  const [dnsResult = EMPTY_OUTPUT, adapterResult = EMPTY_OUTPUT, fwResult = EMPTY_OUTPUT, proxyResult = EMPTY_OUTPUT] = outputs;
+  const [
+    dnsResult = EMPTY_OUTPUT,
+    adapterResult = EMPTY_OUTPUT,
+    fwResult = EMPTY_OUTPUT,
+    proxyResult = EMPTY_OUTPUT,
+  ] = outputs;
 
   const dnsConfig = dnsResult.stdout.trim();
   checks.push({
@@ -682,7 +731,10 @@ function buildNetworkChecks(
     name: 'DNS Configuration',
     category: 'network',
     status: dnsConfig && dnsConfig !== 'NOT_SET' ? 'pass' : 'warning',
-    description: dnsConfig && dnsConfig !== 'NOT_SET' ? 'DNS servers are configured' : 'DNS servers are not configured',
+    description:
+      dnsConfig && dnsConfig !== 'NOT_SET'
+        ? 'DNS servers are configured'
+        : 'DNS servers are not configured',
     recommendation: 'Use reliable DNS servers like 8.8.8.8 or 1.1.1.1',
     impact: 'medium',
     autoFixable: true,
@@ -694,7 +746,8 @@ function buildNetworkChecks(
     name: 'Network Adapters',
     category: 'network',
     status: adapterCount > 0 ? 'pass' : 'critical',
-    description: adapterCount > 0 ? `${adapterCount} network adapter(s) active` : 'No active network adapters',
+    description:
+      adapterCount > 0 ? `${adapterCount} network adapter(s) active` : 'No active network adapters',
     recommendation: 'Check network adapter drivers and connections',
     impact: 'high',
     autoFixable: false,

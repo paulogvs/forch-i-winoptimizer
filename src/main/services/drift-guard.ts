@@ -39,7 +39,8 @@ const MONITORED_TWEAKS: TweakSnapshot[] = [
   {
     id: 'disable-background-apps',
     name: 'Disable Background Apps',
-    registryPath: 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications',
+    registryPath:
+      'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications',
     valueName: 'GlobalUserDisabled',
     expectedValue: '1',
     category: 'performance',
@@ -47,7 +48,8 @@ const MONITORED_TWEAKS: TweakSnapshot[] = [
   {
     id: 'disable-superfetch',
     name: 'Disable Superfetch',
-    registryPath: 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters',
+    registryPath:
+      'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters',
     valueName: 'EnableSuperfetch',
     expectedValue: '0',
     category: 'performance',
@@ -157,9 +159,7 @@ export async function reapplyTweak(tweakId: string): Promise<{
   const success = result.success && result.stdout.includes('SUCCESS');
   if (success) {
     // Mark drift events as auto-fixed
-    driftEvents = driftEvents.map((e) =>
-      e.tweakId === tweakId ? { ...e, autoFixed: true } : e
-    );
+    driftEvents = driftEvents.map((e) => (e.tweakId === tweakId ? { ...e, autoFixed: true } : e));
   }
 
   return {

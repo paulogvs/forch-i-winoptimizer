@@ -72,9 +72,7 @@ export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
         </Button>
       </div>
 
-      {auditing && (
-        <Progress value={progress} label="Running system audit..." className="mb-4" />
-      )}
+      {auditing && <Progress value={progress} label="Running system audit..." className="mb-4" />}
 
       {report && !auditing && (
         <>
@@ -110,7 +108,11 @@ export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
             if (categoryChecks.length === 0) return null;
 
             return (
-              <Card key={category} title={category.charAt(0).toUpperCase() + category.slice(1)} className="mb-4">
+              <Card
+                key={category}
+                title={category.charAt(0).toUpperCase() + category.slice(1)}
+                className="mb-4"
+              >
                 <div className="flex flex-col gap-3">
                   {categoryChecks.map((check) => (
                     <div

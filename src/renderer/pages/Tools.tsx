@@ -6,7 +6,12 @@ import { Progress } from '../components/ui/Progress';
 import { VirtualList } from '../components/ui/VirtualList';
 import { formatBytes } from '../utils/format';
 import { WINDOWS_TOOLS } from '@shared/windows-tools';
-import type { DebloatCandidate, DebloatResult, InstalledApp, StartupApp } from '@shared/electron-api';
+import type {
+  DebloatCandidate,
+  DebloatResult,
+  InstalledApp,
+  StartupApp,
+} from '@shared/electron-api';
 import type { PageId } from '@shared/types';
 
 type ToolTab = 'apps' | 'startup' | 'debloat' | 'utilities';
@@ -17,8 +22,18 @@ interface ToolsProps {
 
 /** In-app utilities that open a real, dedicated page instead of an OS tool. */
 const NAV_UTILITIES: { icon: string; title: string; description: string; target: PageId }[] = [
-  { icon: '🌐', title: 'Network Optimizer', description: 'Optimize network settings', target: 'network' },
-  { icon: 'ℹ️', title: 'System Info', description: 'View detailed system information', target: 'dashboard' },
+  {
+    icon: '🌐',
+    title: 'Network Optimizer',
+    description: 'Optimize network settings',
+    target: 'network',
+  },
+  {
+    icon: 'ℹ️',
+    title: 'System Info',
+    description: 'View detailed system information',
+    target: 'dashboard',
+  },
 ];
 
 /** Lists larger than this are virtualized (same rule as Drivers). */
@@ -31,7 +46,12 @@ interface AppRowProps {
   onUninstall: (app: InstalledApp) => void;
 }
 
-const AppRow = React.memo(function AppRow({ app, uninstalling, progress, onUninstall }: AppRowProps) {
+const AppRow = React.memo(function AppRow({
+  app,
+  uninstalling,
+  progress,
+  onUninstall,
+}: AppRowProps) {
   return (
     <div className="app-row flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover">
       <div className="flex-1 min-w-0">
@@ -123,7 +143,11 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
 
   const handleUninstall = async (app: InstalledApp) => {
     if (app.protection === 'protected') {
-      if (!window.confirm(`WARNING: ${app.name} is a protected app. Are you sure you want to uninstall it?`)) {
+      if (
+        !window.confirm(
+          `WARNING: ${app.name} is a protected app. Are you sure you want to uninstall it?`
+        )
+      ) {
         return;
       }
     } else if (app.protection === 'caution') {
@@ -178,9 +202,7 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   };
 
   const toggleBloatware = (id: string, checked: boolean) => {
-    setSelectedBloatware((prev) =>
-      checked ? [...prev, id] : prev.filter((x) => x !== id)
-    );
+    setSelectedBloatware((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
   };
 
   const handleDebloat = async () => {
@@ -189,8 +211,7 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
     const cautionCount = debloatCatalog.filter(
       (a) => selectedBloatware.includes(a.id) && a.protection === 'caution'
     ).length;
-    const cautionNote =
-      cautionCount > 0 ? ` ${cautionCount} of them are marked "caution".` : '';
+    const cautionNote = cautionCount > 0 ? ` ${cautionCount} of them are marked "caution".` : '';
     const confirmed = window.confirm(
       `Remove ${selectedBloatware.length} app(s)?${cautionNote} Protected apps are never removed.`
     );
@@ -295,7 +316,10 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
                 testId="installed-apps"
               />
             ) : (
-              <div className="flex flex-col gap-2 max-h-96 overflow-y-auto" data-testid="installed-apps">
+              <div
+                className="flex flex-col gap-2 max-h-96 overflow-y-auto"
+                data-testid="installed-apps"
+              >
                 {installedApps.map((app) => (
                   <div key={app.id}>{renderAppRow(app)}</div>
                 ))}
@@ -389,8 +413,8 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
             }
           >
             <p className="text-xs text-fg-tertiary mb-3">
-              Curated removable UWP packages. Protection is enforced server-side:
-              protected apps can never be removed, even from here.
+              Curated removable UWP packages. Protection is enforced server-side: protected apps can
+              never be removed, even from here.
             </p>
             <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
               {debloatCatalog.map((app) => {
@@ -478,12 +502,10 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-fg-secondary mb-3">
-              Windows utilities
-            </h3>
+            <h3 className="text-sm font-semibold text-fg-secondary mb-3">Windows utilities</h3>
             <p className="text-xs text-fg-tertiary mb-3">
-              Opens the system tool that ships with Windows. The binary is validated
-              before launching and any error is reported here.
+              Opens the system tool that ships with Windows. The binary is validated before
+              launching and any error is reported here.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {WINDOWS_TOOLS.map((tool) => (

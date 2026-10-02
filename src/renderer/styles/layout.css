@@ -139,7 +139,8 @@
   border: none;
   color: var(--color-fg-secondary);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out),
+  transition:
+    background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
   -webkit-app-region: no-drag;
 }
@@ -173,7 +174,7 @@
   height: 32px;
   border-radius: var(--radius-full);
   background: var(--color-accent);
-  color: #FFFFFF;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;

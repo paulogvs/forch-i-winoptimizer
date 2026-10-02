@@ -56,7 +56,11 @@ describe('main/services/stats', () => {
 
   it('caps the history to the most recent events', () => {
     for (let i = 0; i < STATS_EVENT_LIMIT + 5; i++) {
-      recordStatsEvent({ type: 'audit', score: i, timestamp: new Date(2026, 0, 1, 0, 0, i).toISOString() });
+      recordStatsEvent({
+        type: 'audit',
+        score: i,
+        timestamp: new Date(2026, 0, 1, 0, 0, i).toISOString(),
+      });
     }
     const events = loadStats();
     expect(events).toHaveLength(STATS_EVENT_LIMIT);

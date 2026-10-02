@@ -4,24 +4,54 @@ import type { BenchmarkReport, CleaningSchedule } from '@shared/types';
 import { getSystemInfo } from '../services/system-info';
 import { cache, withCache, type CacheOptions } from '../services/cache';
 import { createProgressReporter } from '../services/scan-progress';
-import { getTweaks, previewTweak, applyTweak, restoreTweak, applyTweaks, restoreTweaks } from '../services/tweaks';
+import {
+  getTweaks,
+  previewTweak,
+  applyTweak,
+  restoreTweak,
+  applyTweaks,
+  restoreTweaks,
+} from '../services/tweaks';
 import type { JunkScanResult } from '../services/junk-scanner';
 import { scanForJunkFiles, deleteJunkFiles } from '../services/junk-scanner';
 import type { StartupApp } from '../services/startup-apps';
 import { getStartupApps, toggleStartupApp } from '../services/startup-apps';
 import type { InstalledApp } from '../services/installed-apps';
-import { getInstalledApps, uninstallApp as uninstallInstalledApp } from '../services/installed-apps';
+import {
+  getInstalledApps,
+  uninstallApp as uninstallInstalledApp,
+} from '../services/installed-apps';
 import { getDebloatCandidates, removeBloatware } from '../services/debloat';
 import type { SystemService } from '../services/system-services';
 import { getSystemServices, toggleService, setServiceStartType } from '../services/system-services';
 import type { UpdateInfo } from '../services/updater';
 import { checkForUpdates, downloadUpdate } from '../services/updater';
-import { scanDrivers, createRestorePoint, installDriver, rollbackDriver } from '../services/driver-updater';
+import {
+  scanDrivers,
+  createRestorePoint,
+  installDriver,
+  rollbackDriver,
+} from '../services/driver-updater';
 import { runNetworkFix, testConnectivity, fixError0x00000709 } from '../services/network-fixer';
-import { checkForDrift, reapplyTweak, reapplyAllTweaks, getDriftStatus, startDriftMonitoring, stopDriftMonitoring } from '../services/drift-guard';
+import {
+  checkForDrift,
+  reapplyTweak,
+  reapplyAllTweaks,
+  getDriftStatus,
+  startDriftMonitoring,
+  stopDriftMonitoring,
+} from '../services/drift-guard';
 import { runSystemAudit } from '../services/system-audit';
 import { runBenchmark, generateMarkdownReport } from '../services/benchmark';
-import { getPrivacySettings, applyPrivacySetting, applyAllPrivacySettings, runSecurityAction, getSecurityActions, benchmarkDNS, setDNS } from '../services/security-privacy';
+import {
+  getPrivacySettings,
+  applyPrivacySetting,
+  applyAllPrivacySettings,
+  runSecurityAction,
+  getSecurityActions,
+  benchmarkDNS,
+  setDNS,
+} from '../services/security-privacy';
 import { runSecurityScan } from '../services/security-scan';
 import {
   previewSecurityFix,
@@ -29,12 +59,35 @@ import {
   revertSecurityFix,
   relaunchElevated,
 } from '../services/security-fix';
-import { getAppBundles, checkInstalledApps, installApp, installApps, uninstallApp } from '../services/app-bundles';
-import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow, getHistory, getDefaultSchedules } from '../services/scheduled-cleaning';
-import { checkAllSources, formatReport, getPendingUpdates, formatPendingForDisplay } from '../source-updater';
+import {
+  getAppBundles,
+  checkInstalledApps,
+  installApp,
+  installApps,
+  uninstallApp,
+} from '../services/app-bundles';
+import {
+  getSchedules,
+  createSchedule,
+  updateSchedule,
+  deleteSchedule,
+  runScheduleNow,
+  getHistory,
+  getDefaultSchedules,
+} from '../services/scheduled-cleaning';
+import {
+  checkAllSources,
+  formatReport,
+  getPendingUpdates,
+  formatPendingForDisplay,
+} from '../source-updater';
 import { importUpdates, importAllPending, rejectUpdate, rejectAllPending } from '../source-updater';
 import type { PendingUpdate } from '../source-updater';
-import { withOperationLock, getOperationStatus, setOperationNotifier } from '../services/operation-lock';
+import {
+  withOperationLock,
+  getOperationStatus,
+  setOperationNotifier,
+} from '../services/operation-lock';
 import { getSettings, updateSettings, getScanPreferences } from '../services/settings';
 import {
   getStatsEvents,
@@ -163,9 +216,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     let bytes = 0;
     if (lastScan) {
       const wanted = new Set(targets);
-      bytes = lastScan.files
-        .filter((f) => wanted.has(f.path))
-        .reduce((sum, f) => sum + f.size, 0);
+      bytes = lastScan.files.filter((f) => wanted.has(f.path)).reduce((sum, f) => sum + f.size, 0);
     }
     if (result.deleted > 0) {
       recordStatsEvent({ type: 'clean', files: result.deleted, bytes });
@@ -189,11 +240,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   handle('apps:get-installed', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
     withCache('apps', () => getInstalledApps(), options ?? {})
   );
-  handle('apps:uninstall', async (_event: IpcMainInvokeEvent, appId: string, uninstallString: string) => {
-    const result = await uninstallInstalledApp(appId, uninstallString);
-    cache.invalidateModule('apps');
-    return result;
-  });
+  handle(
+    'apps:uninstall',
+    async (_event: IpcMainInvokeEvent, appId: string, uninstallString: string) => {
+      const result = await uninstallInstalledApp(appId, uninstallString);
+      cache.invalidateModule('apps');
+      return result;
+    }
+  );
 
   // Bloatware removal (P1.4). Reads are uncached on purpose: the catalog is
   // small and `installed` flags must stay fresh while the user decides.
@@ -206,18 +260,28 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   handle('services:get-all', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
     withCache('services', () => getSystemServices(), options ?? {})
   );
-  handle('services:toggle', async (_event: IpcMainInvokeEvent, serviceId: string, enabled: boolean) => {
-    const result = await toggleService(serviceId, enabled);
-    cache.invalidateModule('services');
-    cache.invalidateModule('health');
-    return result;
-  });
-  handle('services:set-start-type', async (_event: IpcMainInvokeEvent, serviceId: string, startType: 'automatic' | 'manual' | 'disabled') => {
-    const result = await setServiceStartType(serviceId, startType);
-    cache.invalidateModule('services');
-    cache.invalidateModule('health');
-    return result;
-  });
+  handle(
+    'services:toggle',
+    async (_event: IpcMainInvokeEvent, serviceId: string, enabled: boolean) => {
+      const result = await toggleService(serviceId, enabled);
+      cache.invalidateModule('services');
+      cache.invalidateModule('health');
+      return result;
+    }
+  );
+  handle(
+    'services:set-start-type',
+    async (
+      _event: IpcMainInvokeEvent,
+      serviceId: string,
+      startType: 'automatic' | 'manual' | 'disabled'
+    ) => {
+      const result = await setServiceStartType(serviceId, startType);
+      cache.invalidateModule('services');
+      cache.invalidateModule('health');
+      return result;
+    }
+  );
 
   // Updater (app self-update via GitHub Releases)
   handle('updater:check', () => checkForUpdates());
@@ -252,14 +316,20 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   handle('drivers:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
     withCache('drivers', () => scanDrivers(createProgressReporter('drivers')), options ?? {})
   );
-  handle('drivers:create-restore-point', async (_event: IpcMainInvokeEvent, description: string) => {
-    return createRestorePoint(description);
-  });
-  handle('drivers:install', async (_event: IpcMainInvokeEvent, driverId: string, downloadUrl: string) => {
-    const result = await installDriver(driverId, downloadUrl);
-    cache.invalidateModule('drivers');
-    return result;
-  });
+  handle(
+    'drivers:create-restore-point',
+    async (_event: IpcMainInvokeEvent, description: string) => {
+      return createRestorePoint(description);
+    }
+  );
+  handle(
+    'drivers:install',
+    async (_event: IpcMainInvokeEvent, driverId: string, downloadUrl: string) => {
+      const result = await installDriver(driverId, downloadUrl);
+      cache.invalidateModule('drivers');
+      return result;
+    }
+  );
   handle('drivers:rollback', async (_event: IpcMainInvokeEvent, driverId: string) => {
     const result = await rollbackDriver(driverId);
     cache.invalidateModule('drivers');
@@ -296,9 +366,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
 
   // ===== Benchmark =====
   handle('benchmark:run', () => runBenchmark());
-  handle('benchmark:export-markdown', async (_event: IpcMainInvokeEvent, report: BenchmarkReport) => {
-    return generateMarkdownReport(report);
-  });
+  handle(
+    'benchmark:export-markdown',
+    async (_event: IpcMainInvokeEvent, report: BenchmarkReport) => {
+      return generateMarkdownReport(report);
+    }
+  );
 
   // ===== Security & Privacy =====
   // NOTE: `privacy:get-settings` must NOT share the `health` module used by
@@ -360,11 +433,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   handle('security:relaunch-elevated', () => relaunchElevated());
 
   handle('dns:benchmark', () => benchmarkDNS());
-  handle('dns:set', async (_event: IpcMainInvokeEvent, primaryDNS: string, secondaryDNS: string) => {
-    const result = await setDNS(primaryDNS, secondaryDNS);
-    cache.invalidateModule('health');
-    return result;
-  });
+  handle(
+    'dns:set',
+    async (_event: IpcMainInvokeEvent, primaryDNS: string, secondaryDNS: string) => {
+      const result = await setDNS(primaryDNS, secondaryDNS);
+      cache.invalidateModule('health');
+      return result;
+    }
+  );
 
   // ===== App Bundles =====
   handle('bundles:get', () => getAppBundles());
@@ -382,12 +458,18 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   // ===== Scheduled Cleaning =====
   handle('cleaning:get-schedules', () => getSchedules());
   handle('cleaning:get-default-schedules', () => getDefaultSchedules());
-  handle('cleaning:create-schedule', async (_event: IpcMainInvokeEvent, schedule: CleaningSchedule) => {
-    return createSchedule(schedule);
-  });
-  handle('cleaning:update-schedule', async (_event: IpcMainInvokeEvent, id: string, updates: Partial<CleaningSchedule>) => {
-    return updateSchedule(id, updates);
-  });
+  handle(
+    'cleaning:create-schedule',
+    async (_event: IpcMainInvokeEvent, schedule: CleaningSchedule) => {
+      return createSchedule(schedule);
+    }
+  );
+  handle(
+    'cleaning:update-schedule',
+    async (_event: IpcMainInvokeEvent, id: string, updates: Partial<CleaningSchedule>) => {
+      return updateSchedule(id, updates);
+    }
+  );
   handle('cleaning:delete-schedule', async (_event: IpcMainInvokeEvent, id: string) => {
     return deleteSchedule(id);
   });
@@ -409,9 +491,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     // A settings change may toggle the tray (window behaviour) or the
     // automatic-update schedule; apply both immediately. Imported lazily so the
     // heavy electron-updater/tray modules stay out of the base IPC graph.
-    void import('../window-behavior').then(({ refreshWindowBehavior }) =>
-      refreshWindowBehavior()
-    );
+    void import('../window-behavior').then(({ refreshWindowBehavior }) => refreshWindowBehavior());
     void import('../updater').then(({ syncAutoUpdateSchedule }) => syncAutoUpdateSchedule());
     return result;
   });
@@ -456,9 +536,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   });
 
   // ===== Windows utilities =====
-  handle('tools:launch', (_event: IpcMainInvokeEvent, id: string) =>
-    launchWindowsTool(String(id))
-  );
+  handle('tools:launch', (_event: IpcMainInvokeEvent, id: string) => launchWindowsTool(String(id)));
 
   // ===== Safe Tweaks (P2) =====
   handle('tweaks:get', () => getTweaks());
@@ -485,10 +563,4 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   });
 }
 
-export type {
-  JunkScanResult,
-  StartupApp,
-  InstalledApp,
-  SystemService,
-  UpdateInfo,
-};
+export type { JunkScanResult, StartupApp, InstalledApp, SystemService, UpdateInfo };

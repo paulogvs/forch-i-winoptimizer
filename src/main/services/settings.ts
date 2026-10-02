@@ -39,9 +39,7 @@ function settingsFile(): string {
 // ===== Environment / portability =====
 
 export function isPortableBuild(): boolean {
-  return Boolean(
-    process.env['PORTABLE_EXECUTABLE_DIR'] || process.env['PORTABLE_EXECUTABLE_FILE']
-  );
+  return Boolean(process.env['PORTABLE_EXECUTABLE_DIR'] || process.env['PORTABLE_EXECUTABLE_FILE']);
 }
 
 export function isLoginItemSupported(): boolean {

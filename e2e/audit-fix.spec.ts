@@ -29,7 +29,9 @@ test.describe('Audit — Fix navigation (v0.5.0)', () => {
     await gotoApp(page);
   });
 
-  test('navigates a privacy fix to Security → Privacy instead of mutating blindly', async ({ page }) => {
+  test('navigates a privacy fix to Security → Privacy instead of mutating blindly', async ({
+    page,
+  }) => {
     await page.evaluate((data) => {
       (window as unknown as { __auditReport?: unknown }).__auditReport = data;
     }, report);

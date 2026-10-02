@@ -289,9 +289,7 @@ export const Security: React.FC = () => {
 
           {scanError && (
             <Card className="mb-4">
-              <p className="text-sm text-fg-secondary">
-                The scan could not complete: {scanError}
-              </p>
+              <p className="text-sm text-fg-secondary">The scan could not complete: {scanError}</p>
             </Card>
           )}
 
@@ -332,11 +330,14 @@ export const Security: React.FC = () => {
                     <div>{report.machine.osCaption || 'Operating system: unknown'}</div>
                     <div>
                       Build {report.machine.osBuild || '?'}
-                      {report.machine.displayVersion ? ` (${report.machine.displayVersion})` : ''} ·{' '}
-                      {report.machine.edition || 'edition unknown'}
+                      {report.machine.displayVersion
+                        ? ` (${report.machine.displayVersion})`
+                        : ''} · {report.machine.edition || 'edition unknown'}
                     </div>
                     <div>
-                      {report.machine.isAdmin ? 'Running as administrator' : 'Running without admin'}
+                      {report.machine.isAdmin
+                        ? 'Running as administrator'
+                        : 'Running without admin'}
                       {measuredCount > 0 ? ` · ${measuredCount} check(s) not measured` : ''}
                     </div>
                   </div>
@@ -349,7 +350,10 @@ export const Security: React.FC = () => {
                   const status = check.status;
                   return (
                     <Card key={check.id}>
-                      <div data-testid={`security-check-${check.id}`} className="flex items-start justify-between gap-4">
+                      <div
+                        data-testid={`security-check-${check.id}`}
+                        className="flex items-start justify-between gap-4"
+                      >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <h3 className="text-md font-semibold text-fg-primary">
@@ -375,18 +379,17 @@ export const Security: React.FC = () => {
                             </p>
                           )}
                         </div>
-                        {check.id === 'antivirus' &&
-                          (status === 'fail' || status === 'warn') && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => setActiveTab('privacy')}
-                              title="Open the built-in Windows-protection actions."
-                              data-testid="security-fix-antivirus"
-                            >
-                              Actions
-                            </Button>
-                          )}
+                        {check.id === 'antivirus' && (status === 'fail' || status === 'warn') && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setActiveTab('privacy')}
+                            title="Open the built-in Windows-protection actions."
+                            data-testid="security-fix-antivirus"
+                          >
+                            Actions
+                          </Button>
+                        )}
                         {meta?.autoFixable && (
                           <Button
                             variant="secondary"
@@ -449,13 +452,11 @@ export const Security: React.FC = () => {
           <div className="flex justify-between items-center mb-4">
             <div className="flex gap-2">
               <Badge variant="success">{appliedPrivacyCount} Applied</Badge>
-              <Badge variant="warning">{privacySettings.length - appliedPrivacyCount} Pending</Badge>
+              <Badge variant="warning">
+                {privacySettings.length - appliedPrivacyCount} Pending
+              </Badge>
             </div>
-            <Button
-              variant="primary"
-              onClick={applyAllPrivacy}
-              loading={applying === 'all'}
-            >
+            <Button variant="primary" onClick={applyAllPrivacy} loading={applying === 'all'}>
               Apply All Privacy Settings
             </Button>
           </div>
@@ -475,7 +476,8 @@ export const Security: React.FC = () => {
                     </div>
                     <p className="text-sm text-fg-secondary">{setting.description}</p>
                     <p className="text-xs text-fg-tertiary mt-1">
-                      Current: {setting.currentValue ?? 'Not set'} → Recommended: {setting.recommendedValue}
+                      Current: {setting.currentValue ?? 'Not set'} → Recommended:{' '}
+                      {setting.recommendedValue}
                     </p>
                   </div>
                   {!setting.isApplied && (

@@ -174,12 +174,7 @@ describe('debloat', () => {
         { Name: 'Microsoft.BingNews', Status: 'removed' },
       ]);
 
-      const result = await removeBloatware([
-        'bingnews',
-        'bingnews',
-        'windowsstore',
-        'mystery',
-      ]);
+      const result = await removeBloatware(['bingnews', 'bingnews', 'windowsstore', 'mystery']);
 
       expect(result.removed).toBe(1);
       expect(result.refused).toBe(1);

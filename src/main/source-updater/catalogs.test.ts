@@ -11,7 +11,10 @@ import * as path from 'node:path';
  */
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const CATALOG_DIRS = [path.join(REPO_ROOT, 'catalogs'), path.join(REPO_ROOT, 'src', 'shared', 'catalogs')];
+const CATALOG_DIRS = [
+  path.join(REPO_ROOT, 'catalogs'),
+  path.join(REPO_ROOT, 'src', 'shared', 'catalogs'),
+];
 
 function listCatalogFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -34,10 +37,13 @@ describe('catalog JSON integrity', () => {
     expect(() => JSON.parse(raw)).not.toThrow();
   });
 
-  it.each(catalogFiles.map((file) => [relative(file), file]))('%s exposes expected top-level shape', (_name, file) => {
-    const parsed: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
-    expect(parsed).toBeTypeOf('object');
-    expect(parsed).not.toBeNull();
-    expect(Object.keys(parsed as Record<string, unknown>).length).toBeGreaterThan(0);
-  });
+  it.each(catalogFiles.map((file) => [relative(file), file]))(
+    '%s exposes expected top-level shape',
+    (_name, file) => {
+      const parsed: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
+      expect(parsed).toBeTypeOf('object');
+      expect(parsed).not.toBeNull();
+      expect(Object.keys(parsed as Record<string, unknown>).length).toBeGreaterThan(0);
+    }
+  );
 });

@@ -77,12 +77,28 @@ export const WindowControls: React.FC<WindowControlsProps> = ({ className }) => 
       >
         {isMaximized ? (
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
-            <rect x="0.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1" />
+            <rect
+              x="0.5"
+              y="2.5"
+              width="7"
+              height="7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
             <path d="M2.5 2.5V0.5H9.5V7.5H7.5" fill="none" stroke="currentColor" strokeWidth="1" />
           </svg>
         ) : (
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
-            <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" />
+            <rect
+              x="0.5"
+              y="0.5"
+              width="9"
+              height="9"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
           </svg>
         )}
       </button>

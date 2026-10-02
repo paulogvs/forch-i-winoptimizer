@@ -22,13 +22,15 @@ export function setStatsDir(dir: string | null): void {
 }
 
 function statsFile(): string {
-  const dir = dirOverride ?? (() => {
-    try {
-      return app.getPath('userData');
-    } catch {
-      return process.cwd();
-    }
-  })();
+  const dir =
+    dirOverride ??
+    (() => {
+      try {
+        return app.getPath('userData');
+      } catch {
+        return process.cwd();
+      }
+    })();
   return path.join(dir, STATS_FILE);
 }
 

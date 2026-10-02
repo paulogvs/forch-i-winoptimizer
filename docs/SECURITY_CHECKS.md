@@ -28,14 +28,14 @@ list in the renderer â€” main and renderer both read the shared module.
 
 ## Status vocabulary
 
-| Status | Meaning |
-|--------|---------|
-| `pass` | The machine meets the check. |
-| `warn` | Partially met / non-ideal, not broken. |
-| `fail` | The machine demonstrably does not meet the check. |
-| `unknown` | The datum could not be read and the failure is not a permission error. **Never invented, never reported as `fail`.** |
-| `not-applicable` | The check does not apply to this machine (e.g. Secure Boot on legacy BIOS). |
-| `requires-admin` | The datum needs elevation; the observable error is an access-denied. |
+| Status           | Meaning                                                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `pass`           | The machine meets the check.                                                                                         |
+| `warn`           | Partially met / non-ideal, not broken.                                                                               |
+| `fail`           | The machine demonstrably does not meet the check.                                                                    |
+| `unknown`        | The datum could not be read and the failure is not a permission error. **Never invented, never reported as `fail`.** |
+| `not-applicable` | The check does not apply to this machine (e.g. Secure Boot on legacy BIOS).                                          |
+| `requires-admin` | The datum needs elevation; the observable error is an access-denied.                                                 |
 
 **Golden rule:** if a value could not be read, the check is `unknown` or
 `requires-admin` (with the real reason) â€” never `fail`. A green board over
@@ -60,11 +60,11 @@ score = round(100 Ã— Î£(weight(check) Ã— statusScore) / Î£(weight(chec
 
 Exactly **three** checks ship a real, reversible self-repair:
 
-| Check | Apply does | Revert restores |
-|-------|------------|-----------------|
-| `smb1` | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`) | the **exact previous value** captured before the change (`enabled` / `disabled`) |
-| `guest-account` | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback) | re-enables it **only if it was enabled before** |
-| `remote-desktop` | sets `fDenyTSConnections = 1` | the **exact previous numeric value** of `fDenyTSConnections` |
+| Check            | Apply does                                                                                                      | Revert restores                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `smb1`           | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`)    | the **exact previous value** captured before the change (`enabled` / `disabled`) |
+| `guest-account`  | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback) | re-enables it **only if it was enabled before**                                  |
+| `remote-desktop` | sets `fDenyTSConnections = 1`                                                                                   | the **exact previous numeric value** of `fDenyTSConnections`                     |
 
 Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
 
@@ -74,7 +74,7 @@ Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
 2. **Requires admin.** Without elevation the action is returned as `blocked` with
    reason `requires-admin` and a message (plus a "Restart as administrator"
    button, `Start-Process -Verb RunAs`). It never runs and never fails silently.
-3. **Real previous value.** The value is read and persisted *before* the write; the
+3. **Real previous value.** The value is read and persisted _before_ the write; the
    revert restores that captured value, never a hard-coded default.
 4. **Honest state.** After apply/revert the value is **re-read** from the machine;
    the returned `after` is measured, not assumed, and the UI re-runs the scan.
@@ -87,29 +87,29 @@ is **exactly** `{smb1, guest-account, remote-desktop}` â€” adding a fourth 
 
 ## Check catalog
 
-| id | Title | Severity | Live query | Possible statuses | Auto-fix? |
-|----|-------|----------|------------|-------------------|-----------|
-| `antivirus` | Antivirus protection | critical | `SecurityCenter2 => AntiVirusProduct` (live `productState` decode; **no product-name list**) | pass, warn, fail, unknown, requires-admin | no |
-| `firewall` | Windows Firewall | critical | `Get-NetFirewallProfile => Enabled` (registry fallback `EnableFirewall`) | pass, warn, fail, requires-admin, unknown | no |
-| `uac` | User Account Control (UAC) | high | Registry `HKLM\...\Policies\System` â†’ `EnableLUA`, `ConsentPromptBehaviorAdmin`, `PromptOnSecureDesktop` | pass, warn, fail, unknown | no |
-| `smb1` | SMBv1 protocol | high | `Get-SmbServerConfiguration => EnableSMB1Protocol` (registry fallback) | pass, fail, requires-admin, unknown | **yes** |
-| `secure-boot` | Secure Boot | medium | `Confirm-SecureBootUEFI` + `$env:firmware_type` | pass, fail, not-applicable, requires-admin, unknown | no |
-| `tpm` | TPM (Trusted Platform Module) | medium | `root\cimv2\security\microsofttpm => Win32_Tpm` | pass, warn, not-applicable, requires-admin, unknown | no |
-| `bitlocker` | System drive encryption (BitLocker) | high | `Get-BitLockerVolume -MountPoint %SystemDrive%` + edition detection | pass, fail, not-applicable, requires-admin, unknown | no |
-| `windows-update` | Windows updates | high | `Win32_QuickFixEngineering` (latest `InstalledOn`) + pending-reboot registry flags | pass, warn, fail, unknown | no |
-| `guest-account` | Built-in Guest account | medium | `Win32_UserAccount` where `LocalAccount=True`, matched by **RID 501** (not name) | pass, fail, requires-admin, unknown | **yes** |
-| `remote-desktop` | Remote Desktop (RDP) | medium | Registry `HKLM\SYSTEM\...\Terminal Server` â†’ `fDenyTSConnections` | pass, warn, unknown | **yes** |
+| id               | Title                               | Severity | Live query                                                                                                 | Possible statuses                                   | Auto-fix? |
+| ---------------- | ----------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | --------- |
+| `antivirus`      | Antivirus protection                | critical | `SecurityCenter2 => AntiVirusProduct` (live `productState` decode; **no product-name list**)               | pass, warn, fail, unknown, requires-admin           | no        |
+| `firewall`       | Windows Firewall                    | critical | `Get-NetFirewallProfile => Enabled` (registry fallback `EnableFirewall`)                                   | pass, warn, fail, requires-admin, unknown           | no        |
+| `uac`            | User Account Control (UAC)          | high     | Registry `HKLM\...\Policies\System` â†’ `EnableLUA`, `ConsentPromptBehaviorAdmin`, `PromptOnSecureDesktop` | pass, warn, fail, unknown                           | no        |
+| `smb1`           | SMBv1 protocol                      | high     | `Get-SmbServerConfiguration => EnableSMB1Protocol` (registry fallback)                                     | pass, fail, requires-admin, unknown                 | **yes**   |
+| `secure-boot`    | Secure Boot                         | medium   | `Confirm-SecureBootUEFI` + `$env:firmware_type`                                                            | pass, fail, not-applicable, requires-admin, unknown | no        |
+| `tpm`            | TPM (Trusted Platform Module)       | medium   | `root\cimv2\security\microsofttpm => Win32_Tpm`                                                            | pass, warn, not-applicable, requires-admin, unknown | no        |
+| `bitlocker`      | System drive encryption (BitLocker) | high     | `Get-BitLockerVolume -MountPoint %SystemDrive%` + edition detection                                        | pass, fail, not-applicable, requires-admin, unknown | no        |
+| `windows-update` | Windows updates                     | high     | `Win32_QuickFixEngineering` (latest `InstalledOn`) + pending-reboot registry flags                         | pass, warn, fail, unknown                           | no        |
+| `guest-account`  | Built-in Guest account              | medium   | `Win32_UserAccount` where `LocalAccount=True`, matched by **RID 501** (not name)                           | pass, fail, requires-admin, unknown                 | **yes**   |
+| `remote-desktop` | Remote Desktop (RDP)                | medium   | Registry `HKLM\SYSTEM\...\Terminal Server` â†’ `fDenyTSConnections`                                        | pass, warn, unknown                                 | **yes**   |
 
 ### v0.8.0 additions (read-only, dynamic)
 
-| id | Title | Severity | Live query | Possible statuses | Auto-fix? |
-|----|-------|----------|------------|-------------------|-----------|
-| `password-policy` | Account password policy | high | `HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters` → `MaximumPasswordAge`, `MinimumPasswordLength`, `PasswordComplexity`, `LockoutBadCount` (defaults assumed when absent) | pass, warn, fail, unknown | no |
-| `autoplay` | Autorun / Autoplay | medium | Policies `Explorer\NoDriveTypeAutoRun` + `Cdrom\Autorun` | pass, warn, unknown | no |
-| `lm-hash` | LM hash storage (`NoLMHash`) | medium | `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` → `NoLMHash` (absent ⇒ still storing) | pass, warn, fail, unknown | no |
-| `smb-signing` | SMB signing | medium | `Get-SmbServerConfiguration` → `Require/EnableSecuritySignature` (registry fallback) | pass, warn, fail, requires-admin, unknown | no |
-| `listening-ports` | Inbound TCP listeners | medium | `Get-NetTCPConnection -State Listen` (enumerated, deduplicated) | pass, warn, unknown | no |
-| `windows-update-service` | Windows Update service | medium | `Get-Service wuauserv` → `Status` + `StartType` | pass, warn, fail, unknown | no |
+| id                       | Title                        | Severity | Live query                                                                                                                                                                           | Possible statuses                         | Auto-fix? |
+| ------------------------ | ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- | --------- |
+| `password-policy`        | Account password policy      | high     | `HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters` → `MaximumPasswordAge`, `MinimumPasswordLength`, `PasswordComplexity`, `LockoutBadCount` (defaults assumed when absent) | pass, warn, fail, unknown                 | no        |
+| `autoplay`               | Autorun / Autoplay           | medium   | Policies `Explorer\NoDriveTypeAutoRun` + `Cdrom\Autorun`                                                                                                                             | pass, warn, unknown                       | no        |
+| `lm-hash`                | LM hash storage (`NoLMHash`) | medium   | `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` → `NoLMHash` (absent ⇒ still storing)                                                                                                    | pass, warn, fail, unknown                 | no        |
+| `smb-signing`            | SMB signing                  | medium   | `Get-SmbServerConfiguration` → `Require/EnableSecuritySignature` (registry fallback)                                                                                                 | pass, warn, fail, requires-admin, unknown | no        |
+| `listening-ports`        | Inbound TCP listeners        | medium   | `Get-NetTCPConnection -State Listen` (enumerated, deduplicated)                                                                                                                      | pass, warn, unknown                       | no        |
+| `windows-update-service` | Windows Update service       | medium   | `Get-Service wuauserv` → `Status` + `StartType`                                                                                                                                      | pass, warn, fail, unknown                 | no        |
 
 All six are **read-only**: the `autoFixable` set remains exactly
 `{smb1, guest-account, remote-desktop}`.
@@ -131,14 +131,14 @@ All six are **read-only**: the `autoFixable` set remains exactly
 
 ## Behavior across machine configurations
 
-| Configuration | Expected result |
-|---------------|-----------------|
-| Windows 11 Pro, full | All checks scorable |
+| Configuration                 | Expected result                                        |
+| ----------------------------- | ------------------------------------------------------ |
+| Windows 11 Pro, full          | All checks scorable                                    |
 | Windows 10 Home, no BitLocker | `bitlocker` â†’ `not-applicable` (edition), not `fail` |
-| VM without TPM / Secure Boot | `tpm` and `secure-boot` â†’ `not-applicable` |
-| Third-party antivirus | `antivirus` â†’ `pass` from live data (no list) |
-| Running without admin | permission-denied reads â†’ `requires-admin` |
-| Corrupt / non-JSON payload | check â†’ `unknown`, scan continues |
+| VM without TPM / Secure Boot  | `tpm` and `secure-boot` â†’ `not-applicable`           |
+| Third-party antivirus         | `antivirus` â†’ `pass` from live data (no list)        |
+| Running without admin         | permission-denied reads â†’ `requires-admin`           |
+| Corrupt / non-JSON payload    | check â†’ `unknown`, scan continues                    |
 
 Every one of these has a dedicated unit test with a fixture
 (`src/main/services/security-scan.test.ts`).

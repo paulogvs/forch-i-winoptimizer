@@ -51,11 +51,20 @@ results.push(await average('Drivers scan', () => drivers.scanDrivers(), 2));
 results.push(await average('Junk scan', () => junk.scanForJunkFiles(), 1));
 
 console.log('\n=== WinOptimizer scan measurements (real PowerShell) ===');
-console.table(results.map((r) => ({ scan: r.label, avgMs: r.avgMs, spawns: r.spawns, samples: r.samples.join(', ') })));
+console.table(
+  results.map((r) => ({
+    scan: r.label,
+    avgMs: r.avgMs,
+    spawns: r.spawns,
+    samples: r.samples.join(', '),
+  }))
+);
 
 const batched = results.find((r) => r.label.includes('batched'));
 const legacy = results.find((r) => r.label.includes('legacy'));
 if (batched && legacy) {
   const saved = Math.round(((legacy.avgMs - batched.avgMs) / legacy.avgMs) * 100);
-  console.log(`System Info: ${legacy.avgMs}ms -> ${batched.avgMs}ms (${saved}% faster), spawns ${legacy.spawns} -> ${batched.spawns}`);
+  console.log(
+    `System Info: ${legacy.avgMs}ms -> ${batched.avgMs}ms (${saved}% faster), spawns ${legacy.spawns} -> ${batched.spawns}`
+  );
 }

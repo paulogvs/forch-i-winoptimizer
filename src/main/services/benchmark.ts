@@ -5,19 +5,19 @@ export async function runBenchmark(): Promise<BenchmarkReport> {
   const results: BenchmarkResult[] = [];
 
   // CPU Benchmark
-  results.push(...await benchmarkCPU());
+  results.push(...(await benchmarkCPU()));
 
   // Memory Benchmark
-  results.push(...await benchmarkMemory());
+  results.push(...(await benchmarkMemory()));
 
   // Disk Benchmark
-  results.push(...await benchmarkDisk());
+  results.push(...(await benchmarkDisk()));
 
   // GPU Benchmark
-  results.push(...await benchmarkGPU());
+  results.push(...(await benchmarkGPU()));
 
   // Network Benchmark
-  results.push(...await benchmarkNetwork());
+  results.push(...(await benchmarkNetwork()));
 
   const totalScore = results.reduce((sum, r) => sum + r.score, 0);
 
@@ -47,7 +47,7 @@ async function benchmarkCPU(): Promise<BenchmarkResult[]> {
     Write-Output "$ms"
   `);
   const singleCoreTime = parseInt(singleCoreResult.stdout.trim(), 10) || 0;
-  const singleCoreScore = Math.max(0, Math.min(100, Math.round(100 - (singleCoreTime / 50))));
+  const singleCoreScore = Math.max(0, Math.min(100, Math.round(100 - singleCoreTime / 50)));
 
   results.push({
     id: 'cpu-single-core',
@@ -76,7 +76,7 @@ async function benchmarkCPU(): Promise<BenchmarkResult[]> {
     Write-Output "$ms"
   `);
   const multiCoreTime = parseInt(multiCoreResult.stdout.trim(), 10) || 0;
-  const multiCoreScore = Math.max(0, Math.min(100, Math.round(100 - (multiCoreTime / 100))));
+  const multiCoreScore = Math.max(0, Math.min(100, Math.round(100 - multiCoreTime / 100)));
 
   results.push({
     id: 'cpu-multi-core',
@@ -124,7 +124,7 @@ async function benchmarkMemory(): Promise<BenchmarkResult[]> {
     Write-Output "$ms"
   `);
   const memSpeedTime = parseInt(memSpeedResult.stdout.trim(), 10) || 0;
-  const memSpeedScore = Math.max(0, Math.min(100, Math.round(100 - (memSpeedTime / 10))));
+  const memSpeedScore = Math.max(0, Math.min(100, Math.round(100 - memSpeedTime / 10)));
 
   results.push({
     id: 'memory-speed',
@@ -194,7 +194,7 @@ async function benchmarkDisk(): Promise<BenchmarkResult[]> {
     Write-Output "$ms"
   `);
   const readTime = parseInt(readResult.stdout.trim(), 10) || 0;
-  const readScore = Math.max(0, Math.min(100, Math.round(100 - (readTime / 5))));
+  const readScore = Math.max(0, Math.min(100, Math.round(100 - readTime / 5)));
 
   results.push({
     id: 'disk-read',
@@ -220,7 +220,7 @@ async function benchmarkDisk(): Promise<BenchmarkResult[]> {
     Write-Output "$ms"
   `);
   const writeTime = parseInt(writeResult.stdout.trim(), 10) || 0;
-  const writeScore = Math.max(0, Math.min(100, Math.round(100 - (writeTime / 5))));
+  const writeScore = Math.max(0, Math.min(100, Math.round(100 - writeTime / 5)));
 
   results.push({
     id: 'disk-write',
@@ -297,7 +297,9 @@ async function benchmarkGPU(): Promise<BenchmarkResult[]> {
       const gpu = JSON.parse(gpuResult.stdout);
       gpuName = gpu.Name || 'Unknown';
       gpuVram = gpu.AdapterRAM || 0;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   results.push({
@@ -367,7 +369,11 @@ async function benchmarkNetwork(): Promise<BenchmarkResult[]> {
     }
   `);
   const linkSpeed = speedResult.stdout.trim();
-  const speedMbps = linkSpeed.includes('Gbps') ? 1000 : linkSpeed.includes('Mbps') ? parseInt(linkSpeed, 10) : 0;
+  const speedMbps = linkSpeed.includes('Gbps')
+    ? 1000
+    : linkSpeed.includes('Mbps')
+      ? parseInt(linkSpeed, 10)
+      : 0;
 
   results.push({
     id: 'network-speed',

@@ -33,7 +33,12 @@ export const Layout: React.FC<LayoutProps> = ({
     <div className="app-shell">
       <Sidebar currentPage={currentPage} onNavigate={onNavigate} />
       <div className="main-area">
-        <Header theme={theme} onThemeToggle={onThemeToggle} onSearch={onSearch} searchQuery={searchQuery} />
+        <Header
+          theme={theme}
+          onThemeToggle={onThemeToggle}
+          onSearch={onSearch}
+          searchQuery={searchQuery}
+        />
         <main className="main-content">{children}</main>
         <StatusBar version={version} windowsVersion={windowsVersion} lastScan={lastScan} />
       </div>

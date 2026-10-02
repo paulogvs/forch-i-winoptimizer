@@ -34,7 +34,9 @@ const DriverRow = React.memo(function DriverRow({
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-primary">{driver.name}</span>
           <Badge variant="info">{driver.manufacturer}</Badge>
-          <Badge variant={outdated ? 'warning' : 'success'}>{outdated ? 'outdated' : 'up to date'}</Badge>
+          <Badge variant={outdated ? 'warning' : 'success'}>
+            {outdated ? 'outdated' : 'up to date'}
+          </Badge>
         </div>
         <div className="text-xs text-tertiary mt-1">
           {outdated
@@ -91,7 +93,9 @@ export const Drivers: React.FC = () => {
   const createRestorePoint = useCallback(async () => {
     try {
       const result = await window.winoptimizer.drivers.createRestorePoint('Before driver update');
-      setRestorePoint(result.success ? 'Restore point created successfully' : `Failed: ${result.message}`);
+      setRestorePoint(
+        result.success ? 'Restore point created successfully' : `Failed: ${result.message}`
+      );
     } catch (error) {
       console.error('Failed to create restore point:', error);
       setRestorePoint('Failed to create restore point');
@@ -205,7 +209,9 @@ export const Drivers: React.FC = () => {
         </div>
       </div>
 
-      {restorePoint && <div className="mb-4 p-3 rounded-lg bg-secondary text-sm">{restorePoint}</div>}
+      {restorePoint && (
+        <div className="mb-4 p-3 rounded-lg bg-secondary text-sm">{restorePoint}</div>
+      )}
 
       {scanning && <ScanProgress event={progress} className="mb-4" />}
 

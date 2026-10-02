@@ -114,7 +114,9 @@ export const LineChart: React.FC<LineChartProps> = ({
 
       <ul className="sr-only">
         {data.map((datum, index) => (
-          <li key={`${datum.label}-sr-${index}`}>{`${datum.label}: ${formatValue(datum.value)}`}</li>
+          <li
+            key={`${datum.label}-sr-${index}`}
+          >{`${datum.label}: ${formatValue(datum.value)}`}</li>
         ))}
       </ul>
     </div>

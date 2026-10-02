@@ -29,7 +29,10 @@ export function shouldEmitProgress(
   if (!previous) return true;
   if (next.stage !== previous.stage) return true;
   if (next.stage === 'done' || next.stage === 'error') return true;
-  return Math.abs(next.percent - previous.percent) >= PERCENT_EPSILON && elapsedMs >= PROGRESS_THROTTLE_MS;
+  return (
+    Math.abs(next.percent - previous.percent) >= PERCENT_EPSILON &&
+    elapsedMs >= PROGRESS_THROTTLE_MS
+  );
 }
 
 /** Throttled, per-module progress reporter. Pure enough to unit test. */

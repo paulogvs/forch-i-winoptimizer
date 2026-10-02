@@ -17,23 +17,12 @@
  */
 
 export type SecurityCheckStatus =
-  | 'pass'
-  | 'warn'
-  | 'fail'
-  | 'unknown'
-  | 'not-applicable'
-  | 'requires-admin';
+  'pass' | 'warn' | 'fail' | 'unknown' | 'not-applicable' | 'requires-admin';
 
 export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export type SecurityCategory =
-  | 'antivirus'
-  | 'firewall'
-  | 'access'
-  | 'network'
-  | 'encryption'
-  | 'platform'
-  | 'updates';
+  'antivirus' | 'firewall' | 'access' | 'network' | 'encryption' | 'platform' | 'updates';
 
 export interface SecurityCheckDefinition {
   id: string;
@@ -138,8 +127,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
       'root\\cimv2\\security\\microsofttpm => Win32_Tpm (IsEnabled_InitialValue, IsActivated_InitialValue, SpecVersion)',
     possibleStatuses: ['pass', 'warn', 'not-applicable', 'requires-admin', 'unknown'],
     autoFixable: false,
-    guidance:
-      'Enable the TPM (fTPM / PTT) in the firmware settings. VMs need a virtual TPM.',
+    guidance: 'Enable the TPM (fTPM / PTT) in the firmware settings. VMs need a virtual TPM.',
   },
   {
     id: 'bitlocker',
@@ -158,12 +146,10 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     title: 'Windows updates',
     category: 'updates',
     severity: 'high',
-    reads:
-      'Win32_QuickFixEngineering (latest InstalledOn) + pending-reboot registry flags',
+    reads: 'Win32_QuickFixEngineering (latest InstalledOn) + pending-reboot registry flags',
     possibleStatuses: ['pass', 'warn', 'fail', 'unknown'],
     autoFixable: false,
-    guidance:
-      'Install pending updates and reboot (Settings => Windows Update).',
+    guidance: 'Install pending updates and reboot (Settings => Windows Update).',
   },
   {
     id: 'guest-account',
@@ -182,8 +168,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     title: 'Remote Desktop (RDP)',
     category: 'network',
     severity: 'medium',
-    reads:
-      'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server => fDenyTSConnections',
+    reads: 'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server => fDenyTSConnections',
     possibleStatuses: ['pass', 'warn', 'unknown'],
     autoFixable: true,
     guidance:
@@ -337,7 +322,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     category: 'network',
     severity: 'medium',
     reads:
-      "Get-Service WinRM (Status + StartType) + WSMan:\\localhost\\Listener count (a running service with active listeners exposes remote management)",
+      'Get-Service WinRM (Status + StartType) + WSMan:\\localhost\\Listener count (a running service with active listeners exposes remote management)',
     possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
     autoFixable: false,
     requiresAdmin: true,

@@ -19,14 +19,7 @@ import {
  * Run: npm run test:e2e:electron
  */
 
-const VALID_STATUSES = [
-  'pass',
-  'warn',
-  'fail',
-  'unknown',
-  'not-applicable',
-  'requires-admin',
-];
+const VALID_STATUSES = ['pass', 'warn', 'fail', 'unknown', 'not-applicable', 'requires-admin'];
 
 interface ScanCheck {
   id: string;
@@ -105,9 +98,11 @@ test('security scan runs in the real Electron main process', async () => {
     // Read the live report through the preload bridge: this proves the whole
     // main-process pipeline (PowerShell) produced data, not a renderer fixture.
     const report = await page.evaluate(async (): Promise<ScanReport> => {
-      const api = (window as unknown as {
-        winoptimizer: { security: { scan: (o?: { force?: boolean }) => Promise<ScanReport> } };
-      }).winoptimizer;
+      const api = (
+        window as unknown as {
+          winoptimizer: { security: { scan: (o?: { force?: boolean }) => Promise<ScanReport> } };
+        }
+      ).winoptimizer;
       return api.security.scan({ force: true });
     });
 

@@ -9,7 +9,11 @@ describe('ScanProgress', () => {
   });
 
   it('shows the current stage and percentage', () => {
-    render(<ScanProgress event={{ module: 'system', stage: 'parse', percent: 70, message: 'Parsing...' }} />);
+    render(
+      <ScanProgress
+        event={{ module: 'system', stage: 'parse', percent: 70, message: 'Parsing...' }}
+      />
+    );
     const root = screen.getByTestId('scan-progress');
     expect(root).toHaveAttribute('data-stage', 'parse');
     expect(root).toHaveTextContent('Parsing');
@@ -18,7 +22,9 @@ describe('ScanProgress', () => {
   });
 
   it('marks earlier stages as done and hides the stepper on error', () => {
-    const { rerender } = render(<ScanProgress event={{ module: 'junk', stage: 'normalize', percent: 90 }} />);
+    const { rerender } = render(
+      <ScanProgress event={{ module: 'junk', stage: 'normalize', percent: 90 }} />
+    );
     expect(screen.getAllByText('Query')[0]).toBeInTheDocument();
 
     rerender(<ScanProgress event={{ module: 'junk', stage: 'error', percent: 100 }} />);

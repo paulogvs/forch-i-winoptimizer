@@ -2,7 +2,7 @@
  * In-memory TTL cache for expensive scan results (P1.2).
  *
  * Lives only in the main process (never on disk). Keys are `module + params`
- * 
+ *
  * so different query shapes never collide. `force`/invalidation is explicit:
  * mutating actions (Clean, Apply, Refresh) must invalidate the affected module.
  */

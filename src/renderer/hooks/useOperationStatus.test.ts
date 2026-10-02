@@ -23,7 +23,12 @@ function bridgeWith(initial: OperationStatus) {
 }
 
 const IDLE: OperationStatus = { busy: false, current: null, queued: 0, startedAt: null };
-const BUSY: OperationStatus = { busy: true, current: 'tweaks:apply', queued: 1, startedAt: 1700000000000 };
+const BUSY: OperationStatus = {
+  busy: true,
+  current: 'tweaks:apply',
+  queued: 1,
+  startedAt: 1700000000000,
+};
 
 describe('useOperationStatus (P0.3)', () => {
   beforeEach(() => {

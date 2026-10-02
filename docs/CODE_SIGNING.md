@@ -12,8 +12,8 @@ Every `.exe` we ship today (Setup + Portable) is **unsigned**. When Windows sees
 an unsigned/DL'd executable from the internet it consults SmartScreen reputation.
 With no Authenticode signature and no accrued download reputation, it shows:
 
-> *Windows protected your PC — Microsoft Defender SmartScreen prevented an
-> unrecognized app from starting. Running this app might put your PC at risk.*
+> _Windows protected your PC — Microsoft Defender SmartScreen prevented an
+> unrecognized app from starting. Running this app might put your PC at risk._
 
 An **EV** code-signing certificate (or Microsoft **Trusted Signing**, see below)
 establishes publisher reputation with SmartScreen so the warning is suppressed
@@ -30,11 +30,11 @@ accrues (typically weeks and enough downloads).
 
 ## Options and cost (2026)
 
-| Option | Type | Typical cost | SmartScreen | Notes |
-|---|---|---|---|---|
-| **Azure Trusted Signing** | Microsoft-managed | ~**$9.99/month** (Basic) | ✅ immediate (EV-backed) | Lowest friction; identity validation 1–3 business days; integrates with `signtool` via `dlib`. Best fit for a solo maintainer. |
-| **EV certificate** | Token/HSM (USB) | **$300–$600 / year** | ✅ immediate | Requires a hardware token (or cloud HSM); CI signing needs a cloud signer. |
-| **OV certificate** | File-based | **$150–$400 / year** | ⚠️ after reputation accrues | Cheaper, but the warning persists until enough clean downloads. |
+| Option                    | Type              | Typical cost             | SmartScreen                 | Notes                                                                                                                          |
+| ------------------------- | ----------------- | ------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Azure Trusted Signing** | Microsoft-managed | ~**$9.99/month** (Basic) | ✅ immediate (EV-backed)    | Lowest friction; identity validation 1–3 business days; integrates with `signtool` via `dlib`. Best fit for a solo maintainer. |
+| **EV certificate**        | Token/HSM (USB)   | **$300–$600 / year**     | ✅ immediate                | Requires a hardware token (or cloud HSM); CI signing needs a cloud signer.                                                     |
+| **OV certificate**        | File-based        | **$150–$400 / year**     | ⚠️ after reputation accrues | Cheaper, but the warning persists until enough clean downloads.                                                                |
 
 Prices are indicative and vary by CA (DigiCert, Sectigo, SSL.com, GlobalSign…).
 Trusted Signing has the lowest entry cost and no hardware token, which is why it

@@ -70,9 +70,7 @@ export const Network: React.FC = () => {
         </div>
       </div>
 
-      {fixing && (
-        <Progress value={progress} label="Running network fixes..." className="mb-4" />
-      )}
+      {fixing && <Progress value={progress} label="Running network fixes..." className="mb-4" />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <Card hoverable>
@@ -114,9 +112,7 @@ export const Network: React.FC = () => {
               <Badge variant={report.connectivityTest.success ? 'success' : 'error'}>
                 Connectivity: {report.connectivityTest.success ? 'OK' : 'Failed'}
               </Badge>
-              <Badge variant="info">
-                Latency: {report.connectivityTest.latency}ms
-              </Badge>
+              <Badge variant="info">Latency: {report.connectivityTest.latency}ms</Badge>
             </div>
             {report.fixes.map((fix) => (
               <div

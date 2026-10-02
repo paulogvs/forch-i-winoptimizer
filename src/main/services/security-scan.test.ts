@@ -75,9 +75,14 @@ describe('security-scan engine', () => {
 
   describe('splitSecurityStdout', () => {
     it('separates env and per-check payloads', () => {
-      const stdout = ['@@FENV@@', '{"isAdmin":true}', '@@FSEC_0@@', '{"a":1}', '@@FSEC_1@@', '{"b":2}'].join(
-        '\n'
-      );
+      const stdout = [
+        '@@FENV@@',
+        '{"isAdmin":true}',
+        '@@FSEC_0@@',
+        '{"a":1}',
+        '@@FSEC_1@@',
+        '{"b":2}',
+      ].join('\n');
       const { env, payloads: blocks } = splitSecurityStdout(stdout, 2);
       expect(env).toBe('{"isAdmin":true}');
       expect(blocks[0]).toBe('{"a":1}');
@@ -224,9 +229,9 @@ describe('security-scan engine', () => {
     });
 
     it('reports requires-admin on an access-denied read', () => {
-      expect(
-        statusOf('smb1', { smb1: '{"kind":"unreadable","message":"Access is denied"}' })
-      ).toBe('requires-admin');
+      expect(statusOf('smb1', { smb1: '{"kind":"unreadable","message":"Access is denied"}' })).toBe(
+        'requires-admin'
+      );
     });
 
     it('reports unknown when unreadable without an access error', () => {
@@ -240,7 +245,9 @@ describe('security-scan engine', () => {
     });
 
     it('fails when disabled', () => {
-      expect(statusOf('secure-boot', { 'secure-boot': '{"kind":"ok","value":false}' })).toBe('fail');
+      expect(statusOf('secure-boot', { 'secure-boot': '{"kind":"ok","value":false}' })).toBe(
+        'fail'
+      );
     });
 
     it('is not-applicable on legacy BIOS', () => {
@@ -260,9 +267,9 @@ describe('security-scan engine', () => {
     });
 
     it('reports unknown on an unrecognised error', () => {
-      expect(
-        statusOf('secure-boot', { 'secure-boot': '{"kind":"error","message":"weird"}' })
-      ).toBe('unknown');
+      expect(statusOf('secure-boot', { 'secure-boot': '{"kind":"error","message":"weird"}' })).toBe(
+        'unknown'
+      );
     });
   });
 
@@ -284,9 +291,9 @@ describe('security-scan engine', () => {
     });
 
     it('reports requires-admin on access denied', () => {
-      expect(
-        statusOf('tpm', { tpm: '{"kind":"error","message":"Access is denied"}' })
-      ).toBe('requires-admin');
+      expect(statusOf('tpm', { tpm: '{"kind":"error","message":"Access is denied"}' })).toBe(
+        'requires-admin'
+      );
     });
   });
 
@@ -311,7 +318,7 @@ describe('security-scan engine', () => {
       expect(
         statusOf('bitlocker', {
           bitlocker:
-            "{\"kind\":\"error\",\"message\":\"The term 'Get-BitLockerVolume' is not recognized\",\"edition\":\"Core\"}",
+            '{"kind":"error","message":"The term \'Get-BitLockerVolume\' is not recognized","edition":"Core"}',
         })
       ).toBe('not-applicable');
     });
@@ -320,7 +327,7 @@ describe('security-scan engine', () => {
       expect(
         statusOf('bitlocker', {
           bitlocker:
-            "{\"kind\":\"error\",\"message\":\"The term 'Get-BitLockerVolume' is not recognized\",\"edition\":\"Enterprise\"}",
+            '{"kind":"error","message":"The term \'Get-BitLockerVolume\' is not recognized","edition":"Enterprise"}',
         })
       ).toBe('unknown');
     });
@@ -369,7 +376,9 @@ describe('security-scan engine', () => {
 
     it('reports unknown when patch history is unavailable', () => {
       expect(
-        statusOf('windows-update', { 'windows-update': '{"kind":"wu","last":null,"pendingReboot":false}' })
+        statusOf('windows-update', {
+          'windows-update': '{"kind":"wu","last":null,"pendingReboot":false}',
+        })
       ).toBe('unknown');
     });
   });
@@ -386,9 +395,9 @@ describe('security-scan engine', () => {
     });
 
     it('fails when enabled', () => {
-      expect(statusOf('guest-account', { 'guest-account': '{"kind":"guest","enabled":true}' })).toBe(
-        'fail'
-      );
+      expect(
+        statusOf('guest-account', { 'guest-account': '{"kind":"guest","enabled":true}' })
+      ).toBe('fail');
     });
 
     it('reports requires-admin on access denied', () => {
@@ -429,7 +438,8 @@ describe('security-scan engine', () => {
       const results = buildSecurityCheckResults(
         payloads({
           antivirus: '{"kind":"products","items":[{"name":"Windows Security","state":"266496"}]}',
-          firewall: '{"kind":"profiles","profiles":[{"name":"Domain","enabled":true},{"name":"Private","enabled":true},{"name":"Public","enabled":true}]}',
+          firewall:
+            '{"kind":"profiles","profiles":[{"name":"Domain","enabled":true},{"name":"Private","enabled":true},{"name":"Public","enabled":true}]}',
           uac: '{"kind":"uac","enableLua":1,"consentPrompt":5,"secureDesktop":1}',
           smb1: '{"kind":"smb","enabled":false}',
           'secure-boot': '{"kind":"ok","value":true}',
@@ -438,12 +448,14 @@ describe('security-scan engine', () => {
           'windows-update': `{"kind":"wu","last":"${daysAgo(10)}","pendingReboot":false}`,
           'guest-account': '{"kind":"guest","enabled":false}',
           'remote-desktop': '{"kind":"rdp","deny":1}',
-          'password-policy': '{"kind":"policy","maxAge":60,"minLength":12,"complexity":1,"lockout":10}',
+          'password-policy':
+            '{"kind":"policy","maxAge":60,"minLength":12,"complexity":1,"lockout":10}',
           autoplay: '{"kind":"autoplay","noDriveTypeAutoRun":149,"cdromAutorun":0,"disabled":true}',
           'lm-hash': '{"kind":"value","noLMHash":1}',
           'smb-signing': '{"kind":"smb","require":true,"enable":true}',
           'listening-ports': '{"kind":"ports","count":3,"ports":[135,445,3389]}',
-          'windows-update-service': '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
+          'windows-update-service':
+            '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
           'lsass-protection': '{"kind":"lsass","runAsPpl":2,"lsaCfgFlags":0}',
           'credential-guard': '{"kind":"dg","configured":[1,2],"running":[1,2],"vbs":2}',
           'bitlocker-protectors':
@@ -464,7 +476,7 @@ describe('security-scan engine', () => {
       const results = buildSecurityCheckResults(
         payloads({
           bitlocker:
-            "{\"kind\":\"error\",\"message\":\"The term 'Get-BitLockerVolume' is not recognized\",\"edition\":\"Core\"}",
+            '{"kind":"error","message":"The term \'Get-BitLockerVolume\' is not recognized","edition":"Core"}',
           tpm: '{"kind":"absent"}',
           'secure-boot': '{"kind":"ok","value":false}',
         }),
@@ -540,7 +552,8 @@ describe('security-scan engine', () => {
         '{"caption":"Microsoft Windows 11 Pro","version":"10.0.22631","build":"22631","edition":"Professional","displayVersion":"23H2","isAdmin":true}';
       const blocks = payloads({
         antivirus: '{"kind":"products","items":[{"name":"Windows Security","state":"266496"}]}',
-        firewall: '{"kind":"profiles","profiles":[{"name":"Domain","enabled":true},{"name":"Private","enabled":true},{"name":"Public","enabled":true}]}',
+        firewall:
+          '{"kind":"profiles","profiles":[{"name":"Domain","enabled":true},{"name":"Private","enabled":true},{"name":"Public","enabled":true}]}',
         uac: '{"kind":"uac","enableLua":1,"consentPrompt":5,"secureDesktop":1}',
         smb1: '{"kind":"smb","enabled":false}',
         'secure-boot': '{"kind":"ok","value":true}',
@@ -549,12 +562,14 @@ describe('security-scan engine', () => {
         'windows-update': `{"kind":"wu","last":"${daysAgo(10)}","pendingReboot":false}`,
         'guest-account': '{"kind":"guest","enabled":false}',
         'remote-desktop': '{"kind":"rdp","deny":1}',
-        'password-policy': '{"kind":"policy","maxAge":60,"minLength":12,"complexity":1,"lockout":10}',
+        'password-policy':
+          '{"kind":"policy","maxAge":60,"minLength":12,"complexity":1,"lockout":10}',
         autoplay: '{"kind":"autoplay","noDriveTypeAutoRun":149,"cdromAutorun":0,"disabled":true}',
         'lm-hash': '{"kind":"value","noLMHash":1}',
         'smb-signing': '{"kind":"smb","require":true,"enable":true}',
         'listening-ports': '{"kind":"ports","count":3,"ports":[135,445,3389]}',
-        'windows-update-service': '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
+        'windows-update-service':
+          '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
         'lsass-protection': '{"kind":"lsass","runAsPpl":2,"lsaCfgFlags":0}',
         'credential-guard': '{"kind":"dg","configured":[1,2],"running":[1,2],"vbs":2}',
         'bitlocker-protectors':
@@ -643,51 +658,93 @@ describe('security-scan engine', () => {
     it('password-policy: strong policy passes, weak policy warns, never-expire+no-length fails', () => {
       expect(
         statusOf('password-policy', {
-          'password-policy': JSON.stringify({ kind: 'policy', maxAge: 60, minLength: 12, complexity: 1, lockout: 10 }),
+          'password-policy': JSON.stringify({
+            kind: 'policy',
+            maxAge: 60,
+            minLength: 12,
+            complexity: 1,
+            lockout: 10,
+          }),
         })
       ).toBe('pass');
       expect(
         statusOf('password-policy', {
-          'password-policy': JSON.stringify({ kind: 'policy', maxAge: 30, minLength: null, complexity: null, lockout: null }),
+          'password-policy': JSON.stringify({
+            kind: 'policy',
+            maxAge: 30,
+            minLength: null,
+            complexity: null,
+            lockout: null,
+          }),
         })
       ).toBe('warn');
       expect(
         statusOf('password-policy', {
-          'password-policy': JSON.stringify({ kind: 'policy', maxAge: 0, minLength: 0, complexity: 0, lockout: 0 }),
+          'password-policy': JSON.stringify({
+            kind: 'policy',
+            maxAge: 0,
+            minLength: 0,
+            complexity: 0,
+            lockout: 0,
+          }),
         })
       ).toBe('fail');
-      expect(statusOf('password-policy', { 'password-policy': JSON.stringify({ kind: 'unreadable' }) })).toBe('unknown');
+      expect(
+        statusOf('password-policy', { 'password-policy': JSON.stringify({ kind: 'unreadable' }) })
+      ).toBe('unknown');
     });
 
     it('autoplay: hardened passes, cdrom autorun / unset warns', () => {
       expect(
         statusOf('autoplay', {
-          autoplay: JSON.stringify({ kind: 'autoplay', noDriveTypeAutoRun: 0x95, cdromAutorun: 0, disabled: true }),
+          autoplay: JSON.stringify({
+            kind: 'autoplay',
+            noDriveTypeAutoRun: 0x95,
+            cdromAutorun: 0,
+            disabled: true,
+          }),
         })
       ).toBe('pass');
       expect(
         statusOf('autoplay', {
-          autoplay: JSON.stringify({ kind: 'autoplay', noDriveTypeAutoRun: null, cdromAutorun: 1, disabled: false }),
+          autoplay: JSON.stringify({
+            kind: 'autoplay',
+            noDriveTypeAutoRun: null,
+            cdromAutorun: 1,
+            disabled: false,
+          }),
         })
       ).toBe('warn');
-      expect(statusOf('autoplay', { autoplay: JSON.stringify({ kind: 'unreadable' }) })).toBe('unknown');
+      expect(statusOf('autoplay', { autoplay: JSON.stringify({ kind: 'unreadable' }) })).toBe(
+        'unknown'
+      );
     });
 
     it('lm-hash: NoLMHash=1 passes, absent warns, 0 fails', () => {
-      expect(statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'value', noLMHash: 1 }) })).toBe('pass');
-      expect(statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'value', noLMHash: 0 }) })).toBe('fail');
+      expect(
+        statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'value', noLMHash: 1 }) })
+      ).toBe('pass');
+      expect(
+        statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'value', noLMHash: 0 }) })
+      ).toBe('fail');
       expect(statusOf('lm-hash', { 'lm-hash': JSON.stringify({ kind: 'absent' }) })).toBe('warn');
     });
 
     it('smb-signing: required passes, enabled warns, neither fails', () => {
       expect(
-        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'smb', require: true, enable: true }) })
+        statusOf('smb-signing', {
+          'smb-signing': JSON.stringify({ kind: 'smb', require: true, enable: true }),
+        })
       ).toBe('pass');
       expect(
-        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'smb', require: false, enable: true }) })
+        statusOf('smb-signing', {
+          'smb-signing': JSON.stringify({ kind: 'smb', require: false, enable: true }),
+        })
       ).toBe('warn');
       expect(
-        statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'smb', require: false, enable: false }) })
+        statusOf('smb-signing', {
+          'smb-signing': JSON.stringify({ kind: 'smb', require: false, enable: false }),
+        })
       ).toBe('fail');
       expect(
         statusOf('smb-signing', { 'smb-signing': JSON.stringify({ kind: 'unreadable' }) })
@@ -696,29 +753,50 @@ describe('security-scan engine', () => {
 
     it('listening-ports: enumerates live ports; a large surface warns', () => {
       expect(
-        statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'ports', count: 3, ports: [135, 445, 3389] }) })
+        statusOf('listening-ports', {
+          'listening-ports': JSON.stringify({ kind: 'ports', count: 3, ports: [135, 445, 3389] }),
+        })
       ).toBe('pass');
       const many = Array.from({ length: 60 }, (_, i) => 1000 + i);
       expect(
-        statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'ports', count: many.length, ports: many }) })
+        statusOf('listening-ports', {
+          'listening-ports': JSON.stringify({ kind: 'ports', count: many.length, ports: many }),
+        })
       ).toBe('warn');
-      expect(statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'unreadable' }) })).toBe('unknown');
+      expect(
+        statusOf('listening-ports', { 'listening-ports': JSON.stringify({ kind: 'unreadable' }) })
+      ).toBe('unknown');
     });
 
     it('windows-update-service: running passes, stopped warns, disabled fails', () => {
       expect(
         statusOf('windows-update-service', {
-          'windows-update-service': JSON.stringify({ kind: 'service', found: true, status: 'Running', startType: 'Automatic' }),
+          'windows-update-service': JSON.stringify({
+            kind: 'service',
+            found: true,
+            status: 'Running',
+            startType: 'Automatic',
+          }),
         })
       ).toBe('pass');
       expect(
         statusOf('windows-update-service', {
-          'windows-update-service': JSON.stringify({ kind: 'service', found: true, status: 'Stopped', startType: 'Manual' }),
+          'windows-update-service': JSON.stringify({
+            kind: 'service',
+            found: true,
+            status: 'Stopped',
+            startType: 'Manual',
+          }),
         })
       ).toBe('warn');
       expect(
         statusOf('windows-update-service', {
-          'windows-update-service': JSON.stringify({ kind: 'service', found: true, status: 'Stopped', startType: 'Disabled' }),
+          'windows-update-service': JSON.stringify({
+            kind: 'service',
+            found: true,
+            status: 'Stopped',
+            startType: 'Disabled',
+          }),
         })
       ).toBe('fail');
     });
@@ -768,7 +846,10 @@ describe('security-scan engine', () => {
       const markers = script.match(/@@FSEC_\d+@@/g) ?? [];
       expect(markers).toHaveLength(SECURITY_CHECK_CATALOG.length);
       for (const id of ADMIN_IDS) {
-        expect(SECURITY_CHECK_CATALOG.some((d) => d.id === id), id).toBe(true);
+        expect(
+          SECURITY_CHECK_CATALOG.some((d) => d.id === id),
+          id
+        ).toBe(true);
       }
     });
 
@@ -796,7 +877,12 @@ describe('security-scan engine', () => {
     it('credential-guard: running passes, configured/VBS warns, otherwise fails', () => {
       expect(
         statusOf('credential-guard', {
-          'credential-guard': JSON.stringify({ kind: 'dg', configured: [1, 2], running: [1, 2], vbs: 2 }),
+          'credential-guard': JSON.stringify({
+            kind: 'dg',
+            configured: [1, 2],
+            running: [1, 2],
+            vbs: 2,
+          }),
         })
       ).toBe('pass');
       expect(
@@ -824,7 +910,12 @@ describe('security-scan engine', () => {
       ).toBe('pass');
       expect(
         statusOf('bitlocker-protectors', {
-          'bitlocker-protectors': JSON.stringify({ kind: 'blp', count: 0, types: [], edition: 'Professional' }),
+          'bitlocker-protectors': JSON.stringify({
+            kind: 'blp',
+            count: 0,
+            types: [],
+            edition: 'Professional',
+          }),
         })
       ).toBe('fail');
       expect(
@@ -841,17 +932,32 @@ describe('security-scan engine', () => {
     it('admin-accounts: small baseline passes, broader warns, too many fails', () => {
       expect(
         statusOf('admin-accounts', {
-          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 1, total: 5, neverExpire: 0 }),
+          'admin-accounts': JSON.stringify({
+            kind: 'admins',
+            adminCount: 1,
+            total: 5,
+            neverExpire: 0,
+          }),
         })
       ).toBe('pass');
       expect(
         statusOf('admin-accounts', {
-          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 2, total: 5, neverExpire: 1 }),
+          'admin-accounts': JSON.stringify({
+            kind: 'admins',
+            adminCount: 2,
+            total: 5,
+            neverExpire: 1,
+          }),
         })
       ).toBe('warn');
       expect(
         statusOf('admin-accounts', {
-          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 5, total: 9, neverExpire: 3 }),
+          'admin-accounts': JSON.stringify({
+            kind: 'admins',
+            adminCount: 5,
+            total: 9,
+            neverExpire: 3,
+          }),
         })
       ).toBe('fail');
     });
@@ -859,7 +965,11 @@ describe('security-scan engine', () => {
     it('firewall-inbound-rules: normal surface passes, a very large surface warns', () => {
       expect(
         statusOf('firewall-inbound-rules', {
-          'firewall-inbound-rules': JSON.stringify({ kind: 'fwrules', count: 120, sample: ['Core Networking'] }),
+          'firewall-inbound-rules': JSON.stringify({
+            kind: 'fwrules',
+            count: 120,
+            sample: ['Core Networking'],
+          }),
         })
       ).toBe('pass');
       expect(
@@ -872,12 +982,22 @@ describe('security-scan engine', () => {
     it('winrm-exposure: stopped with no listeners passes, running with listeners fails', () => {
       expect(
         statusOf('winrm-exposure', {
-          'winrm-exposure': JSON.stringify({ kind: 'winrm', service: 'Stopped', startType: 'Manual', listeners: 0 }),
+          'winrm-exposure': JSON.stringify({
+            kind: 'winrm',
+            service: 'Stopped',
+            startType: 'Manual',
+            listeners: 0,
+          }),
         })
       ).toBe('pass');
       expect(
         statusOf('winrm-exposure', {
-          'winrm-exposure': JSON.stringify({ kind: 'winrm', service: 'Running', startType: 'Automatic', listeners: 1 }),
+          'winrm-exposure': JSON.stringify({
+            kind: 'winrm',
+            service: 'Running',
+            startType: 'Automatic',
+            listeners: 1,
+          }),
         })
       ).toBe('fail');
     });
@@ -887,10 +1007,25 @@ describe('security-scan engine', () => {
         payloads({
           'lsass-protection': JSON.stringify({ kind: 'lsass', runAsPpl: 2, lsaCfgFlags: 0 }),
           'credential-guard': JSON.stringify({ kind: 'dg', configured: [1], running: [1], vbs: 2 }),
-          'bitlocker-protectors': JSON.stringify({ kind: 'blp', count: 1, types: ['Tpm'], edition: 'Professional' }),
-          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 1, total: 5, neverExpire: 0 }),
+          'bitlocker-protectors': JSON.stringify({
+            kind: 'blp',
+            count: 1,
+            types: ['Tpm'],
+            edition: 'Professional',
+          }),
+          'admin-accounts': JSON.stringify({
+            kind: 'admins',
+            adminCount: 1,
+            total: 5,
+            neverExpire: 0,
+          }),
           'firewall-inbound-rules': JSON.stringify({ kind: 'fwrules', count: 120, sample: [] }),
-          'winrm-exposure': JSON.stringify({ kind: 'winrm', service: 'Stopped', startType: 'Manual', listeners: 0 }),
+          'winrm-exposure': JSON.stringify({
+            kind: 'winrm',
+            service: 'Stopped',
+            startType: 'Manual',
+            listeners: 0,
+          }),
         }),
         machine({ isAdmin: false })
       );

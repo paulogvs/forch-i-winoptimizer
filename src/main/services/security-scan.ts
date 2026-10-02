@@ -35,7 +35,7 @@ const CHECK_MARKER = (index: number): string => `@@FSEC_${index}@@`;
 const PS_EXCEPTION =
   "$m = ('' + $_.Exception.Message).Replace('\\','/').Replace('\"',[char]39)" +
   ".Replace([char]13,' ').Replace([char]10,' '); " +
-  "Write-Output ('{\"kind\":\"exception\",\"message\":\"' + $m + '\"}')";
+  'Write-Output (\'{"kind":"exception","message":"\' + $m + \'"}\')';
 
 const ENV_SCRIPT = `
 $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue;
@@ -340,10 +340,14 @@ export const SECURITY_SCRIPTS: Readonly<Record<string, string>> = {
 /** Build the single batched script (env + every catalog check, in order). */
 export function buildSecurityScript(): string {
   const parts: string[] = [];
-  parts.push(`Write-Output '${ENV_MARKER}'\ntry {\n& {\n${ENV_SCRIPT}\n}\n} catch { Write-Output '{"kind":"exception"}' }`);
+  parts.push(
+    `Write-Output '${ENV_MARKER}'\ntry {\n& {\n${ENV_SCRIPT}\n}\n} catch { Write-Output '{"kind":"exception"}' }`
+  );
   SECURITY_CHECK_CATALOG.forEach((definition, index) => {
-    const script = SECURITY_SCRIPTS[definition.id] ?? "Write-Output '{\"kind\":\"exception\"}'";
-    parts.push(`Write-Output '${CHECK_MARKER(index)}'\ntry {\n& {\n${script}\n}\n} catch { ${PS_EXCEPTION} }`);
+    const script = SECURITY_SCRIPTS[definition.id] ?? 'Write-Output \'{"kind":"exception"}\'';
+    parts.push(
+      `Write-Output '${CHECK_MARKER(index)}'\ntry {\n& {\n${script}\n}\n} catch { ${PS_EXCEPTION} }`
+    );
   });
   return parts.join('\n');
 }
@@ -436,7 +440,8 @@ function objectsOf(value: unknown): Obj[] {
   );
 }
 
-const ACCESS_DENIED = /(access|denied|denegad|privileg|permission|permiso|elevat|unauthoriz|no tiene)/i;
+const ACCESS_DENIED =
+  /(access|denied|denegad|privileg|permission|permiso|elevat|unauthoriz|no tiene)/i;
 
 /**
  * Map an unreadable datum to an honest status. We only claim `requires-admin`
@@ -561,12 +566,24 @@ function firewall(p: Obj | null): SecurityCheckResult {
   }
 
   const on = profiles.filter((profile) => profile.enabled);
-  const evidence = profiles.map((profile) => `${profile.name}: ${profile.enabled ? 'on' : 'off'}`).join(', ');
+  const evidence = profiles
+    .map((profile) => `${profile.name}: ${profile.enabled ? 'on' : 'off'}`)
+    .join(', ');
   if (on.length === profiles.length) {
-    return { id: 'firewall', status: 'pass', evidence, reason: 'Firewall is enabled for every profile.' };
+    return {
+      id: 'firewall',
+      status: 'pass',
+      evidence,
+      reason: 'Firewall is enabled for every profile.',
+    };
   }
   if (on.length === 0) {
-    return { id: 'firewall', status: 'fail', evidence, reason: 'Firewall is disabled for every profile.' };
+    return {
+      id: 'firewall',
+      status: 'fail',
+      evidence,
+      reason: 'Firewall is disabled for every profile.',
+    };
   }
   return {
     id: 'firewall',
@@ -656,8 +673,18 @@ function secureBoot(p: Obj | null): SecurityCheckResult {
     };
   }
   return value
-    ? { id: 'secure-boot', status: 'pass', evidence: 'Confirm-SecureBootUEFI = True', reason: 'Secure Boot is enabled.' }
-    : { id: 'secure-boot', status: 'fail', evidence: 'Confirm-SecureBootUEFI = False', reason: 'Secure Boot is disabled.' };
+    ? {
+        id: 'secure-boot',
+        status: 'pass',
+        evidence: 'Confirm-SecureBootUEFI = True',
+        reason: 'Secure Boot is enabled.',
+      }
+    : {
+        id: 'secure-boot',
+        status: 'fail',
+        evidence: 'Confirm-SecureBootUEFI = False',
+        reason: 'Secure Boot is disabled.',
+      };
 }
 
 function tpm(p: Obj | null): SecurityCheckResult {
@@ -667,7 +694,12 @@ function tpm(p: Obj | null): SecurityCheckResult {
   const spec = asString(p?.spec);
 
   if (!p || kind === 'exception') {
-    return { id: 'tpm', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'TPM state could not be read.' };
+    return {
+      id: 'tpm',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'TPM state could not be read.',
+    };
   }
   if (kind === 'absent') {
     return {
@@ -679,13 +711,28 @@ function tpm(p: Obj | null): SecurityCheckResult {
   }
   if (kind === 'error') {
     const message = asString(p.message);
-    return { id: 'tpm', status: readFailureStatus(message), evidence: readFailureEvidence(message), reason: 'TPM state could not be read.' };
+    return {
+      id: 'tpm',
+      status: readFailureStatus(message),
+      evidence: readFailureEvidence(message),
+      reason: 'TPM state could not be read.',
+    };
   }
   const evidence = `TPM ${spec || '(version unknown)'}: enabled=${enabled === null ? 'unknown' : enabled}, activated=${activated === null ? 'unknown' : activated}`;
   if (enabled === true && activated === true) {
-    return { id: 'tpm', status: 'pass', evidence, reason: 'TPM is present, enabled and activated.' };
+    return {
+      id: 'tpm',
+      status: 'pass',
+      evidence,
+      reason: 'TPM is present, enabled and activated.',
+    };
   }
-  return { id: 'tpm', status: 'warn', evidence, reason: 'TPM is present but not fully enabled/activated.' };
+  return {
+    id: 'tpm',
+    status: 'warn',
+    evidence,
+    reason: 'TPM is present but not fully enabled/activated.',
+  };
 }
 
 function bitlocker(p: Obj | null): SecurityCheckResult {
@@ -694,7 +741,12 @@ function bitlocker(p: Obj | null): SecurityCheckResult {
   const message = asString(p?.message);
 
   if (!p || kind === 'exception') {
-    return { id: 'bitlocker', status: 'unknown', evidence: readFailureEvidence(message), reason: 'BitLocker state could not be read.' };
+    return {
+      id: 'bitlocker',
+      status: 'unknown',
+      evidence: readFailureEvidence(message),
+      reason: 'BitLocker state could not be read.',
+    };
   }
   if (kind === 'error') {
     if (/CommandNotFound|not recognized|no se reconoce/i.test(message)) {
@@ -708,7 +760,12 @@ function bitlocker(p: Obj | null): SecurityCheckResult {
           : 'The BitLocker module is not available on this system.',
       };
     }
-    return { id: 'bitlocker', status: readFailureStatus(message), evidence: readFailureEvidence(message), reason: 'BitLocker state could not be read.' };
+    return {
+      id: 'bitlocker',
+      status: readFailureStatus(message),
+      evidence: readFailureEvidence(message),
+      reason: 'BitLocker state could not be read.',
+    };
   }
 
   const protection = asString(p.protection).toLowerCase();
@@ -716,9 +773,26 @@ function bitlocker(p: Obj | null): SecurityCheckResult {
   const evidence = `ProtectionStatus=${asString(p.protection) || 'unknown'}, encryption=${percent ?? 'unknown'}% (Edition: ${edition || 'unknown'})`;
   const on = protection === 'on' || protection === '1' || protection === 'true';
   const off = protection === 'off' || protection === '0' || protection === 'false';
-  if (on) return { id: 'bitlocker', status: 'pass', evidence, reason: 'The system drive is protected by BitLocker.' };
-  if (off) return { id: 'bitlocker', status: 'fail', evidence, reason: 'The system drive is not encrypted.' };
-  return { id: 'bitlocker', status: 'unknown', evidence, reason: 'BitLocker protection state is indeterminate.' };
+  if (on)
+    return {
+      id: 'bitlocker',
+      status: 'pass',
+      evidence,
+      reason: 'The system drive is protected by BitLocker.',
+    };
+  if (off)
+    return {
+      id: 'bitlocker',
+      status: 'fail',
+      evidence,
+      reason: 'The system drive is not encrypted.',
+    };
+  return {
+    id: 'bitlocker',
+    status: 'unknown',
+    evidence,
+    reason: 'BitLocker protection state is indeterminate.',
+  };
 }
 
 function windowsUpdate(p: Obj | null): SecurityCheckResult {
@@ -740,51 +814,111 @@ function windowsUpdate(p: Obj | null): SecurityCheckResult {
   const evidence = `Last installed update: ${dateText}; reboot pending: ${pendingReboot ? 'yes' : 'no'}`;
 
   if (!stamp) {
-    return { id: 'windows-update', status: 'unknown', evidence, reason: 'The last installed update date is unavailable.' };
+    return {
+      id: 'windows-update',
+      status: 'unknown',
+      evidence,
+      reason: 'The last installed update date is unavailable.',
+    };
   }
 
   const ageDays = Math.floor((Date.now() - new Date(`${stamp}T00:00:00Z`).getTime()) / 86_400_000);
   const baseEvidence = `Last installed update: ${dateText} (${ageDays} days ago); reboot pending: ${pendingReboot ? 'yes' : 'no'}`;
 
   if (pendingReboot) {
-    return { id: 'windows-update', status: 'warn', evidence: baseEvidence, reason: 'A reboot is pending to finish installing updates.' };
+    return {
+      id: 'windows-update',
+      status: 'warn',
+      evidence: baseEvidence,
+      reason: 'A reboot is pending to finish installing updates.',
+    };
   }
   if (ageDays <= 60) {
-    return { id: 'windows-update', status: 'pass', evidence: baseEvidence, reason: 'Security updates were installed within the last 60 days.' };
+    return {
+      id: 'windows-update',
+      status: 'pass',
+      evidence: baseEvidence,
+      reason: 'Security updates were installed within the last 60 days.',
+    };
   }
   if (ageDays <= 120) {
-    return { id: 'windows-update', status: 'warn', evidence: baseEvidence, reason: 'The last update is older than 60 days.' };
+    return {
+      id: 'windows-update',
+      status: 'warn',
+      evidence: baseEvidence,
+      reason: 'The last update is older than 60 days.',
+    };
   }
-  return { id: 'windows-update', status: 'fail', evidence: baseEvidence, reason: 'The last update is older than 120 days.' };
+  return {
+    id: 'windows-update',
+    status: 'fail',
+    evidence: baseEvidence,
+    reason: 'The last update is older than 120 days.',
+  };
 }
 
 function guestAccount(p: Obj | null): SecurityCheckResult {
   const kind = asString(p?.kind);
   if (!p || kind === 'exception') {
-    return { id: 'guest-account', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'Local accounts could not be read.' };
+    return {
+      id: 'guest-account',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Local accounts could not be read.',
+    };
   }
   if (kind === 'error') {
     const message = asString(p.message);
-    return { id: 'guest-account', status: readFailureStatus(message), evidence: readFailureEvidence(message), reason: 'Local accounts could not be read.' };
+    return {
+      id: 'guest-account',
+      status: readFailureStatus(message),
+      evidence: readFailureEvidence(message),
+      reason: 'Local accounts could not be read.',
+    };
   }
   if (kind === 'absent') {
-    return { id: 'guest-account', status: 'pass', evidence: 'No local account with RID 501 (built-in Guest) was found.', reason: 'The built-in Guest account is absent.' };
+    return {
+      id: 'guest-account',
+      status: 'pass',
+      evidence: 'No local account with RID 501 (built-in Guest) was found.',
+      reason: 'The built-in Guest account is absent.',
+    };
   }
   const enabled = asBool(p.enabled);
   if (enabled === null) {
-    return { id: 'guest-account', status: 'unknown', evidence: 'Built-in Guest account state was not readable.', reason: 'Guest account state is indeterminate.' };
+    return {
+      id: 'guest-account',
+      status: 'unknown',
+      evidence: 'Built-in Guest account state was not readable.',
+      reason: 'Guest account state is indeterminate.',
+    };
   }
   const evidence = `Built-in Guest (RID 501): ${enabled ? 'enabled' : 'disabled'}`;
   return enabled
-    ? { id: 'guest-account', status: 'fail', evidence, reason: 'The built-in Guest account is enabled.' }
-    : { id: 'guest-account', status: 'pass', evidence, reason: 'The built-in Guest account is disabled.' };
+    ? {
+        id: 'guest-account',
+        status: 'fail',
+        evidence,
+        reason: 'The built-in Guest account is enabled.',
+      }
+    : {
+        id: 'guest-account',
+        status: 'pass',
+        evidence,
+        reason: 'The built-in Guest account is disabled.',
+      };
 }
 
 function remoteDesktop(p: Obj | null): SecurityCheckResult {
   const kind = asString(p?.kind);
   const deny = asNumber(p?.deny);
   if (!p || kind === 'unreadable' || kind === 'exception' || deny === null) {
-    return { id: 'remote-desktop', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'Remote Desktop configuration could not be read.' };
+    return {
+      id: 'remote-desktop',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Remote Desktop configuration could not be read.',
+    };
   }
   const evidence = `fDenyTSConnections=${deny}`;
   return deny === 1
@@ -824,12 +958,27 @@ function passwordPolicy(p: Obj | null): SecurityCheckResult {
   const noLockout = lockout === null || lockout === 0;
 
   if (neverExpires && weakLength) {
-    return { id: 'password-policy', status: 'fail', evidence, reason: 'Passwords never expire and there is no minimum length.' };
+    return {
+      id: 'password-policy',
+      status: 'fail',
+      evidence,
+      reason: 'Passwords never expire and there is no minimum length.',
+    };
   }
   if (neverExpires || weakLength || (noComplexity && noLockout)) {
-    return { id: 'password-policy', status: 'warn', evidence, reason: 'The password policy is weaker than the recommended baseline.' };
+    return {
+      id: 'password-policy',
+      status: 'warn',
+      evidence,
+      reason: 'The password policy is weaker than the recommended baseline.',
+    };
   }
-  return { id: 'password-policy', status: 'pass', evidence, reason: 'The password policy meets the recommended baseline.' };
+  return {
+    id: 'password-policy',
+    status: 'pass',
+    evidence,
+    reason: 'The password policy meets the recommended baseline.',
+  };
 }
 
 function autoplay(p: Obj | null): SecurityCheckResult {
@@ -850,18 +999,38 @@ function autoplay(p: Obj | null): SecurityCheckResult {
     `Cdrom.Autorun=${cdrom === null ? 'not set' : cdrom}`;
 
   if (disabled) {
-    return { id: 'autoplay', status: 'pass', evidence, reason: 'AutoRun is disabled for the common drive types.' };
+    return {
+      id: 'autoplay',
+      status: 'pass',
+      evidence,
+      reason: 'AutoRun is disabled for the common drive types.',
+    };
   }
   if (cdrom !== null && cdrom !== 0) {
-    return { id: 'autoplay', status: 'warn', evidence, reason: 'AutoRun is still enabled for the CD/DVD drive.' };
+    return {
+      id: 'autoplay',
+      status: 'warn',
+      evidence,
+      reason: 'AutoRun is still enabled for the CD/DVD drive.',
+    };
   }
-  return { id: 'autoplay', status: 'warn', evidence, reason: 'AutoRun/AutoPlay is not fully disabled for removable media.' };
+  return {
+    id: 'autoplay',
+    status: 'warn',
+    evidence,
+    reason: 'AutoRun/AutoPlay is not fully disabled for removable media.',
+  };
 }
 
 function lmHash(p: Obj | null): SecurityCheckResult {
   const kind = asString(p?.kind);
   if (!p || kind === 'exception') {
-    return { id: 'lm-hash', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'The NoLMHash policy could not be read.' };
+    return {
+      id: 'lm-hash',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'The NoLMHash policy could not be read.',
+    };
   }
   if (kind === 'absent') {
     return {
@@ -877,9 +1046,19 @@ function lmHash(p: Obj | null): SecurityCheckResult {
     return { id: 'lm-hash', status: 'pass', evidence, reason: 'LM hash storage is disabled.' };
   }
   if (value === 0) {
-    return { id: 'lm-hash', status: 'fail', evidence, reason: 'LM hash storage is explicitly enabled.' };
+    return {
+      id: 'lm-hash',
+      status: 'fail',
+      evidence,
+      reason: 'LM hash storage is explicitly enabled.',
+    };
   }
-  return { id: 'lm-hash', status: 'warn', evidence, reason: 'LM hash storage could not be confirmed as disabled.' };
+  return {
+    id: 'lm-hash',
+    status: 'warn',
+    evidence,
+    reason: 'LM hash storage could not be confirmed as disabled.',
+  };
 }
 
 function smbSigning(p: Obj | null): SecurityCheckResult {
@@ -899,7 +1078,12 @@ function smbSigning(p: Obj | null): SecurityCheckResult {
     return { id: 'smb-signing', status: 'pass', evidence, reason: 'SMB signing is required.' };
   }
   if (enable === true) {
-    return { id: 'smb-signing', status: 'warn', evidence, reason: 'SMB signing is enabled but not required.' };
+    return {
+      id: 'smb-signing',
+      status: 'warn',
+      evidence,
+      reason: 'SMB signing is enabled but not required.',
+    };
   }
   return { id: 'smb-signing', status: 'fail', evidence, reason: 'SMB signing is not required.' };
 }
@@ -923,18 +1107,38 @@ function listeningPorts(p: Obj | null): SecurityCheckResult {
   const evidence = `${count} listening TCP port(s)${count ? `: ${preview}${count > 40 ? ', ...' : ''}` : ''}`;
   // Expose everything but flag when a notably large surface is listening.
   return count > 40
-    ? { id: 'listening-ports', status: 'warn', evidence, reason: 'A large number of TCP ports are listening; review them.' }
-    : { id: 'listening-ports', status: 'pass', evidence, reason: 'Listening TCP ports were enumerated for review.' };
+    ? {
+        id: 'listening-ports',
+        status: 'warn',
+        evidence,
+        reason: 'A large number of TCP ports are listening; review them.',
+      }
+    : {
+        id: 'listening-ports',
+        status: 'pass',
+        evidence,
+        reason: 'Listening TCP ports were enumerated for review.',
+      };
 }
 
 function windowsUpdateService(p: Obj | null): SecurityCheckResult {
   const kind = asString(p?.kind);
   if (!p || kind === 'exception') {
-    return { id: 'windows-update-service', status: 'unknown', evidence: readFailureEvidence(asString(p?.message)), reason: 'The Windows Update service could not be read.' };
+    return {
+      id: 'windows-update-service',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'The Windows Update service could not be read.',
+    };
   }
   const found = asBool(p?.found) ?? false;
   if (!found) {
-    return { id: 'windows-update-service', status: 'fail', evidence: 'wuauserv was not found.', reason: 'The Windows Update service is missing.' };
+    return {
+      id: 'windows-update-service',
+      status: 'fail',
+      evidence: 'wuauserv was not found.',
+      reason: 'The Windows Update service is missing.',
+    };
   }
   const status = asString(p?.status);
   const startType = asString(p?.startType);
@@ -942,12 +1146,27 @@ function windowsUpdateService(p: Obj | null): SecurityCheckResult {
   const disabled = /disabled/i.test(startType);
   const stopped = /stopped/i.test(status);
   if (disabled) {
-    return { id: 'windows-update-service', status: 'fail', evidence, reason: 'The Windows Update service is disabled.' };
+    return {
+      id: 'windows-update-service',
+      status: 'fail',
+      evidence,
+      reason: 'The Windows Update service is disabled.',
+    };
   }
   if (stopped) {
-    return { id: 'windows-update-service', status: 'warn', evidence, reason: 'The Windows Update service is not running.' };
+    return {
+      id: 'windows-update-service',
+      status: 'warn',
+      evidence,
+      reason: 'The Windows Update service is not running.',
+    };
   }
-  return { id: 'windows-update-service', status: 'pass', evidence, reason: 'The Windows Update service is available.' };
+  return {
+    id: 'windows-update-service',
+    status: 'pass',
+    evidence,
+    reason: 'The Windows Update service is available.',
+  };
 }
 
 // ---- v0.9.0 builders (admin-gated controls) ----
@@ -1004,17 +1223,28 @@ function credentialGuard(p: Obj | null): SecurityCheckResult {
   // Security service id 1 = Credential Guard.
   const CREDENTIAL_GUARD = 1;
   if (running.includes(CREDENTIAL_GUARD)) {
-    return { id: 'credential-guard', status: 'pass', evidence, reason: 'Credential Guard is running.' };
+    return {
+      id: 'credential-guard',
+      status: 'pass',
+      evidence,
+      reason: 'Credential Guard is running.',
+    };
   }
   if (configured.includes(CREDENTIAL_GUARD) || vbs === 2) {
     return {
       id: 'credential-guard',
       status: 'warn',
       evidence,
-      reason: 'Credential Guard is configured or VBS is enabled, but Credential Guard is not running.',
+      reason:
+        'Credential Guard is configured or VBS is enabled, but Credential Guard is not running.',
     };
   }
-  return { id: 'credential-guard', status: 'fail', evidence, reason: 'Credential Guard is not enabled.' };
+  return {
+    id: 'credential-guard',
+    status: 'fail',
+    evidence,
+    reason: 'Credential Guard is not enabled.',
+  };
 }
 
 function bitlockerProtectors(p: Obj | null): SecurityCheckResult {

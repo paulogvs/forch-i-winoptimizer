@@ -45,7 +45,9 @@ function updateStatusLabel(status: UpdateStatus): string {
   }
 }
 
-function updateStatusVariant(status: UpdateStatus): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
+function updateStatusVariant(
+  status: UpdateStatus
+): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
   switch (status.state) {
     case 'not-available':
       return 'success';
@@ -204,8 +206,8 @@ export const Settings: React.FC<SettingsProps> = ({ theme, onThemeToggle }) => {
               </Button>
             </div>
             <p className="text-xs text-fg-tertiary">
-              The accent is applied live and persisted. Every component derives its
-              highlight colour from this token.
+              The accent is applied live and persisted. Every component derives its highlight colour
+              from this token.
             </p>
           </div>
         </Card>
@@ -329,7 +331,10 @@ export const Settings: React.FC<SettingsProps> = ({ theme, onThemeToggle }) => {
                     {updateStatusLabel(updateStatus)}
                   </Badge>
                   {updateStatus.message && updateStatus.state === 'error' && (
-                    <span className="text-xs text-fg-tertiary truncate" title={updateStatus.message}>
+                    <span
+                      className="text-xs text-fg-tertiary truncate"
+                      title={updateStatus.message}
+                    >
                       {updateStatus.message}
                     </span>
                   )}
@@ -359,8 +364,8 @@ export const Settings: React.FC<SettingsProps> = ({ theme, onThemeToggle }) => {
 
             {isPortable && (
               <p className="text-xs text-warning">
-                Automatic updates are not available in the portable build. Download the
-                latest installer from GitHub Releases to update.
+                Automatic updates are not available in the portable build. Download the latest
+                installer from GitHub Releases to update.
               </p>
             )}
 

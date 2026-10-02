@@ -16,13 +16,13 @@ authoritative and adds a test that fails if a product list ever returns to code.
 
 ## Files
 
-| File | Key | Contents |
-|------|-----|----------|
-| `catalogs/apps-catalog.json` | `apps` | Removable UWP bloatware (RID/package guarded, `protected` refused server-side) |
-| `catalogs/services-catalog.json` | `services` | Windows services metadata |
-| `catalogs/cleaners-rules.json` | `rules` | Cleaner targets |
-| `catalogs/tweaks-catalog.json` | `tweaks` | **19** reversible, previewable tweaks |
-| `catalogs/app-bundles-catalog.json` | `bundles` | **8** winget bundles / **48** apps |
+| File                                | Key        | Contents                                                                       |
+| ----------------------------------- | ---------- | ------------------------------------------------------------------------------ |
+| `catalogs/apps-catalog.json`        | `apps`     | Removable UWP bloatware (RID/package guarded, `protected` refused server-side) |
+| `catalogs/services-catalog.json`    | `services` | Windows services metadata                                                      |
+| `catalogs/cleaners-rules.json`      | `rules`    | Cleaner targets                                                                |
+| `catalogs/tweaks-catalog.json`      | `tweaks`   | **19** reversible, previewable tweaks                                          |
+| `catalogs/app-bundles-catalog.json` | `bundles`  | **8** winget bundles / **48** apps                                             |
 
 Every catalog is a JSON object with `version`, `lastUpdated` and one array under
 a stable key. The reader picks the first array-valued key it finds.

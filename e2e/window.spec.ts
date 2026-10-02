@@ -24,8 +24,8 @@ test.describe('Window controls', () => {
   test('the header is the drag region and controls opt out', async ({ page }) => {
     const header = page.locator('header.titlebar');
     await expect(header).toBeVisible();
-    const appRegion = await header.evaluate(
-      (el) => getComputedStyle(el).getPropertyValue('-webkit-app-region').trim()
+    const appRegion = await header.evaluate((el) =>
+      getComputedStyle(el).getPropertyValue('-webkit-app-region').trim()
     );
     expect(appRegion).toBe('drag');
   });

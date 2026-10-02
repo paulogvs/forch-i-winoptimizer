@@ -16,9 +16,30 @@ test.describe('Statistics — real data (v0.5.0)', () => {
   test('renders real charts from seeded events', async ({ page }) => {
     await page.evaluate(() => {
       (window as unknown as { __statsEvents?: unknown }).__statsEvents = [
-        { id: '1', type: 'scan', timestamp: '2026-01-01T10:00:00.000Z', files: 4, bytes: 1048576, score: null },
-        { id: '2', type: 'clean', timestamp: '2026-01-01T10:05:00.000Z', files: 4, bytes: 1048576, score: null },
-        { id: '3', type: 'audit', timestamp: '2026-01-01T10:10:00.000Z', files: 0, bytes: 0, score: 88 },
+        {
+          id: '1',
+          type: 'scan',
+          timestamp: '2026-01-01T10:00:00.000Z',
+          files: 4,
+          bytes: 1048576,
+          score: null,
+        },
+        {
+          id: '2',
+          type: 'clean',
+          timestamp: '2026-01-01T10:05:00.000Z',
+          files: 4,
+          bytes: 1048576,
+          score: null,
+        },
+        {
+          id: '3',
+          type: 'audit',
+          timestamp: '2026-01-01T10:10:00.000Z',
+          files: 0,
+          bytes: 0,
+          score: 88,
+        },
       ];
     });
     await page.click('.sidebar >> text=Statistics');

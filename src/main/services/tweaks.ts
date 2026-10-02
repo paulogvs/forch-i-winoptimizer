@@ -124,7 +124,8 @@ function regPath(op: Extract<TweakOperation, { kind: 'registry' }>): string {
 function registryApplyLine(op: Extract<TweakOperation, { kind: 'registry' }>): string {
   const p = regPath(op);
   const type = op.type === 'String' ? 'String' : 'DWORD';
-  const value = op.type === 'String' ? psString(String(op.value ?? '')) : String(Number(op.value) || 0);
+  const value =
+    op.type === 'String' ? psString(String(op.value ?? '')) : String(Number(op.value) || 0);
   return `New-Item -Path ${psString(p)} -Force | Out-Null; Set-ItemProperty -Path ${psString(p)} -Name ${psString(op.name)} -Type ${type} -Value ${value}`;
 }
 
@@ -186,9 +187,15 @@ function buildScript(ops: TweakOperation[]): string | null {
 
 async function captureRevertOperations(tweak: TweakDefinition): Promise<TweakOperation[] | null> {
   const ops = tweak.apply;
-  const registryOps = ops.filter((op): op is Extract<TweakOperation, { kind: 'registry' }> => op.kind === 'registry');
-  const serviceOps = ops.filter((op): op is Extract<TweakOperation, { kind: 'service' }> => op.kind === 'service');
-  const taskOps = ops.filter((op): op is Extract<TweakOperation, { kind: 'scheduled-task' }> => op.kind === 'scheduled-task');
+  const registryOps = ops.filter(
+    (op): op is Extract<TweakOperation, { kind: 'registry' }> => op.kind === 'registry'
+  );
+  const serviceOps = ops.filter(
+    (op): op is Extract<TweakOperation, { kind: 'service' }> => op.kind === 'service'
+  );
+  const taskOps = ops.filter(
+    (op): op is Extract<TweakOperation, { kind: 'scheduled-task' }> => op.kind === 'scheduled-task'
+  );
 
   if (registryOps.length === 0 && serviceOps.length === 0 && taskOps.length === 0) {
     return [];
@@ -244,7 +251,9 @@ async function captureRevertOperations(tweak: TweakDefinition): Promise<TweakOpe
     revert.push({
       kind: 'service',
       serviceName: op.serviceName,
-      startType: (['automatic', 'manual', 'disabled'].includes(startType) ? startType : 'automatic') as 'automatic' | 'manual' | 'disabled',
+      startType: (['automatic', 'manual', 'disabled'].includes(startType)
+        ? startType
+        : 'automatic') as 'automatic' | 'manual' | 'disabled',
       state,
     });
   });
@@ -328,7 +337,11 @@ export async function applyTweak(id: string): Promise<TweakApplyResult> {
   try {
     writeState(state);
   } catch {
-    return { id, success: false, message: 'Applied, but failed to persist state (Restore may use defaults).' };
+    return {
+      id,
+      success: false,
+      message: 'Applied, but failed to persist state (Restore may use defaults).',
+    };
   }
 
   return { id, success: true, message: 'Applied. You can restore it from the Tweaks page.' };

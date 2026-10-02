@@ -24,7 +24,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           className={classes}
           aria-invalid={!!error}
-          aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
+          aria-describedby={
+            error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined
+          }
           {...props}
         />
         {error && (

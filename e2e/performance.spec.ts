@@ -3,7 +3,10 @@ import { setupElectronMock } from './setup';
 import { gotoApp } from './helpers';
 
 /** Inject a large driver list to prove virtualization + chunked reveal (P0.4). */
-async function mockManyDrivers(page: Parameters<typeof setupElectronMock>[0], count: number): Promise<void> {
+async function mockManyDrivers(
+  page: Parameters<typeof setupElectronMock>[0],
+  count: number
+): Promise<void> {
   await setupElectronMock(page);
   await page.addInitScript((n: number) => {
     const drivers = Array.from({ length: n }, (_, i) => ({
@@ -23,12 +26,21 @@ async function mockManyDrivers(page: Parameters<typeof setupElectronMock>[0], co
       winoptimizer: { drivers: { scan: () => Promise<unknown> } };
     };
     target.winoptimizer.drivers.scan = () =>
-      Promise.resolve({ drivers, totalDevices: n, outdatedCount: 0, upToDateCount: n, scanDate: new Date() });
+      Promise.resolve({
+        drivers,
+        totalDevices: n,
+        outdatedCount: 0,
+        upToDateCount: n,
+        scanDate: new Date(),
+      });
   }, count);
 }
 
 /** Inject a large installed-apps list to prove Tools → Apps virtualization. */
-async function mockManyInstalledApps(page: Parameters<typeof setupElectronMock>[0], count: number): Promise<void> {
+async function mockManyInstalledApps(
+  page: Parameters<typeof setupElectronMock>[0],
+  count: number
+): Promise<void> {
   await setupElectronMock(page);
   await page.addInitScript((n: number) => {
     const apps = Array.from({ length: n }, (_, i) => ({
@@ -64,7 +76,9 @@ test.describe('Performance / virtualization', () => {
     expect(renderedRows).toBeLessThan(120);
   });
 
-  test('renders a long installed-apps list in Tools → Apps with a reduced DOM', async ({ page }) => {
+  test('renders a long installed-apps list in Tools → Apps with a reduced DOM', async ({
+    page,
+  }) => {
     await mockManyInstalledApps(page, 500);
     await gotoApp(page);
     await page.click('.sidebar >> text=Tools');

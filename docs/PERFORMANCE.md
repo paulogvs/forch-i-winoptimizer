@@ -1,7 +1,7 @@
 # FORCH.iA WinOptimizer — Performance
 
 Mediciones de la optimización de rendimiento: **v0.3.0** (fases P0–P3) y la ronda de
-diagnóstico de latencia UI sobre **v0.4.0 → v0.4.1** (§ *Ronda de diagnóstico UI* al final:
+diagnóstico de latencia UI sobre **v0.4.0 → v0.4.1** (§ _Ronda de diagnóstico UI_ al final:
 canales IPC, batching de la auditoría y métricas de UI/navegación, con tablas antes/después).
 
 > Método: se ejecutó el código **compilado real** del proceso Main (`dist/main/services/*`)
@@ -18,12 +18,12 @@ node scripts/measure-system-info.mjs
 
 ## System Info — 4 sondas → 1 (P1.1)
 
-| Métrica | Antes (v0.2.3) | Después (v0.3.0) |
-|---|---|---|
-| Procesos PowerShell por scan | **4** | **1** |
-| Tiempo (media, medido) | **8.34 s** | **3.31 s** |
-| Primera ejecución en frío | 20.19 s | 5.81 s |
-| Mejora | — | **~60 % más rápido** |
+| Métrica                      | Antes (v0.2.3) | Después (v0.3.0)     |
+| ---------------------------- | -------------- | -------------------- |
+| Procesos PowerShell por scan | **4**          | **1**                |
+| Tiempo (media, medido)       | **8.34 s**     | **3.31 s**           |
+| Primera ejecución en frío    | 20.19 s        | 5.81 s               |
+| Mejora                       | —              | **~60 % más rápido** |
 
 Muestras (ms) medidas:
 
@@ -41,12 +41,12 @@ el uso de CPU se calcula en Node muestreando `os.cpus()` en una ventana de **200
 (`computeCpuUsage`, pura y testeada), disparada **en paralelo** al proceso de PowerShell para
 que la ventana no añada latencia.
 
-| Métrica | Antes (P0.1–P0.3) | Después (P0.4) |
-|---|---|---|
-| Sistema cálido (media) | **~1750 ms** | **615 ms** |
-| Primera ejecución en frío | 7276 ms | 4031 ms |
-| Spawns PowerShell (legacy) | 4 | 3 |
-| Mejora (cálido) | — | **~65 % más rápido** |
+| Métrica                    | Antes (P0.1–P0.3) | Después (P0.4)       |
+| -------------------------- | ----------------- | -------------------- |
+| Sistema cálido (media)     | **~1750 ms**      | **615 ms**           |
+| Primera ejecución en frío  | 7276 ms           | 4031 ms              |
+| Spawns PowerShell (legacy) | 4                 | 3                    |
+| Mejora (cálido)            | —                 | **~65 % más rápido** |
 
 Muestras (ms) medidas con `node scripts/measure-system-info.mjs`:
 
@@ -61,21 +61,21 @@ uso sobre la ventana de 200 ms (más preciso y sin coste).
 
 El motor de escaneo no cambió (sigue siendo 1 spawn cada uno); la mejora es la **caché TTL**:
 
-| Scan | Primera pasada | Repetición dentro del TTL |
-|---|---|---|
-| Drivers | ~4.4–10.8 s (1 spawn) | **≈ instantáneo** (TTL 5 min) |
-| Junk / Cleaner | ~6.2 s (1 spawn) | **≈ instantáneo** (TTL 30 s) |
-| System Info | ~2.0–5.8 s (1 spawn) | **≈ instantáneo** (TTL 60 s) |
+| Scan           | Primera pasada        | Repetición dentro del TTL     |
+| -------------- | --------------------- | ----------------------------- |
+| Drivers        | ~4.4–10.8 s (1 spawn) | **≈ instantáneo** (TTL 5 min) |
+| Junk / Cleaner | ~6.2 s (1 spawn)      | **≈ instantáneo** (TTL 30 s)  |
+| System Info    | ~2.0–5.8 s (1 spawn)  | **≈ instantáneo** (TTL 60 s)  |
 
 La caché se invalida explícitamente tras Clean, Apply, toggle de servicios/startup y `Refresh`.
 
 ## Virtualización y render (P0.4 / P3)
 
-| Métrica | Antes | Después |
-|---|---|---|
-| Filas en DOM para una lista de 500 drivers | 500 | **< 120** (virtualizado + chunked reveal) |
-| Render inicial | todas las filas | **30 filas** y crecimiento progresivo |
-| Trabajo fuera de viewport | completo | `content-visibility: auto` en secciones largas |
+| Métrica                                    | Antes           | Después                                        |
+| ------------------------------------------ | --------------- | ---------------------------------------------- |
+| Filas en DOM para una lista de 500 drivers | 500             | **< 120** (virtualizado + chunked reveal)      |
+| Render inicial                             | todas las filas | **30 filas** y crecimiento progresivo          |
+| Trabajo fuera de viewport                  | completo        | `content-visibility: auto` en secciones largas |
 
 Verificado en navegador real por `e2e/performance.spec.ts`.
 
@@ -89,11 +89,11 @@ Verificado en navegador real por `e2e/performance.spec.ts`.
 
 Medido con `Get-Process` sobre el portable elevado, ~35 s después del arranque:
 
-| Métrica | Valor |
-|---|---|
-| Procesos Electron | 4 (main + renderer + GPU + utility) |
-| RAM en reposo (WorkingSet total) | **≈ 330 MB** |
-| CPU acumulada en ~35 s | ≈ 3.5 s (pico en startup, luego ocioso) |
+| Métrica                          | Valor                                   |
+| -------------------------------- | --------------------------------------- |
+| Procesos Electron                | 4 (main + renderer + GPU + utility)     |
+| RAM en reposo (WorkingSet total) | **≈ 330 MB**                            |
+| CPU acumulada en ~35 s           | ≈ 3.5 s (pico en startup, luego ocioso) |
 
 ## Free RAM (P1.1)
 
@@ -105,9 +105,9 @@ reportado es la diferencia de `process.memoryUsage().rss` medida en Node.
 **Medido con `node scripts/measure-free-memory.mjs`** (proceso con ~266 MB de RSS):
 
 | Muestra | RSS antes | RSS después | RAM liberada | Wall-clock |
-|---|---|---|---|---|
-| 1 | 266.3 MB | 12.8 MB | **253 MB** | 3125 ms |
-| 2 | 266.2 MB | 12.7 MB | **254 MB** | 3028 ms |
+| ------- | --------- | ----------- | ------------ | ---------- |
+| 1       | 266.3 MB  | 12.8 MB     | **253 MB**   | 3125 ms    |
+| 2       | 266.2 MB  | 12.7 MB     | **254 MB**   | 3028 ms    |
 
 - Resultado consistente: **~253 MB liberados en ~3 s** (frío: 1 spawn de PowerShell + compilación de `Add-Type`; en caliente la app reutiliza el mismo patrón de 1 spawn).
 - Si `EmptyWorkingSet` no está disponible, el script cae a `[System.GC]::Collect()` (`freedMb` puede ser 0 y aún así `success: true`).
@@ -128,12 +128,12 @@ reportado es la diferencia de `process.memoryUsage().rss` medida en Node.
 
 ### Tabla antes / después
 
-| Canal IPC | Antes (v0.4.0) | Después | Δ |
-|---|---|---|---|
-| `audit:run` (1ª llamada, en frío) | **72 991 ms** | **7 789 ms** | **−89 %** |
-| `services:get-all` | 61 687 ms (timeout a 60 s → `[]`) | **2 779 ms** | −95 % |
-| `privacy:get-settings` | 35 696 ms | **2 276 ms** | −94 % |
-| `dns:benchmark` | 27 204 ms | **12 754 ms** | −53 % |
+| Canal IPC                         | Antes (v0.4.0)                    | Después       | Δ         |
+| --------------------------------- | --------------------------------- | ------------- | --------- |
+| `audit:run` (1ª llamada, en frío) | **72 991 ms**                     | **7 789 ms**  | **−89 %** |
+| `services:get-all`                | 61 687 ms (timeout a 60 s → `[]`) | **2 779 ms**  | −95 %     |
+| `privacy:get-settings`            | 35 696 ms                         | **2 276 ms**  | −94 %     |
+| `dns:benchmark`                   | 27 204 ms                         | **12 754 ms** | −53 %     |
 
 Integridad de la auditoría tras el batching (sonda de detalle): **31 checks**, 0 payloads
 vacíos, 25 pass / 4 warning / 2 critical, score 50. Payload total 7 401 B → 7 402 B
@@ -142,26 +142,26 @@ vacíos, 25 pass / 4 warning / 2 critical, score 50. Payload total 7 401 B → 7
 Desde el harness de UI completo (`scripts/measure-ui-perf.mjs`, 3 ciclos × 14 páginas =
 42 navegaciones, **máximo por canal** sobre `summary.worstIpc`):
 
-| Canal IPC | Baseline (v0.4.0) | Después | Δ |
-|---|---|---|---|
-| `audit:run` | 76 635 ms (en baseline nunca terminaba dentro de la ventana) | **9 273 ms** | **−88 %** |
-| `services:get-all` | 68 036 ms | **3 935 ms** | −94 % |
-| `dns:benchmark` | 35 470 ms | **13 472 ms** | −62 % |
-| `apps:get-installed` | 17 087 ms | **10 572 ms** | −38 % |
-| `cleaning:get-history` | 4 647 ms | **2 493 ms** | −46 % |
-| `cleaning:get-schedules` | 5 009 ms | **4 194 ms** | −16 % |
-| Interacción *Refresh* del dashboard | 1 688 ms | **744 ms** | −56 % |
+| Canal IPC                           | Baseline (v0.4.0)                                            | Después       | Δ         |
+| ----------------------------------- | ------------------------------------------------------------ | ------------- | --------- |
+| `audit:run`                         | 76 635 ms (en baseline nunca terminaba dentro de la ventana) | **9 273 ms**  | **−88 %** |
+| `services:get-all`                  | 68 036 ms                                                    | **3 935 ms**  | −94 %     |
+| `dns:benchmark`                     | 35 470 ms                                                    | **13 472 ms** | −62 %     |
+| `apps:get-installed`                | 17 087 ms                                                    | **10 572 ms** | −38 %     |
+| `cleaning:get-history`              | 4 647 ms                                                     | **2 493 ms**  | −46 %     |
+| `cleaning:get-schedules`            | 5 009 ms                                                     | **4 194 ms**  | −16 %     |
+| Interacción _Refresh_ del dashboard | 1 688 ms                                                     | **744 ms**    | −56 %     |
 
 Otras señales de fluidez (mismo harness):
 
-| Métrica | Baseline | Después |
-|---|---|---|
-| Errores de navegación | 0 | **0** |
+| Métrica                            | Baseline   | Después       |
+| ---------------------------------- | ---------- | ------------- |
+| Errores de navegación              | 0          | **0**         |
 | Long tasks > 50 ms (máx. duración) | 2 (144 ms) | 3 (**65 ms**) |
 
 ### Canales re-medidos (`drivers:scan`, `bundles:check-installed`, `system:get-info`)
 
-Los tres canales que quedaron *no concluyentes* en la ronda anterior se re-midieron con
+Los tres canales que quedaron _no concluyentes_ en la ronda anterior se re-midieron con
 **5 repeticiones cada uno** mediante `scripts/measure-ipc-channels.mjs`. Método idéntico a
 `scripts/measure-system-info.mjs`: servicios compilados reales de `dist/main/services` contra
 PowerShell real, **un canal por invocación y secuencial, sin navegación en paralelo**. Las
@@ -171,11 +171,11 @@ coste en frío.
 Equipo: Intel i3-4170 @3.70 GHz (el mismo de la ronda anterior). `dist/` ya llevaba horas
 compilado, por lo que Defender había terminado de analizarlo.
 
-| Canal IPC | Mediana | Mín | Máx | Repeticiones (ms) | Spawns |
-|---|---|---|---|---|---|
-| `system:get-info` | **1 693 ms** | 1 202 | 7 949 | 7949, 1693, 2090, 1202, 1224 | 1 |
-| `drivers:scan` | **2 440 ms** | 1 917 | 7 037 | 7037, 2620, 2243, 2440, 1917 | 1 |
-| `bundles:check-installed` | **1 024 ms** | 886 | 5 897 | 5897, 1024, 886, 950, 1475 | 1 |
+| Canal IPC                 | Mediana      | Mín   | Máx   | Repeticiones (ms)            | Spawns |
+| ------------------------- | ------------ | ----- | ----- | ---------------------------- | ------ |
+| `system:get-info`         | **1 693 ms** | 1 202 | 7 949 | 7949, 1693, 2090, 1202, 1224 | 1      |
+| `drivers:scan`            | **2 440 ms** | 1 917 | 7 037 | 7037, 2620, 2243, 2440, 1917 | 1      |
+| `bundles:check-installed` | **1 024 ms** | 886   | 5 897 | 5897, 1024, 886, 950, 1475   | 1      |
 
 **Decisión: confirmar** los tres canales con estos números. La varianza **no** era de Defender
 sobre `dist/`: era el **arranque en frío de `powershell.exe`**. La primera corrida de cada
@@ -200,39 +200,39 @@ Todo medido con `scripts/measure-ui-perf.mjs` (Playwright sobre el binario real
 
 **Arranque hasta primera ventana** (3 lanzamientos por corrida):
 
-| Métrica | Baseline (v0.4.0) | Después | Δ |
-|---|---|---|---|
-| Primera ventana visible (`windowMs`, p50) | 915 ms | **772 ms** | −16 % |
-| Primera ventana (valores) | 915 / 915 / 1093 ms | **772 / 793 / 740 ms** | — |
-| First Contentful Paint (p50) | 800 ms | **629 ms** | −21 % |
-| `DOMContentLoaded` (p50) | 380 ms | **259 ms** | −32 % |
+| Métrica                                   | Baseline (v0.4.0)   | Después                | Δ     |
+| ----------------------------------------- | ------------------- | ---------------------- | ----- |
+| Primera ventana visible (`windowMs`, p50) | 915 ms              | **772 ms**             | −16 % |
+| Primera ventana (valores)                 | 915 / 915 / 1093 ms | **772 / 793 / 740 ms** | —     |
+| First Contentful Paint (p50)              | 800 ms              | **629 ms**             | −21 % |
+| `DOMContentLoaded` (p50)                  | 380 ms              | **259 ms**             | −32 % |
 
 **Navegación entre páginas** (42 navs, clic en sidebar → título de la página objetivo):
 
-| Métrica (ms) | Baseline | Después |
-|---|---|---|
-| `readyMs` p50 / p95 / máx. | 2 / 18 / **1 542** | 2 / 7 / **11** |
+| Métrica (ms)                                              | Baseline            | Después         |
+| --------------------------------------------------------- | ------------------- | --------------- |
+| `readyMs` p50 / p95 / máx.                                | 2 / 18 / **1 542**  | 2 / 7 / **11**  |
 | `settledMs` (navegación + IPC asentados) p50 / p95 / máx. | 3 / 915 / **7 359** | 3 / 24 / **87** |
-| IPC total por navegación, máx. | 103 507 ms | **19 966 ms** |
-| IPC máximo por navegación, máx. | 68 036 ms | **13 472 ms** |
-| Título de página (`titleMs`), máx. | 11 ms | 7 ms |
-| Errores de navegación | 0 | **0** |
+| IPC total por navegación, máx.                            | 103 507 ms          | **19 966 ms**   |
+| IPC máximo por navegación, máx.                           | 68 036 ms           | **13 472 ms**   |
+| Título de página (`titleMs`), máx.                        | 11 ms               | 7 ms            |
+| Errores de navegación                                     | 0                   | **0**           |
 
-*Significado:* `readyMs` es clic → página marcada lista; `settledMs` es clic → sin
+_Significado:_ `readyMs` es clic → página marcada lista; `settledMs` es clic → sin
 actividad IPC pendiente. El p95 de `settledMs` **915 → 24 ms** y el máximo **7 359 → 87 ms**
 son la mejora que el usuario percibe: antes una página podía quedar "colgada" esperando un
 canal IPC de 30–70 s.
 
 **Long tasks** (`PerformanceObserver('longtask')` desde el inicio del documento):
 
-| Corrida | Long tasks > 50 ms | Duraciones |
-|---|---|---|
-| Baseline | 2 | **144 ms**, 53 ms |
-| Después | 3 | **65 ms**, 61 ms, 50 ms |
+| Corrida  | Long tasks > 50 ms | Duraciones              |
+| -------- | ------------------ | ----------------------- |
+| Baseline | 2                  | **144 ms**, 53 ms       |
+| Después  | 3                  | **65 ms**, 61 ms, 50 ms |
 
 La máxima baja de **144 → 65 ms** y ninguna supera los 100 ms.
 
-**Otras mediciones del harness:** interacción *Refresh* del dashboard 1 688 → **744 ms**;
+**Otras mediciones del harness:** interacción _Refresh_ del dashboard 1 688 → **744 ms**;
 retención estable a lo largo de los 3 ciclos (heap p50 **10 MB**, listeners p50 ≈ 162,
 DOM p50 114/121 nodos); `pageIssues` sin regresiones.
 
@@ -250,7 +250,7 @@ Lo único que la ronda anterior dejó **sin medir** y lo que la queja original p
 "lento". Se instrumentó con el **mismo harness** (`scripts/measure-ui-perf.mjs`, ampliado con
 `requestAnimationFrame` y un modo `--fps-only`): un scroll programático **arriba→abajo** con
 el mismo número de pasos y el mismo viewport por vista, muestreando el intervalo real entre
-frames (`FPS = 1000 / Δframe`). *Frames perdidos* = intervalos > 33,3 ms (2 frames a 60 Hz).
+frames (`FPS = 1000 / Δframe`). _Frames perdidos_ = intervalos > 33,3 ms (2 frames a 60 Hz).
 Toda la instrumentación vive **en el script de medición, no en `src/`** (verificado con
 `git diff`).
 
@@ -260,16 +260,16 @@ Tweaks — el catálogo real de Tweaks tiene **19 entradas** (array `TWEAKS` en
 `ipcMain` del binario real en tiempo de medición (`drivers:scan` → payload sintético), sin tocar
 código de producción. Apps y Bundles usan sus datos reales.
 
-| Vista (filas) | Frames | p50 FPS | p95 FPS | mín FPS | Frames perdidos (>33,3 ms) | Peor frame | Nodos DOM |
-|---|---|---|---|---|---|---|---|
-| **Drivers (500, virtualizada)** | 100 | **59,9** | 59,5 | 59,2 | **0** | 16,9 ms | 250 |
-| **Tools → Apps (instaladas, 14471 px)** | 100 | **59,9** | 58,1 | **19,9** | **2** | 50,2 ms | 1 866 |
-| **Bundles (48 apps)** | 99 | **59,9** | 59,5 | 58,5 | **0** | 17,1 ms | 495 |
-| **Tweaks (19)** | 99 | **59,9** | 58,8 | 58,1 | **0** | 17,2 ms | 413 |
+| Vista (filas)                           | Frames | p50 FPS  | p95 FPS | mín FPS  | Frames perdidos (>33,3 ms) | Peor frame | Nodos DOM |
+| --------------------------------------- | ------ | -------- | ------- | -------- | -------------------------- | ---------- | --------- |
+| **Drivers (500, virtualizada)**         | 100    | **59,9** | 59,5    | 59,2     | **0**                      | 16,9 ms    | 250       |
+| **Tools → Apps (instaladas, 14471 px)** | 100    | **59,9** | 58,1    | **19,9** | **2**                      | 50,2 ms    | 1 866     |
+| **Bundles (48 apps)**                   | 99     | **59,9** | 59,5    | 58,5     | **0**                      | 17,1 ms    | 495       |
+| **Tweaks (19)**                         | 99     | **59,9** | 58,8    | 58,1     | **0**                      | 17,2 ms    | 413       |
 
 **Lectura:** todas las vistas se mantienen a **~60 FPS (vsync)** durante el scroll. La
 virtualización hace su trabajo donde importa: la lista de **500 filas** renderiza 250 nodos y
-**no pierde ni un frame**. El único caso con *jank* es **Tools → Apps** (lista no virtualizada,
+**no pierde ni un frame**. El único caso con _jank_ es **Tools → Apps** (lista no virtualizada,
 1 866 nodos): 2 frames perdidos y un peor frame de 50,2 ms — un tirón puntual, no un problema
 sostenido. Tweaks entra como referencia (19 filas): fluido. Es decir, el scroll **no** es el
 cuello de botella que percibía la queja; lo eran los canales IPC (ya corregidos, § arriba).
@@ -309,18 +309,18 @@ Corrección derivada del TDD: un payload no-JSON en el bloque de startup hacía
 
 ### Virtualización de la lista de apps instaladas
 
-La medición de scroll de v0.4.1 encontró un único foco de *jank*: **Tools → Apps**
+La medición de scroll de v0.4.1 encontró un único foco de _jank_: **Tools → Apps**
 (lista **no** virtualizada, 1 866 nodos, 2 frames perdidos, peor frame 50,2 ms). En
 v0.4.2 se virtualiza con el **mismo** componente que ya usaba Drivers (`VirtualList` de
 `@tanstack/react-virtual`, umbral de 50 filas, igual que Drivers), sin introducir una
 segunda forma de virtualizar. La fila se extrajo a un `AppRow` memoizado.
 
-| Métrica (Tools → Apps, 48 apps reales / 500 sintéticas) | v0.4.1 | v0.4.2 |
-|---|---|---|
-| Nodos DOM (48 apps instaladas reales) | **1 866** | **331** |
-| Nodos DOM (lista sintética de 500) | 1 866+ | **< 120 filas** |
-| Frames perdidos (scroll a 60 FPS) | **2** | **0** |
-| Peor frame | **50,2 ms** | 17,0 ms |
+| Métrica (Tools → Apps, 48 apps reales / 500 sintéticas) | v0.4.1      | v0.4.2          |
+| ------------------------------------------------------- | ----------- | --------------- |
+| Nodos DOM (48 apps instaladas reales)                   | **1 866**   | **331**         |
+| Nodos DOM (lista sintética de 500)                      | 1 866+      | **< 120 filas** |
+| Frames perdidos (scroll a 60 FPS)                       | **2**       | **0**           |
+| Peor frame                                              | **50,2 ms** | 17,0 ms         |
 
 Verificado por `e2e/performance.spec.ts` (nueva aserción: 500 apps → filas DOM < 120).
 
@@ -337,27 +337,27 @@ que el solapamiento es real (el FPS con carga se mide mientras PowerShell compit
 En **reposo** (dos corridas; la primera paga el arranque en frío de Chromium — 6 frames
 perdidos en Drivers —, la segunda — ya caliente — no pierde ninguno):
 
-| Vista | p50 FPS | p95 | mín | Frames perdidos | Peor frame |
-|---|---|---|---|---|---|
-| Drivers (500, virtualizada) | 59,9 | 59,5 | 58,8 | **0** | 17,0 ms |
-| Tools → Apps (real) | 59,9 | 59,5 | 59,5 | **0** | 16,8 ms |
-| Bundles (48) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
-| Tweaks (19) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
+| Vista                       | p50 FPS | p95  | mín  | Frames perdidos | Peor frame |
+| --------------------------- | ------- | ---- | ---- | --------------- | ---------- |
+| Drivers (500, virtualizada) | 59,9    | 59,5 | 58,8 | **0**           | 17,0 ms    |
+| Tools → Apps (real)         | 59,9    | 59,5 | 59,5 | **0**           | 16,8 ms    |
+| Bundles (48)                | 59,9    | 59,5 | 59,2 | **0**           | 16,9 ms    |
+| Tweaks (19)                 | 59,9    | 59,5 | 59,2 | **0**           | 16,9 ms    |
 
 **Bajo `audit:run` en vuelo** (11,5 s):
 
-| Vista | p50 FPS | p95 | mín | Frames perdidos | Peor frame |
-|---|---|---|---|---|---|
-| Drivers (500) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
-| Tools → Apps (real) | 59,9 | 59,5 | 58,1 | **0** | 17,2 ms |
-| Bundles (48) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
-| Tweaks (19) | 59,9 | 59,2 | 58,5 | **0** | 17,1 ms |
+| Vista               | p50 FPS | p95  | mín  | Frames perdidos | Peor frame |
+| ------------------- | ------- | ---- | ---- | --------------- | ---------- |
+| Drivers (500)       | 59,9    | 59,5 | 59,2 | **0**           | 16,9 ms    |
+| Tools → Apps (real) | 59,9    | 59,5 | 58,1 | **0**           | 17,2 ms    |
+| Bundles (48)        | 59,9    | 59,5 | 59,2 | **0**           | 16,9 ms    |
+| Tweaks (19)         | 59,9    | 59,2 | 58,5 | **0**           | 17,1 ms    |
 
 **Bajo `drivers:scan` en vuelo** (~1,67 s): idéntico — 60 FPS, **0** frames perdidos en
 las 4 vistas (peor frame 16,9 ms).
 
 **Lectura:** con la lista de Apps ya virtualizada, **un `audit:run`/`drivers:scan` en
-paralelo no degrada el scroll**. El *jank* de Tools → Apps de v0.4.1 era **coste de
+paralelo no degrada el scroll**. El _jank_ de Tools → Apps de v0.4.1 era **coste de
 render** (1 866 nodos en el renderer), no contención de CPU del escaneo: al eliminarlo, la
 carga de PowerShell deja de importar para los frames. La contención de CPU había sido la
 hipótesis; la medición la refuta.
@@ -367,7 +367,7 @@ hipótesis; la medición la refuta.
 **No se pudo separar, y se reporta como tal.** El harness mide el intervalo real entre
 frames vía `requestAnimationFrame`, que es el presupuesto de **main thread del renderer**;
 si el main thread se atasca, el frame se retrasa — pero esa señal no distingue el coste de
-*layout/paint* del renderer del de *rasterización/composición* de la GPU. Las vías nativas
+_layout/paint_ del renderer del de _rasterización/composición_ de la GPU. Las vías nativas
 de Electron que habrían permitido separarlos (`--enable-logging` + trace de `viz`,
 `app.getGPUFeatureStatus`, `gpu:info`) tendrían que ejecutarse contra el binario real y
 limpiar el ruido de arranque; no se hizo dentro del alcance. Sin esa instrumentación, la
@@ -379,17 +379,17 @@ los dos lados en las mediciones tomadas.
 
 ### Pendiente / no instrumentado
 
-- **FPS de scroll / frame timing**: ✅ **medido** — ver § *FPS / frame timing (scroll)*.
+- **FPS de scroll / frame timing**: ✅ **medido** — ver § _FPS / frame timing (scroll)_.
 - **`drivers:scan`, `bundles:check-installed`, `system:get-info`**: ✅ **re-medidos** con
-  ≥5 repeticiones — ver § *Canales re-medidos*.
-- **FPS bajo carga real de CPU** (scroll *mientras* corre un `audit:run`/`drivers:scan`):
-  ✅ **medido en v0.4.2** — ver § *Ronda v0.4.2 → FPS bajo carga real de CPU*; 60 FPS y 0
+  ≥5 repeticiones — ver § _Canales re-medidos_.
+- **FPS bajo carga real de CPU** (scroll _mientras_ corre un `audit:run`/`drivers:scan`):
+  ✅ **medido en v0.4.2** — ver § _Ronda v0.4.2 → FPS bajo carga real de CPU_; 60 FPS y 0
   frames perdidos con el scan en vuelo (la virtualización de Tools·Apps eliminó el único
-  *jank* que quedaba).
+  _jank_ que quedaba).
 - **Coste de GPU / compositor** (separar renderer de compositing): ❌ **no se pudo**
   separar con la instrumentación disponible (`requestAnimationFrame` mide el main thread
-  del renderer, no la GPU). Reportado explícitamente en § *Ronda v0.4.2 → Main thread del
-  renderer vs compositor*; **no** se reporta un número inventado.
+  del renderer, no la GPU). Reportado explícitamente en § _Ronda v0.4.2 → Main thread del
+  renderer vs compositor_; **no** se reporta un número inventado.
 - `backgroundThrottling`: se mantuvo el default seguro de Electron (no se desactiva).
 
-*Build. Learn. Evolve.*
+_Build. Learn. Evolve._

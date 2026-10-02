@@ -7,11 +7,7 @@
       "name": "Archivos Temporales",
       "category": "temp",
       "protection": "safe",
-      "paths": [
-        "%TEMP%",
-        "C:\\Windows\\Temp",
-        "C:\\Windows\\Prefetch"
-      ],
+      "paths": ["%TEMP%", "C:\\Windows\\Temp", "C:\\Windows\\Prefetch"],
       "patterns": ["*.tmp", "*.temp", "*.log", "*.old", "*.bak"],
       "description": "Archivos temporales del sistema y usuario."
     },
@@ -33,9 +29,7 @@
       "name": "Caché de Windows Update",
       "category": "system",
       "protection": "caution",
-      "paths": [
-        "C:\\Windows\\SoftwareDistribution\\Download"
-      ],
+      "paths": ["C:\\Windows\\SoftwareDistribution\\Download"],
       "patterns": ["*"],
       "description": "Descargas de actualizaciones de Windows. Requiere parar servicios."
     },
@@ -44,9 +38,7 @@
       "name": "Papelera de Reciclaje",
       "category": "system",
       "protection": "safe",
-      "paths": [
-        "C:\\$Recycle.Bin"
-      ],
+      "paths": ["C:\\$Recycle.Bin"],
       "patterns": ["*"],
       "description": "Contenido de la papelera de reciclaje."
     },
@@ -55,11 +47,7 @@
       "name": "Volcados de Memoria (Crash Dumps)",
       "category": "system",
       "protection": "safe",
-      "paths": [
-        "%LOCALAPPDATA%\\CrashDumps",
-        "C:\\Windows\\Minidump",
-        "C:\\Windows\\MEMORY.DMP"
-      ],
+      "paths": ["%LOCALAPPDATA%\\CrashDumps", "C:\\Windows\\Minidump", "C:\\Windows\\MEMORY.DMP"],
       "patterns": ["*.dmp"],
       "description": "Archivos de volcado de memoria tras crashes."
     },
@@ -68,9 +56,7 @@
       "name": "Caché de Miniaturas",
       "category": "cache",
       "protection": "safe",
-      "paths": [
-        "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer"
-      ],
+      "paths": ["%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer"],
       "patterns": ["thumbcache_*.db", "iconcache_*.db"],
       "description": "Caché de miniaturas del Explorador."
     },
@@ -79,9 +65,7 @@
       "name": "Optimización de Entrega",
       "category": "system",
       "protection": "caution",
-      "paths": [
-        "C:\\Windows\\SoftwareDistribution\\DeliveryOptimization"
-      ],
+      "paths": ["C:\\Windows\\SoftwareDistribution\\DeliveryOptimization"],
       "patterns": ["*"],
       "description": "Archivos de optimización de entrega de Windows Update."
     },
@@ -90,9 +74,7 @@
       "name": "Windows.old",
       "category": "system",
       "protection": "caution",
-      "paths": [
-        "C:\\Windows.old"
-      ],
+      "paths": ["C:\\Windows.old"],
       "patterns": ["*"],
       "description": "Instalación anterior de Windows. Solo aparece tras actualización mayor."
     }

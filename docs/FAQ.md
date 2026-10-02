@@ -37,6 +37,7 @@ Usa "Agregar o quitar programas" en Windows o ejecuta el desinstalador.
 ### Uso
 
 **¿Cómo limpio archivos basura?**
+
 1. Ve al módulo Cleaner
 2. Click en "Scan"
 3. Selecciona los archivos a eliminar
@@ -46,6 +47,7 @@ Usa "Agregar o quitar programas" en Windows o ejecuta el desinstalador.
 Los archivos marcados como "safe" (temporales, caché, miniaturas) son seguros. Los marcados como "caution" requieren revisión.
 
 **¿Cómo optimizo el inicio de Windows?**
+
 1. Ve al módulo Boost
 2. Revisa la lista de servicios y apps de inicio
 3. Click en "Optimize" para aplicar cambios recomendados
@@ -65,7 +67,7 @@ Los de `HKCU` (Background Apps, Suggested Content, Explorer) no.
 
 **¿Qué hace el botón Free RAM (⚡)?**
 Libera al instante la RAM que ocupa **la propia aplicación** (no la de otros programas):
-recorta el *working set* de sus procesos y muestra cuánto liberó (`Freed N MB`, se resetea
+recorta el _working set_ de sus procesos y muestra cuánto liberó (`Freed N MB`, se resetea
 a los 3 s). Medido en pruebas: de **266 MB a 13 MB (~253 MB liberados)** en ~3 s.
 
 **¿Por qué varios botones aparecen deshabilitados / qué es el badge del header?**
@@ -77,14 +79,14 @@ con éxito o con error — se reactivan automáticamente.
 
 **¿Qué es Debloat?**
 La pestaña **Tools → Debloat** lista **30 paquetes UWP preinstalados** de Windows con tres
-niveles: **safe (19)**, **caution (7)** y **protected (4)** — los *protected* (ej. Microsoft
+niveles: **safe (19)**, **caution (7)** y **protected (4)** — los _protected_ (ej. Microsoft
 Store) **nunca se remueven**, y las apps no instaladas quedan deshabilitadas. Remover no
 requiere confirmaciones de Windows pero sí la app **como administrador**.
 
 **¿Puedo restaurar lo que quité en Debloat?**
 Sí, en la mayoría de los casos: `Remove-AppxPackage` quita el paquete **para tu usuario**,
 así que se reinstala desde la **Microsoft Store** o con `winget install <id>`. Los paquetes
-*protected* no se tocaron nunca.
+_protected_ no se tocaron nunca.
 
 **¿Cuántos Tweaks y apps incluye?**
 **19 tweaks** (Performance, Privacy, Explorer, Accessibility), todos con Preview y Restore,
@@ -124,23 +126,28 @@ Para algunas funciones (eliminar archivos del sistema, gestionar servicios) nece
 ### Problemas Comunes
 
 **La aplicación no inicia**
+
 - Verifica que tengas Windows 10 o 11
 - Intenta ejecutar como administrador
 - Revisa los logs en `%APPDATA%/forch-i-winoptimizer/logs/`
 
 **"Access denied" al eliminar archivos**
+
 - Ejecuta la aplicación como administrador
 - Verifica que los archivos no estén en uso
 
 **Los servicios no se pueden desactivar**
+
 - Algunos servicios están protegidos
 - Verifica permisos de administrador
 
 **Error "PowerShell not found"**
+
 - Verifica que PowerShell esté instalado
 - Revisa la variable de entorno PATH
 
 **Las actualizaciones no se descargan**
+
 - Verifica tu conexión a internet
 - Revisa el firewall
 - Intenta descargar manualmente desde GitHub
@@ -164,15 +171,15 @@ temporal (carpeta de extracción), así que se deshabilita y se explica en panta
 
 **¿Windows SmartScreen bloquea el instalador? ¿Es un virus?**
 No. Los binarios **no están firmados** (certificado de pago); SmartScreen avisa por eso, no
-por malware. Verificá la integridad con `checksums.sha256` y usá *Más información →
-Ejecutar de todas formas*. Detalle en `docs/CODE_SIGNING.md`.
+por malware. Verificá la integridad con `checksums.sha256` y usá _Más información →
+Ejecutar de todas formas_. Detalle en `docs/CODE_SIGNING.md`.
 
 **¿El botón "Fix" de Audit modifica el sistema?**
 No directamente. Abre el flujo reversible donde se resuelve (por ejemplo, Security → Privacy
 o Tweaks). Así el cambio siempre pasa por preview/confirmación/revert.
 
 **¿De dónde salen los datos de Statistics?**
-De acciones reales que ya hiciste: escaneos del Cleaner, limpiezas, auditorías y *Free RAM*.
+De acciones reales que ya hiciste: escaneos del Cleaner, limpiezas, auditorías y _Free RAM_.
 Si no hay datos, se muestra un empty state; nunca se inventan valores.
 
 ---
@@ -181,6 +188,7 @@ Si no hay datos, se muestra un empty state; nunca se inventan valores.
 
 **¿Cómo reporto un error?**
 Crea un issue en GitHub con:
+
 - Descripción del problema
 - Pasos para reproducir
 - Screenshots (si es posible)
@@ -194,7 +202,7 @@ https://github.com/paulogvs/forch-i-winoptimizer
 
 ---
 
-*Build. Learn. Evolve.*
+_Build. Learn. Evolve._
 
 ---
 
@@ -225,7 +233,7 @@ cambio **reversible** recién después de un preview y tu confirmación; el rest
 hallazgos son guía.
 
 **¿Cómo funciona el auto-fix y cómo lo deshago?**
-Al pulsar *Auto-fix* ves primero un **preview** con el valor actual observado y el valor
+Al pulsar _Auto-fix_ ves primero un **preview** con el valor actual observado y el valor
 objetivo. Si confirmás, se aplica y el check **se vuelve a medir**. Requiere
 **administrador**: sin elevación la acción aparece deshabilitada con el motivo y podés
 reiniciar como administrador desde el diálogo. Para deshacerlo, usá **Revert**, que

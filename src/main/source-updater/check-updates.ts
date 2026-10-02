@@ -123,7 +123,10 @@ export async function checkAllSources(): Promise<UpdateReport> {
           const localCatalogPath = path.join(getCatalogStorageDir(), `${catalog}.json`);
           let localItems: unknown[] = [];
           if (fs.existsSync(localCatalogPath)) {
-            const localData = JSON.parse(fs.readFileSync(localCatalogPath, 'utf-8')) as Record<string, unknown>;
+            const localData = JSON.parse(fs.readFileSync(localCatalogPath, 'utf-8')) as Record<
+              string,
+              unknown
+            >;
             const key = Object.keys(localData).find((k) => Array.isArray(localData[k]));
             if (key) localItems = localData[key] as unknown[];
           }

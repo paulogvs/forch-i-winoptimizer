@@ -157,7 +157,10 @@ describe('safe tweaks', () => {
     ];
     for (const id of win11Only) {
       const tweak = TWEAKS.find((t) => t.id === id);
-      expect(tweak?.requiresBuild, `${id} must declare requiresBuild >= 22000`).toBeGreaterThanOrEqual(22000);
+      expect(
+        tweak?.requiresBuild,
+        `${id} must declare requiresBuild >= 22000`
+      ).toBeGreaterThanOrEqual(22000);
     }
     // Not Windows 11 specific:
     expect(TWEAKS.find((t) => t.id === 'sticky-keys-off')?.requiresBuild).toBeUndefined();

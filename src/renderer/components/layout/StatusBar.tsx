@@ -18,9 +18,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ version, windowsVersion, l
           <span className="status-dot status-dot-online" />
           <span>Ready</span>
         </div>
-        {lastScan && (
-          <span>Last scan: {lastScan.toLocaleDateString()}</span>
-        )}
+        {lastScan && <span>Last scan: {lastScan.toLocaleDateString()}</span>}
       </div>
     </footer>
   );

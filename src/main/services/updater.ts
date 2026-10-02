@@ -33,7 +33,7 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
   try {
     const response = await fetch(GITHUB_API_URL, {
       headers: {
-        'Accept': 'application/vnd.github.v3+json',
+        Accept: 'application/vnd.github.v3+json',
         'User-Agent': 'FORCH.iA-WinOptimizer-Updater',
       },
     });
@@ -59,9 +59,9 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
     const updateAvailable = compareVersions(latestVersion, currentVersionClean) > 0;
 
     // Find the best asset for Windows
-    const windowsAsset = release.assets.find(
-      (a) => a.name.endsWith('.exe') || a.name.endsWith('.msi')
-    ) ?? release.assets[0];
+    const windowsAsset =
+      release.assets.find((a) => a.name.endsWith('.exe') || a.name.endsWith('.msi')) ??
+      release.assets[0];
 
     return {
       currentVersion,
@@ -99,7 +99,10 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-export async function downloadUpdate(url: string, onProgress?: (percent: number) => void): Promise<string> {
+export async function downloadUpdate(
+  url: string,
+  onProgress?: (percent: number) => void
+): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Download failed: ${response.statusText}`);

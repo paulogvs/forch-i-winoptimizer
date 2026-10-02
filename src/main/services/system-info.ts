@@ -168,7 +168,8 @@ async function gatherBatch(): Promise<SystemInfoBatch | null> {
 
 /** Legacy path kept behind the feature flag: three independent probes (P0.4: no CPU probe). */
 async function gatherProbes(): Promise<{ disk?: unknown; gpu?: unknown; win?: unknown }> {
-  const probe = (script: string): Promise<PowerShellResult | null> => runPowerShell(script).catch(() => null);
+  const probe = (script: string): Promise<PowerShellResult | null> =>
+    runPowerShell(script).catch(() => null);
 
   const [diskResult, gpuResult, winResult] = await Promise.all([
     probe(`
@@ -197,9 +198,18 @@ async function gatherProbes(): Promise<{ disk?: unknown; gpu?: unknown; win?: un
   ]);
 
   return {
-    disk: diskResult?.success && diskResult.stdout ? parsePowerShellJson<DiskInfo>(diskResult.stdout) : undefined,
-    gpu: gpuResult?.success && gpuResult.stdout ? parsePowerShellJson<GpuInfo>(gpuResult.stdout) : undefined,
-    win: winResult?.success && winResult.stdout ? parsePowerShellJson<WindowsInfo>(winResult.stdout) : undefined,
+    disk:
+      diskResult?.success && diskResult.stdout
+        ? parsePowerShellJson<DiskInfo>(diskResult.stdout)
+        : undefined,
+    gpu:
+      gpuResult?.success && gpuResult.stdout
+        ? parsePowerShellJson<GpuInfo>(gpuResult.stdout)
+        : undefined,
+    win:
+      winResult?.success && winResult.stdout
+        ? parsePowerShellJson<WindowsInfo>(winResult.stdout)
+        : undefined,
   };
 }
 

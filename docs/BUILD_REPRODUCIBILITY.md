@@ -7,18 +7,18 @@
 ## Síntoma
 
 En una máquina recién clonada (o tras `npm ci` / reinstalar `node_modules`), el E2E
-con **Electron real** fallaba al arrancar el proceso *main*:
+con **Electron real** fallaba al arrancar el proceso _main_:
 
 ```
 Error: Cannot find module '@shared/security-scan'
 ```
 
 El E2E de navegador no lo detectaba porque mockea la API; solo el E2E de Electron real
-ejercita el *main* compilado.
+ejercita el _main_ compilado.
 
 ## Causa
 
-El *main* y el *preload* se compilan con `tsc -p tsconfig.main.json` a **CommonJS**, y
+El _main_ y el _preload_ se compilan con `tsc -p tsconfig.main.json` a **CommonJS**, y
 el alias `@shared/* -> src/shared/*` de `tsconfig` es una función **solo de
 compilación**: `tsc` **no reescribe** los `require()` emitidos. Entonces
 `import { X } from '@shared/security-scan'` se emitía como

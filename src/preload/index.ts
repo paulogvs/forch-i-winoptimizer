@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
-import type { ElectronAPI, WinOptimizerAPI, OperationStatus, FreeMemoryResult } from '../shared/electron-api';
+import type {
+  ElectronAPI,
+  WinOptimizerAPI,
+  OperationStatus,
+  FreeMemoryResult,
+} from '../shared/electron-api';
 import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 import type { AppSettings } from '../shared/settings';
@@ -118,8 +123,10 @@ contextBridge.exposeInMainWorld('electronAPI', api);
 const winoptimizer: WinOptimizerAPI = {
   drivers: {
     scan: (options) => ipcRenderer.invoke('drivers:scan', options),
-    createRestorePoint: (description: string) => ipcRenderer.invoke('drivers:create-restore-point', description),
-    install: (driverId: string, downloadUrl: string) => ipcRenderer.invoke('drivers:install', driverId, downloadUrl),
+    createRestorePoint: (description: string) =>
+      ipcRenderer.invoke('drivers:create-restore-point', description),
+    install: (driverId: string, downloadUrl: string) =>
+      ipcRenderer.invoke('drivers:install', driverId, downloadUrl),
     rollback: (driverId: string) => ipcRenderer.invoke('drivers:rollback', driverId),
   },
   network: {
@@ -159,20 +166,23 @@ const winoptimizer: WinOptimizerAPI = {
   },
   dns: {
     benchmark: () => ipcRenderer.invoke('dns:benchmark'),
-    set: (primaryDNS: string, secondaryDNS: string) => ipcRenderer.invoke('dns:set', primaryDNS, secondaryDNS),
+    set: (primaryDNS: string, secondaryDNS: string) =>
+      ipcRenderer.invoke('dns:set', primaryDNS, secondaryDNS),
   },
   bundles: {
     get: () => ipcRenderer.invoke('bundles:get'),
     checkInstalled: () => ipcRenderer.invoke('bundles:check-installed'),
     install: (wingetId: string) => ipcRenderer.invoke('bundles:install', wingetId),
-    installMultiple: (wingetIds: string[]) => ipcRenderer.invoke('bundles:install-multiple', wingetIds),
+    installMultiple: (wingetIds: string[]) =>
+      ipcRenderer.invoke('bundles:install-multiple', wingetIds),
     uninstall: (wingetId: string) => ipcRenderer.invoke('bundles:uninstall', wingetId),
   },
   cleaning: {
     getSchedules: () => ipcRenderer.invoke('cleaning:get-schedules'),
     getDefaultSchedules: () => ipcRenderer.invoke('cleaning:get-default-schedules'),
     createSchedule: (schedule) => ipcRenderer.invoke('cleaning:create-schedule', schedule),
-    updateSchedule: (id: string, updates) => ipcRenderer.invoke('cleaning:update-schedule', id, updates),
+    updateSchedule: (id: string, updates) =>
+      ipcRenderer.invoke('cleaning:update-schedule', id, updates),
     deleteSchedule: (id: string) => ipcRenderer.invoke('cleaning:delete-schedule', id),
     runNow: (id: string) => ipcRenderer.invoke('cleaning:run-now', id),
     getHistory: () => ipcRenderer.invoke('cleaning:get-history'),
@@ -190,8 +200,10 @@ const winoptimizer: WinOptimizerAPI = {
     preview: (id: string): Promise<TweakPreview> => ipcRenderer.invoke('tweaks:preview', id),
     apply: (id: string): Promise<TweakApplyResult> => ipcRenderer.invoke('tweaks:apply', id),
     restore: (id: string): Promise<TweakApplyResult> => ipcRenderer.invoke('tweaks:restore', id),
-    applyMany: (ids: string[]): Promise<TweakApplyResult[]> => ipcRenderer.invoke('tweaks:apply-many', ids),
-    restoreMany: (ids: string[]): Promise<TweakApplyResult[]> => ipcRenderer.invoke('tweaks:restore-many', ids),
+    applyMany: (ids: string[]): Promise<TweakApplyResult[]> =>
+      ipcRenderer.invoke('tweaks:apply-many', ids),
+    restoreMany: (ids: string[]): Promise<TweakApplyResult[]> =>
+      ipcRenderer.invoke('tweaks:restore-many', ids),
   },
 };
 

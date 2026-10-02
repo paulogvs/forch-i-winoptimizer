@@ -167,7 +167,12 @@ export async function removeBloatware(ids: string[]): Promise<DebloatResult> {
     const entry = id && isValidCatalogId(id) ? byId.get(id) : undefined;
 
     if (!entry) {
-      results.push({ id: id || '(empty)', name: id || '(empty)', status: 'failed', error: 'Unknown bloatware id' });
+      results.push({
+        id: id || '(empty)',
+        name: id || '(empty)',
+        status: 'failed',
+        error: 'Unknown bloatware id',
+      });
       continue;
     }
     if (entry.protection === 'protected') {
@@ -175,7 +180,12 @@ export async function removeBloatware(ids: string[]): Promise<DebloatResult> {
       continue;
     }
     if (!ID_PATTERN.test(entry.uninstallString)) {
-      results.push({ id: entry.id, name: entry.name, status: 'failed', error: 'Invalid package name' });
+      results.push({
+        id: entry.id,
+        name: entry.name,
+        status: 'failed',
+        error: 'Invalid package name',
+      });
       continue;
     }
     if (seen.has(entry.id)) continue;
@@ -184,13 +194,13 @@ export async function removeBloatware(ids: string[]): Promise<DebloatResult> {
   }
 
   if (targets.length > 0) {
-    const run = await runPowerShellScript(buildRemovalScript(targets.map((t) => t.uninstallString)));
+    const run = await runPowerShellScript(
+      buildRemovalScript(targets.map((t) => t.uninstallString))
+    );
     const parsed = run.success
       ? parsePowerShellJsonArray<{ Name?: string; Status?: string; Error?: string }>(run.stdout)
       : [];
-    const byName = new Map(
-      parsed.map((r) => [String(r.Name ?? '').toLowerCase(), r] as const)
-    );
+    const byName = new Map(parsed.map((r) => [String(r.Name ?? '').toLowerCase(), r] as const));
 
     for (const target of targets) {
       const entry = byName.get(target.uninstallString.toLowerCase());
@@ -204,11 +214,7 @@ export async function removeBloatware(ids: string[]): Promise<DebloatResult> {
         continue;
       }
       const status: DebloatItemResult['status'] =
-        entry.Status === 'removed'
-          ? 'removed'
-          : entry.Status === 'skipped'
-            ? 'skipped'
-            : 'failed';
+        entry.Status === 'removed' ? 'removed' : entry.Status === 'skipped' ? 'skipped' : 'failed';
       results.push({
         id: target.id,
         name: target.name,
@@ -225,9 +231,10 @@ export async function removeBloatware(ids: string[]): Promise<DebloatResult> {
 
   let message: string;
   if (targets.length === 0) {
-    message = refused > 0
-      ? `Nothing to remove: ${refused} protected app(s) refused.`
-      : 'No removable apps selected.';
+    message =
+      refused > 0
+        ? `Nothing to remove: ${refused} protected app(s) refused.`
+        : 'No removable apps selected.';
   } else {
     const parts = [`Removed ${removed} app(s)`];
     if (skipped > 0) parts.push(`${skipped} not installed`);

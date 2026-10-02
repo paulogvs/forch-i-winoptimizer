@@ -112,7 +112,11 @@ export const Boost: React.FC = () => {
         title="Optimizable Services"
         footer={
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedServices(new Set(optimizableServices.map((s) => s.id)))}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedServices(new Set(optimizableServices.map((s) => s.id)))}
+            >
               Select All
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setSelectedServices(new Set())}>
@@ -130,7 +134,15 @@ export const Boost: React.FC = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-fg-primary">{service.displayName}</span>
-                  <Badge variant={service.protection === 'protected' ? 'error' : service.protection === 'caution' ? 'warning' : 'success'}>
+                  <Badge
+                    variant={
+                      service.protection === 'protected'
+                        ? 'error'
+                        : service.protection === 'caution'
+                          ? 'warning'
+                          : 'success'
+                    }
+                  >
                     {service.protection}
                   </Badge>
                   <Badge variant="neutral">{service.impact} impact</Badge>

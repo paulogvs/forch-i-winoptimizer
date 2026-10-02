@@ -2,12 +2,12 @@
 
 Deja aquí las imágenes generadas con IA. **Nombres sugeridos** (así las proceso directo):
 
-| Archivo | Qué es | De tu prompt |
-|---------|--------|--------------|
-| `logo-primary.png` | Ícono principal (cuadrado, 1024×1024) | Prompt 1 (principal) |
-| `logo-lockup.png` | Logo + wordmark "WINOPTIMIZER" (horizontal) | Prompt 2 |
-| `logo-mono.png` | Monocromo (blanco) sobre fondo transparente | Prompt 3 |
-| `logo-light.png` | Versión para fondo claro | Prompt 4 |
+| Archivo            | Qué es                                      | De tu prompt         |
+| ------------------ | ------------------------------------------- | -------------------- |
+| `logo-primary.png` | Ícono principal (cuadrado, 1024×1024)       | Prompt 1 (principal) |
+| `logo-lockup.png`  | Logo + wordmark "WINOPTIMIZER" (horizontal) | Prompt 2             |
+| `logo-mono.png`    | Monocromo (blanco) sobre fondo transparente | Prompt 3             |
+| `logo-light.png`   | Versión para fondo claro                    | Prompt 4             |
 
 ## Formato
 

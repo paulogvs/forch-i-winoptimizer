@@ -51,7 +51,8 @@ chore: maintenance tasks
 5. Ensure all tests pass (`pnpm test`)
 6. Run linter (`pnpm lint`)
 7. Run type checker (`pnpm typecheck`)
-8. Submit PR with clear description
+8. Run formatting check (`pnpm run format:check`)
+9. Submit PR with clear description
 
 ## Development Setup
 
@@ -66,6 +67,7 @@ pnpm run electron:dev
 
 - [ ] Tests written and passing
 - [ ] TypeScript strict mode compliant
+- [ ] Prettier formatting applied (`pnpm run format:check`)
 - [ ] No hardcoded colors (use CSS variables)
 - [ ] Component has typed props interface
 - [ ] Documentation updated if needed

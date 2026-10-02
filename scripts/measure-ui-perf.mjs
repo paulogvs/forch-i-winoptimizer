@@ -103,7 +103,9 @@ const INIT_SCRIPT = () => {
   w.__navState = { title: null, skeleton: null, sig: null, modal: null };
   w.__navEvents = [];
   const readNavState = () => {
-    const titles = [...document.querySelectorAll('.page-title')].map((e) => (e.textContent || '').trim());
+    const titles = [...document.querySelectorAll('.page-title')].map((e) =>
+      (e.textContent || '').trim()
+    );
     const title = titles.length ? titles[0] : null;
     const main = document.querySelector('.main-content');
     const skeleton = !!main && !!main.querySelector('.skeleton, [data-testid^="skeleton"]');
@@ -114,7 +116,12 @@ const INIT_SCRIPT = () => {
   w.__navSample = () => {
     const s = readNavState();
     const p = w.__navState;
-    if (s.title !== p.title || s.skeleton !== p.skeleton || s.sig !== p.sig || s.modal !== p.modal) {
+    if (
+      s.title !== p.title ||
+      s.skeleton !== p.skeleton ||
+      s.sig !== p.sig ||
+      s.modal !== p.modal
+    ) {
       w.__navState = s;
       w.__navEvents.push({
         t: Math.round(performance.now()),
@@ -154,7 +161,9 @@ const runtime = () => ({
   longTasks: window.__longTasks ?? [],
   listenerNet: window.__listenerNet ?? 0,
   listenerAdds: window.__listenerAdds ?? 0,
-  heapMb: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576 * 10) / 10 : null,
+  heapMb: performance.memory
+    ? Math.round((performance.memory.usedJSHeapSize / 1048576) * 10) / 10
+    : null,
   domNodes: document.querySelectorAll('*').length,
 });
 
@@ -176,7 +185,13 @@ async function instrumentIpc(app) {
           return await fn(event, ...args);
         } finally {
           const ms = performance.now() - t0;
-          globalThis.__ipcLog.push({ channel, phase: 'e', seq, at: Math.round(t0), ms: Math.round(ms * 10) / 10 });
+          globalThis.__ipcLog.push({
+            channel,
+            phase: 'e',
+            seq,
+            at: Math.round(t0),
+            ms: Math.round(ms * 10) / 10,
+          });
         }
       });
       n += 1;
@@ -241,7 +256,9 @@ async function waitReadyEvent(page, title, timeoutMs = 30000) {
   const deadline = now() + timeoutMs;
   for (;;) {
     const hit = await page.evaluate(
-      (t) => (window.__navEvents ?? []).find((e) => e.title && e.title.includes(t) && !e.skeleton) ?? null,
+      (t) =>
+        (window.__navEvents ?? []).find((e) => e.title && e.title.includes(t) && !e.skeleton) ??
+        null,
       title
     );
     if (hit) return hit;
@@ -263,7 +280,9 @@ async function waitQuiet(page, { quietMs = 250, maxMs = 8000, minEvents = 2 } = 
   for (;;) {
     const s = await page.evaluate(() => ({
       n: (window.__navEvents ?? []).length,
-      t: (window.__navEvents ?? []).length ? window.__navEvents[window.__navEvents.length - 1].t : null,
+      t: (window.__navEvents ?? []).length
+        ? window.__navEvents[window.__navEvents.length - 1].t
+        : null,
     }));
     if (s.n !== lastCount) {
       lastCount = s.n;
@@ -298,8 +317,12 @@ async function measureAction(app, page, action, { quietMs = 250, maxMs = 8000 } 
     const t = Math.round(performance.now());
     let el = null;
     if (a.kind === 'selector') el = document.querySelector(a.value);
-    else if (a.kind === 'buttonText') el = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === a.value);
-    if (a.kind === 'key') document.dispatchEvent(new KeyboardEvent('keydown', { key: a.value, bubbles: true }));
+    else if (a.kind === 'buttonText')
+      el = [...document.querySelectorAll('button')].find(
+        (b) => (b.textContent || '').trim() === a.value
+      );
+    if (a.kind === 'key')
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: a.value, bubbles: true }));
     else if (el) el.click();
     return { t, found: a.kind === 'key' ? true : !!el };
   }, action);
@@ -362,7 +385,14 @@ async function navigate(app, page, index) {
 
   // Clicking the page we are already on produces no DOM change to timestamp.
   if (started.beforeTitle && started.beforeTitle.includes(target.title)) {
-    return { id: target.id, selfNav: true, titleMs: null, readyMs: null, ipcCount: 0, ipcTotalMs: 0 };
+    return {
+      id: target.id,
+      selfNav: true,
+      titleMs: null,
+      readyMs: null,
+      ipcCount: 0,
+      ipcTotalMs: 0,
+    };
   }
 
   let titleEv = null;
@@ -458,8 +488,18 @@ async function measureInteractions(app, page) {
 
   // --- Tweaks modal open + close ---
   await navigate(app, page, 10);
-  out.modalOpen = await measureAction(app, page, { kind: 'buttonText', value: 'Preview' }, { maxMs: 4000 });
-  out.modalClose = await measureAction(app, page, { kind: 'key', value: 'Escape' }, { maxMs: 4000 });
+  out.modalOpen = await measureAction(
+    app,
+    page,
+    { kind: 'buttonText', value: 'Preview' },
+    { maxMs: 4000 }
+  );
+  out.modalClose = await measureAction(
+    app,
+    page,
+    { kind: 'key', value: 'Escape' },
+    { maxMs: 4000 }
+  );
 
   // --- Tools tab switches (each tab fires its own IPC on mount) ---
   await navigate(app, page, 3);
@@ -477,8 +517,10 @@ async function measureInteractions(app, page) {
       const oy = getComputedStyle(el).overflowY;
       return el.scrollHeight > el.clientHeight + 60 && (oy === 'auto' || oy === 'scroll');
     });
-    const scroller = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? document.scrollingElement;
-    if (!scroller || scroller.scrollHeight <= scroller.clientHeight + 40) return { skipped: 'no scrollable area' };
+    const scroller =
+      candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? document.scrollingElement;
+    if (!scroller || scroller.scrollHeight <= scroller.clientHeight + 40)
+      return { skipped: 'no scrollable area' };
     const label = scroller === document.scrollingElement ? 'document' : scroller.className;
     const deltas = [];
     let last = performance.now();
@@ -524,7 +566,19 @@ async function measureInteractions(app, page) {
  * Diagnostics only: this runs inside page.evaluate() from the harness. No
  * production code (`src/`) is touched or shipped.
  */
-async function measureScrollFps(app, page, { navIndex = null, label = '', steps = 90, settleMs = 150, readyMs = 300, maxWaitMs = 20000, load = '' } = {}) {
+async function measureScrollFps(
+  app,
+  page,
+  {
+    navIndex = null,
+    label = '',
+    steps = 90,
+    settleMs = 150,
+    readyMs = 300,
+    maxWaitMs = 20000,
+    load = '',
+  } = {}
+) {
   if (navIndex != null) await navigate(app, page, navIndex);
   // Let the first paint land; the scroller poll below waits for IPC-backed
   // lists (e.g. Tools > Apps, ~10 s on a cold channel) to actually fill.
@@ -533,14 +587,19 @@ async function measureScrollFps(app, page, { navIndex = null, label = '', steps 
   const measured = await page.evaluate(
     async ({ steps, settleMs, maxWaitMs, load }) => {
       if (document.visibilityState === 'hidden') {
-        return { skipped: 'document hidden (rAF throttled)', visibilityState: document.visibilityState };
+        return {
+          skipped: 'document hidden (rAF throttled)',
+          visibilityState: document.visibilityState,
+        };
       }
       const findScroller = () => {
         const candidates = [...document.querySelectorAll('*')].filter((el) => {
           const oy = getComputedStyle(el).overflowY;
           return el.scrollHeight > el.clientHeight + 60 && (oy === 'auto' || oy === 'scroll');
         });
-        return candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? document.scrollingElement;
+        return (
+          candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? document.scrollingElement
+        );
       };
       let scroller = null;
       const deadline = performance.now() + maxWaitMs;
@@ -565,7 +624,9 @@ async function measureScrollFps(app, page, { navIndex = null, label = '', steps 
       const target =
         scroller === document.scrollingElement
           ? 'document'
-          : String(scroller.className || scroller.tagName).trim().slice(0, 60) || scroller.tagName;
+          : String(scroller.className || scroller.tagName)
+              .trim()
+              .slice(0, 60) || scroller.tagName;
       const maxTop = scroller.scrollHeight - scroller.clientHeight;
       const startTop = scroller.scrollTop;
 
@@ -677,7 +738,13 @@ async function injectMockDrivers(app, count) {
       downloadUrl: '',
       size: 0,
     }));
-    const payload = { drivers, totalDevices: n, outdatedCount: 0, upToDateCount: n, scanDate: new Date().toISOString() };
+    const payload = {
+      drivers,
+      totalDevices: n,
+      outdatedCount: 0,
+      upToDateCount: n,
+      scanDate: new Date().toISOString(),
+    };
     const hadHandler = !!ipcMain._invokeHandlers && ipcMain._invokeHandlers.has('drivers:scan');
     ipcMain.removeHandler('drivers:scan');
     ipcMain.handle('drivers:scan', () => payload);
@@ -688,9 +755,19 @@ async function injectMockDrivers(app, count) {
 /** Scroll FPS across the views with the most rows. */
 async function measureScrollFpsSuite(app, page, { rows = 500, load = '' } = {}) {
   const out = {};
-  out.mockDrivers = await injectMockDrivers(app, rows).catch((err) => ({ error: String(err?.message || err) }));
-  out.drivers = await measureScrollFps(app, page, { navIndex: 4, label: `drivers-${rows}-virtualized`, load });
-  out.toolsApps = await measureScrollFps(app, page, { navIndex: 3, label: 'tools-apps-installed', load });
+  out.mockDrivers = await injectMockDrivers(app, rows).catch((err) => ({
+    error: String(err?.message || err),
+  }));
+  out.drivers = await measureScrollFps(app, page, {
+    navIndex: 4,
+    label: `drivers-${rows}-virtualized`,
+    load,
+  });
+  out.toolsApps = await measureScrollFps(app, page, {
+    navIndex: 3,
+    label: 'tools-apps-installed',
+    load,
+  });
   out.bundles = await measureScrollFps(app, page, { navIndex: 8, label: 'bundles', load });
   // Tweaks is a scroll target only if its sections overflow; reported either way.
   out.tweaks = await measureScrollFps(app, page, { navIndex: 10, label: 'tweaks', load });
@@ -735,7 +812,8 @@ async function measureClickOverhead(app, page) {
 
 async function main() {
   const result = {
-    meta: {      when: new Date().toISOString(),
+    meta: {
+      when: new Date().toISOString(),
       cycles: CYCLES,
       // Load mode for the scroll FPS pass: '' = at rest, otherwise the IPC
       // channel kept in flight while scrolling (CPU-contention measurement).
@@ -757,7 +835,9 @@ async function main() {
   // Focused frame-timing run: skip startup + the 42-navigation cycles and only
   // measure scroll FPS (same instrumentation path as the full run below).
   if (FPS_ONLY) {
-    console.error(`[fps] launching app (scroll frame timing, rows=${SCROLL_ROWS}${LOAD ? `, load=${LOAD}` : ''})...`);
+    console.error(
+      `[fps] launching app (scroll frame timing, rows=${SCROLL_ROWS}${LOAD ? `, load=${LOAD}` : ''})...`
+    );
     const app = await electron.launch({ args: ['.'], cwd: ROOT });
     const page = await app.firstWindow();
     await page.context().addInitScript(INIT_SCRIPT);
@@ -787,7 +867,9 @@ async function main() {
   // explanation for a navigation that suddenly cannot find the sidebar.
   const pageIssues = [];
   result.pageIssues = pageIssues;
-  page.on('pageerror', (err) => pageIssues.push({ kind: 'pageerror', message: String(err?.message || err).slice(0, 800) }));
+  page.on('pageerror', (err) =>
+    pageIssues.push({ kind: 'pageerror', message: String(err?.message || err).slice(0, 800) })
+  );
   page.on('console', (msg) => {
     if (msg.type() === 'error' || msg.type() === 'warning') {
       pageIssues.push({ kind: `console.${msg.type()}`, text: msg.text().slice(0, 800) });
@@ -905,8 +987,16 @@ async function main() {
       .filter((r) => r.titleMs != null)
       .sort((a, b) => b.titleMs - a.titleMs)
       .slice(0, 8)
-      .map((r) => ({ cycle: r.cycle, id: r.id, titleMs: r.titleMs, readyMs: r.readyMs, ipc: r.ipcCount })),
-    navErrors: navs.filter((r) => r.error).map((r) => ({ cycle: r.cycle, id: r.id, error: r.error, diag: r.diag })),
+      .map((r) => ({
+        cycle: r.cycle,
+        id: r.id,
+        titleMs: r.titleMs,
+        readyMs: r.readyMs,
+        ipc: r.ipcCount,
+      })),
+    navErrors: navs
+      .filter((r) => r.error)
+      .map((r) => ({ cycle: r.cycle, id: r.id, error: r.error, diag: r.diag })),
     pendingIpc: navs
       .flatMap((r) => (r.ipcPending ?? []).map((p) => ({ cycle: r.cycle, id: r.id, ...p })))
       .slice(0, 40),
@@ -927,7 +1017,13 @@ async function main() {
   if (pageIssues.length) console.error(JSON.stringify(pageIssues.slice(0, 10), null, 2));
   // Full detail goes to the file; stdout carries the digest so a failed run is
   // still readable in the terminal.
-  console.log(JSON.stringify({ meta: result.meta, summary: result.summary, scrollFps: result.scrollFps }, null, 2));
+  console.log(
+    JSON.stringify(
+      { meta: result.meta, summary: result.summary, scrollFps: result.scrollFps },
+      null,
+      2
+    )
+  );
 }
 
 let RESULT = null;

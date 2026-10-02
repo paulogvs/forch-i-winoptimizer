@@ -31,7 +31,15 @@ describe('installed-apps', () => {
 
     it('should return parsed apps from HKLM', async () => {
       const mockApps = [
-        { Name: 'Google Chrome', DisplayVersion: '120.0.0', Publisher: 'Google LLC', InstallDate: '20240115', EstimatedSize: 512000, InstallLocation: 'C:\\Program Files\\Google\\Chrome', UninstallString: 'C:\\Program Files\\Google\\Chrome\\uninstall.exe' },
+        {
+          Name: 'Google Chrome',
+          DisplayVersion: '120.0.0',
+          Publisher: 'Google LLC',
+          InstallDate: '20240115',
+          EstimatedSize: 512000,
+          InstallLocation: 'C:\\Program Files\\Google\\Chrome',
+          UninstallString: 'C:\\Program Files\\Google\\Chrome\\uninstall.exe',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -63,7 +71,15 @@ describe('installed-apps', () => {
 
     it('should handle apps with missing fields', async () => {
       const mockApps = [
-        { Name: 'Test App', DisplayVersion: null, Publisher: null, InstallDate: null, EstimatedSize: null, InstallLocation: null, UninstallString: 'uninstall.exe' },
+        {
+          Name: 'Test App',
+          DisplayVersion: null,
+          Publisher: null,
+          InstallDate: null,
+          EstimatedSize: null,
+          InstallLocation: null,
+          UninstallString: 'uninstall.exe',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -82,7 +98,15 @@ describe('installed-apps', () => {
 
     it('should mark Microsoft apps as caution', async () => {
       const mockApps = [
-        { Name: 'Microsoft Teams', DisplayVersion: '1.0', Publisher: 'Microsoft Corporation', InstallDate: '20240115', EstimatedSize: 1024, InstallLocation: 'C:\\Teams', UninstallString: 'uninstall.exe' },
+        {
+          Name: 'Microsoft Teams',
+          DisplayVersion: '1.0',
+          Publisher: 'Microsoft Corporation',
+          InstallDate: '20240115',
+          EstimatedSize: 1024,
+          InstallLocation: 'C:\\Teams',
+          UninstallString: 'uninstall.exe',
+        },
       ];
 
       vi.mocked(runPowerShell).mockResolvedValue({
@@ -119,7 +143,10 @@ describe('installed-apps', () => {
         exitCode: 0,
       });
 
-      const result = await uninstallApp('app-1', 'MsiExec.exe /x {12345678-1234-1234-1234-123456789012}');
+      const result = await uninstallApp(
+        'app-1',
+        'MsiExec.exe /x {12345678-1234-1234-1234-123456789012}'
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('success');

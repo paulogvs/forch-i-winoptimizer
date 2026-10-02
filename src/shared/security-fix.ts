@@ -21,10 +21,7 @@ export function isSecurityFixId(value: string): value is SecurityFixId {
 
 /** Why a fix cannot be applied right now. */
 export type SecurityFixBlockedReason =
-  | 'requires-admin'
-  | 'not-applicable'
-  | 'already-applied'
-  | 'unavailable';
+  'requires-admin' | 'not-applicable' | 'already-applied' | 'unavailable';
 
 /**
  * What the user is shown before approving a change. Every value is OBSERVED,

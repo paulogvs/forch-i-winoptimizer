@@ -35,17 +35,17 @@ A modern, fast, and beautiful Windows optimizer built with the FORCH.iA ecosyste
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Runtime | Electron 31 |
-| Frontend | React 18 |
-| Language | TypeScript 5.5 (strict) |
-| Styling | Tailwind CSS 4 + CSS Variables |
-| State | Zustand |
-| Build | Vite 5 |
-| Package Manager | pnpm |
-| Testing | Vitest + Testing Library |
-| Linting | ESLint + Prettier |
+| Layer           | Technology                     |
+| --------------- | ------------------------------ |
+| Runtime         | Electron 31                    |
+| Frontend        | React 18                       |
+| Language        | TypeScript 5.5 (strict)        |
+| Styling         | Tailwind CSS 4 + CSS Variables |
+| State           | Zustand                        |
+| Build           | Vite 5                         |
+| Package Manager | pnpm                           |
+| Testing         | Vitest + Testing Library       |
+| Linting         | ESLint + Prettier              |
 
 ## Installation
 
@@ -72,10 +72,10 @@ pnpm run electron:dev
 
 The app ships in **two formats**, both produced by `electron-builder`:
 
-| Format | Target | Best for |
-|--------|--------|----------|
-| **Installer** | NSIS (`.exe`) | Everyday use — Start Menu/Desktop shortcuts, clean uninstall |
-| **Portable** | Portable (`.exe`) | USB drives, shared PCs, no-install use |
+| Format        | Target            | Best for                                                     |
+| ------------- | ----------------- | ------------------------------------------------------------ |
+| **Installer** | NSIS (`.exe`)     | Everyday use — Start Menu/Desktop shortcuts, clean uninstall |
+| **Portable**  | Portable (`.exe`) | USB drives, shared PCs, no-install use                       |
 
 ```bash
 # Build the renderer + main process, then package installer + portable
@@ -101,17 +101,17 @@ pnpm run electron:build
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start Vite dev server |
-| `pnpm build` | Build for production |
-| `pnpm lint` | Run ESLint |
-| `pnpm format` | Format with Prettier |
-| `pnpm typecheck` | Run TypeScript type check |
-| `pnpm test` | Run tests |
-| `pnpm test:coverage` | Run tests with coverage |
-| `pnpm electron:dev` | Start Electron in dev mode |
-| `pnpm electron:build` | Build Electron app |
+| Command               | Description                |
+| --------------------- | -------------------------- |
+| `pnpm dev`            | Start Vite dev server      |
+| `pnpm build`          | Build for production       |
+| `pnpm lint`           | Run ESLint                 |
+| `pnpm format`         | Format with Prettier       |
+| `pnpm typecheck`      | Run TypeScript type check  |
+| `pnpm test`           | Run tests                  |
+| `pnpm test:coverage`  | Run tests with coverage    |
+| `pnpm electron:dev`   | Start Electron in dev mode |
+| `pnpm electron:build` | Build Electron app         |
 
 ### Project Structure
 

@@ -7,7 +7,13 @@ vi.mock('child_process', () => ({
   default: { execFile: (...args: unknown[]) => mockExecFile(...args) },
 }));
 
-import { runPowerShell, runPowerShellScript, parsePowerShellJson, toArray, parsePowerShellJsonArray } from './powershell';
+import {
+  runPowerShell,
+  runPowerShellScript,
+  parsePowerShellJson,
+  toArray,
+  parsePowerShellJsonArray,
+} from './powershell';
 
 /** Decode the Base64/UTF-16LE script passed via -EncodedCommand. */
 function decodeEncodedCall(call: unknown[]): string {
@@ -20,7 +26,12 @@ function decodeEncodedCall(call: unknown[]): string {
 describe('powershell', () => {
   beforeEach(() => {
     mockExecFile.mockReset();
-    mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+    mockExecFile.mockImplementation(((
+      _file: string,
+      _args: unknown,
+      _opts: unknown,
+      callback: (err: unknown, out?: unknown) => void
+    ) => {
       callback(null, { stdout: '', stderr: '' });
       return {};
     }) as unknown as never);
@@ -28,7 +39,12 @@ describe('powershell', () => {
 
   describe('runPowerShell', () => {
     it('should execute via powershell.exe -EncodedCommand and return success', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: '  hello world  \n', stderr: '' });
         return {};
       }) as unknown as never);
@@ -50,7 +66,12 @@ describe('powershell', () => {
     });
 
     it('should encode multi-line scripts with quotes losslessly', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: 'ok', stderr: '' });
         return {};
       }) as unknown as never);
@@ -65,7 +86,12 @@ describe('powershell', () => {
     });
 
     it('should use a 60s timeout and hide the window', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: '', stderr: '' });
         return {};
       }) as unknown as never);
@@ -78,7 +104,12 @@ describe('powershell', () => {
     });
 
     it('should handle command failure preserving stderr and exit code', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         const err = Object.assign(new Error('Command failed'), {
           stdout: '',
           stderr: 'Access denied',
@@ -96,7 +127,12 @@ describe('powershell', () => {
     });
 
     it('should handle timeout (killed) with exit code 124', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         const err = Object.assign(new Error('Timeout'), {
           stdout: '',
           stderr: 'Operation timed out',
@@ -121,7 +157,12 @@ describe('powershell', () => {
       const actualEncoded = Buffer.from(oversized, 'utf16le').toString('base64').length;
       expect(actualEncoded).toBeGreaterThan(30_000);
 
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: 'OK', stderr: '' });
         return {};
       }) as unknown as never);
@@ -137,7 +178,12 @@ describe('powershell', () => {
     });
 
     it('still uses -EncodedCommand for a normal-sized script', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: 'ok', stderr: '' });
         return {};
       }) as unknown as never);
@@ -152,7 +198,12 @@ describe('powershell', () => {
 
   describe('runPowerShellScript', () => {
     it('should execute script and return success', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: 'script output', stderr: '' });
         return {};
       }) as unknown as never);
@@ -165,7 +216,12 @@ describe('powershell', () => {
     });
 
     it('should use longer timeout than runPowerShell', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         callback(null, { stdout: 'ok', stderr: '' });
         return {};
       }) as unknown as never);
@@ -177,7 +233,12 @@ describe('powershell', () => {
     });
 
     it('should handle script failure', async () => {
-      mockExecFile.mockImplementation(((_file: string, _args: unknown, _opts: unknown, callback: (err: unknown, out?: unknown) => void) => {
+      mockExecFile.mockImplementation(((
+        _file: string,
+        _args: unknown,
+        _opts: unknown,
+        callback: (err: unknown, out?: unknown) => void
+      ) => {
         const err = Object.assign(new Error('Script error'), {
           stdout: '',
           stderr: 'Script failed',
@@ -243,7 +304,10 @@ describe('powershell', () => {
 
   describe('parsePowerShellJsonArray', () => {
     it('should parse an array payload', () => {
-      expect(parsePowerShellJsonArray<{ id: number }>('[{"id":1},{"id":2}]')).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(parsePowerShellJsonArray<{ id: number }>('[{"id":1},{"id":2}]')).toEqual([
+        { id: 1 },
+        { id: 2 },
+      ]);
     });
 
     it('should normalise a single-object payload into an array', () => {

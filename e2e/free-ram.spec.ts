@@ -27,13 +27,21 @@ test.describe('Free RAM quick action (P1.1)', () => {
     await page.click('[data-testid="free-ram"]');
     await expect(page.locator('[data-testid="free-ram"]')).toHaveText('Freed 42 MB');
     // Auto-resets to the idle label.
-    await expect(page.locator('[data-testid="free-ram"]')).toHaveText('Free RAM', { timeout: 5000 });
+    await expect(page.locator('[data-testid="free-ram"]')).toHaveText('Free RAM', {
+      timeout: 5000,
+    });
   });
 
   test('shows a failure state when the backend reports an error', async ({ page }) => {
     await page.evaluate(() => {
       const w = window as unknown as { __freeMemoryResult?: unknown };
-      w.__freeMemoryResult = { success: false, freedMb: 0, rssBeforeMb: 100, rssAfterMb: 100, error: 'denied' };
+      w.__freeMemoryResult = {
+        success: false,
+        freedMb: 0,
+        rssBeforeMb: 100,
+        rssAfterMb: 100,
+        error: 'denied',
+      };
     });
 
     await page.click('[data-testid="free-ram"]');
@@ -41,7 +49,12 @@ test.describe('Free RAM quick action (P1.1)', () => {
   });
 
   test('is disabled while another operation owns the lock', async ({ page }) => {
-    await pushStatus(page, { busy: true, current: 'tweaks:apply', queued: 0, startedAt: Date.now() });
+    await pushStatus(page, {
+      busy: true,
+      current: 'tweaks:apply',
+      queued: 0,
+      startedAt: Date.now(),
+    });
     await expect(page.locator('[data-testid="free-ram"]')).toBeDisabled();
 
     await pushStatus(page, { busy: false, current: null, queued: 0, startedAt: null });

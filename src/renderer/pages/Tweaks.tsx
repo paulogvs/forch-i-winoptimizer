@@ -22,7 +22,9 @@ function describeOperation(op: TweakOperation): string {
   switch (op.kind) {
     case 'registry': {
       const target = `${op.hive}\\${op.path}\\${op.name}`;
-      return op.removeOnRevert ? `Delete  ${target}` : `Set  ${target} = ${String(op.value)} (${op.type})`;
+      return op.removeOnRevert
+        ? `Delete  ${target}`
+        : `Set  ${target} = ${String(op.value)} (${op.type})`;
     }
     case 'service':
       return `Service  ${op.serviceName}: ${[op.startType, op.state].filter(Boolean).join(' / ') || 'no change'}`;
@@ -73,7 +75,10 @@ export const Tweaks: React.FC = () => {
     return map;
   }, [tweaks]);
 
-  const isInfoOnly = useCallback((tweak: TweakView) => tweak.apply.every((op) => op.kind === 'info'), []);
+  const isInfoOnly = useCallback(
+    (tweak: TweakView) => tweak.apply.every((op) => op.kind === 'info'),
+    []
+  );
 
   const toggleSelected = useCallback((id: string) => {
     setSelected((prev) => {
@@ -137,7 +142,9 @@ export const Tweaks: React.FC = () => {
           return next;
         });
         const failed = results.filter((r) => !r.success).length;
-        setBanner(failed === 0 ? `${results.length} tweak(s) processed.` : `${failed} tweak(s) failed.`);
+        setBanner(
+          failed === 0 ? `${results.length} tweak(s) processed.` : `${failed} tweak(s) failed.`
+        );
         setSelected(new Set());
         await loadTweaks();
       } catch (error) {
@@ -242,8 +249,8 @@ export const Tweaks: React.FC = () => {
       </div>
 
       <p className="tweak-intro">
-        A curated set of <strong>safe, reversible</strong> tweaks. Nothing is applied automatically and every
-        change can be restored to its previous state.
+        A curated set of <strong>safe, reversible</strong> tweaks. Nothing is applied automatically
+        and every change can be restored to its previous state.
       </p>
 
       {banner && <div className="tweak-banner mb-4">{banner}</div>}
@@ -263,7 +270,11 @@ export const Tweaks: React.FC = () => {
         })
       )}
 
-      <Modal open={preview !== null} onClose={() => setPreview(null)} title={`Preview — ${preview?.name ?? ''}`}>
+      <Modal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={`Preview — ${preview?.name ?? ''}`}
+      >
         {preview && (
           <div className="tweak-preview">
             <p className="tweak-preview-label">This will apply:</p>

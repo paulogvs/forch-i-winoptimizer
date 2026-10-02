@@ -133,7 +133,9 @@ export const Cleaning: React.FC = () => {
                 <div>
                   <div className="flex gap-1 mb-2">
                     {schedule.categories.map((cat) => (
-                      <Badge key={cat} variant="neutral">{cat}</Badge>
+                      <Badge key={cat} variant="neutral">
+                        {cat}
+                      </Badge>
                     ))}
                   </div>
                   {schedule.lastRun && (
@@ -147,11 +149,7 @@ export const Cleaning: React.FC = () => {
                     <Progress value={progress} className="w-24" />
                   ) : (
                     <>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => runSchedule(schedule.id)}
-                      >
+                      <Button variant="primary" size="sm" onClick={() => runSchedule(schedule.id)}>
                         Run Now
                       </Button>
                       <Button
@@ -180,9 +178,7 @@ export const Cleaning: React.FC = () => {
       {activeTab === 'history' && (
         <Card title="Cleaning History">
           {history.length === 0 ? (
-            <div className="text-center text-fg-tertiary py-8">
-              No cleaning history yet.
-            </div>
+            <div className="text-center text-fg-tertiary py-8">No cleaning history yet.</div>
           ) : (
             <div className="flex flex-col gap-2">
               {history.map((entry) => (
@@ -192,7 +188,9 @@ export const Cleaning: React.FC = () => {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-fg-primary">{entry.scheduleName}</span>
+                      <span className="text-sm font-medium text-fg-primary">
+                        {entry.scheduleName}
+                      </span>
                       <Badge
                         variant={
                           entry.status === 'success'
@@ -206,7 +204,8 @@ export const Cleaning: React.FC = () => {
                       </Badge>
                     </div>
                     <div className="text-xs text-fg-tertiary">
-                      {entry.timestamp.toLocaleString()} • {entry.filesDeleted} files • {Math.round(entry.spaceFreed / 1_000_000)} MB freed
+                      {entry.timestamp.toLocaleString()} • {entry.filesDeleted} files •{' '}
+                      {Math.round(entry.spaceFreed / 1_000_000)} MB freed
                     </div>
                   </div>
                   <div className="text-sm text-fg-secondary">
