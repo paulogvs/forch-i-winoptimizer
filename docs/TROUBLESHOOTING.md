@@ -261,6 +261,29 @@ paquete arbitrarios); ids desconocidos, duplicados o con caracteres inválidos s
 
 ---
 
+### 17. SmartScreen: "Windows protegió tu PC" (binarios sin firmar)
+
+**Síntomas:** al ejecutar el Setup o el Portable, Windows muestra *"Windows protegió tu
+PC — Microsoft Defender SmartScreen impidió el inicio de una aplicación no reconocida"*.
+
+**Por qué ocurre:** los binarios **no están firmados con un certificado de code signing**.
+Sin firma Authenticode, SmartScreen desconfía de un `.exe` descargado de internet. **No
+es un bug de la app ni se puede arreglar con código** — requiere un certificado **de
+pago**.
+
+**Qué podés hacer (usuario):**
+1. *Más información* → *Ejecutar de todas formas* (el flujo esperado para software open
+   source sin firmar).
+2. Verificá la integridad primero: compará el SHA-256 con `checksums.sha256` de la Release
+   (`Get-FileHash ".\FORCH.iA-WinOptimizer-Portable-x.y.z.exe" -Algorithm SHA256`).
+
+**Qué NO sirve:** certificados autofirmados (siguen warning) o re-subir el binario.
+**Cómo se elimina de verdad:** certificado **OV** (tras ganar reputación) o **EV/Trusted
+Signing** (inmediato). Pasos, coste y wiring del build en
+[docs/CODE_SIGNING.md](CODE_SIGNING.md).
+
+---
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

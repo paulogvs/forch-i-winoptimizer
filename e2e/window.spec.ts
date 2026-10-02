@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupElectronMock } from './setup';
+import { gotoApp } from './helpers';
 
 test.describe('Window controls', () => {
   test.beforeEach(async ({ page }) => {
     await setupElectronMock(page);
-    await page.goto('/');
+    await gotoApp(page);
   });
 
   test('renders minimize, maximize and close controls', async ({ page }) => {

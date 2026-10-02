@@ -3,12 +3,82 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
+import { VirtualList } from '../components/ui/VirtualList';
 import { formatBytes } from '../utils/format';
 import type { DebloatCandidate, DebloatResult, InstalledApp, StartupApp } from '@shared/electron-api';
+import type { PageId } from '@shared/types';
 
 type ToolTab = 'apps' | 'startup' | 'debloat' | 'utilities';
 
-export const Tools: React.FC = () => {
+interface ToolsProps {
+  onNavigate?: (page: PageId) => void;
+}
+
+/**
+ * Utilities tab. Entries with a `target` navigate to a real, working page;
+ * the rest are honestly marked "Not available yet" instead of rendering a
+ * dead button that silently does nothing.
+ */
+const UTILITIES: { icon: string; title: string; description: string; target?: PageId }[] = [
+  { icon: '🔍', title: 'Registry Cleaner', description: 'Scan and fix registry errors' },
+  { icon: '💽', title: 'Disk Defragmenter', description: 'Optimize disk performance' },
+  { icon: '🔒', title: 'Privacy Eraser', description: 'Remove browsing history and traces' },
+  { icon: '🗑️', title: 'File Shredder', description: 'Permanently delete sensitive files' },
+  { icon: '🌐', title: 'Network Optimizer', description: 'Optimize network settings', target: 'network' },
+  { icon: 'ℹ️', title: 'System Info', description: 'View detailed system information', target: 'dashboard' },
+];
+
+/** Lists larger than this are virtualized (same rule as Drivers). */
+const VIRTUALIZE_THRESHOLD = 50;
+
+interface AppRowProps {
+  app: InstalledApp;
+  uninstalling: boolean;
+  progress: number;
+  onUninstall: (app: InstalledApp) => void;
+}
+
+const AppRow = React.memo(function AppRow({ app, uninstalling, progress, onUninstall }: AppRowProps) {
+  return (
+    <div className="app-row flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-fg-primary">{app.name}</span>
+          <Badge
+            variant={
+              app.protection === 'protected'
+                ? 'error'
+                : app.protection === 'caution'
+                  ? 'warning'
+                  : 'success'
+            }
+          >
+            {app.protection}
+          </Badge>
+        </div>
+        <div className="text-xs text-fg-tertiary">
+          {app.publisher} • {app.version} • {formatBytes(app.size)}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {uninstalling ? (
+          <Progress value={progress} className="w-24" />
+        ) : (
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => onUninstall(app)}
+            disabled={app.protection === 'protected'}
+          >
+            Uninstall
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+});
+
+export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>('apps');
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [startupApps, setStartupApps] = useState<StartupApp[]>([]);
@@ -149,6 +219,15 @@ export const Tools: React.FC = () => {
   const cautionApps = installedApps.filter((a) => a.protection === 'caution');
   const protectedApps = installedApps.filter((a) => a.protection === 'protected');
 
+  const renderAppRow = (app: InstalledApp) => (
+    <AppRow
+      app={app}
+      uninstalling={uninstalling === app.id}
+      progress={progress}
+      onUninstall={handleUninstall}
+    />
+  );
+
   return (
     <div className="page">
       <h2 className="page-title mb-6">Tools</h2>
@@ -198,48 +277,22 @@ export const Tools: React.FC = () => {
               </div>
             }
           >
-            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
-              {installedApps.map((app) => (
-                <div
-                  key={app.id}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-fg-primary">{app.name}</span>
-                      <Badge
-                        variant={
-                          app.protection === 'protected'
-                            ? 'error'
-                            : app.protection === 'caution'
-                              ? 'warning'
-                              : 'success'
-                        }
-                      >
-                        {app.protection}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-fg-tertiary">
-                      {app.publisher} • {app.version} • {formatBytes(app.size)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {uninstalling === app.id ? (
-                      <Progress value={progress} className="w-24" />
-                    ) : (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleUninstall(app)}
-                        disabled={app.protection === 'protected'}
-                      >
-                        Uninstall
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {installedApps.length > VIRTUALIZE_THRESHOLD ? (
+              <VirtualList
+                items={installedApps}
+                estimateSize={64}
+                getKey={(app) => app.id}
+                renderItem={renderAppRow}
+                maxHeight={384}
+                testId="installed-apps"
+              />
+            ) : (
+              <div className="flex flex-col gap-2 max-h-96 overflow-y-auto" data-testid="installed-apps">
+                {installedApps.map((app) => (
+                  <div key={app.id}>{renderAppRow(app)}</div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       )}
@@ -382,54 +435,41 @@ export const Tools: React.FC = () => {
 
       {activeTab === 'utilities' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card hoverable>
-            <div className="flex flex-col items-center text-center gap-3 p-4">
-              <span className="text-3xl">🔍</span>
-              <h3 className="text-md font-semibold text-fg-primary">Registry Cleaner</h3>
-              <p className="text-sm text-fg-secondary">Scan and fix registry errors</p>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          </Card>
-          <Card hoverable>
-            <div className="flex flex-col items-center text-center gap-3 p-4">
-              <span className="text-3xl">💽</span>
-              <h3 className="text-md font-semibold text-fg-primary">Disk Defragmenter</h3>
-              <p className="text-sm text-fg-secondary">Optimize disk performance</p>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          </Card>
-          <Card hoverable>
-            <div className="flex flex-col items-center text-center gap-3 p-4">
-              <span className="text-3xl">🔒</span>
-              <h3 className="text-md font-semibold text-fg-primary">Privacy Eraser</h3>
-              <p className="text-sm text-fg-secondary">Remove browsing history and traces</p>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          </Card>
-          <Card hoverable>
-            <div className="flex flex-col items-center text-center gap-3 p-4">
-              <span className="text-3xl">🗑️</span>
-              <h3 className="text-md font-semibold text-fg-primary">File Shredder</h3>
-              <p className="text-sm text-fg-secondary">Permanently delete sensitive files</p>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          </Card>
-          <Card hoverable>
-            <div className="flex flex-col items-center text-center gap-3 p-4">
-              <span className="text-3xl">🌐</span>
-              <h3 className="text-md font-semibold text-fg-primary">Network Optimizer</h3>
-              <p className="text-sm text-fg-secondary">Optimize network settings</p>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          </Card>
-          <Card hoverable>
-            <div className="flex flex-col items-center text-center gap-3 p-4">
-              <span className="text-3xl">ℹ️</span>
-              <h3 className="text-md font-semibold text-fg-primary">System Info</h3>
-              <p className="text-sm text-fg-secondary">View detailed system information</p>
-              <Button variant="secondary" size="sm">Open</Button>
-            </div>
-          </Card>
+          {UTILITIES.map((utility) => {
+            const available = Boolean(utility.target);
+            return (
+              <Card key={utility.title} hoverable>
+                <div className="flex flex-col items-center text-center gap-3 p-4">
+                  <span className="text-3xl">{utility.icon}</span>
+                  <h3 className="text-md font-semibold text-fg-primary">{utility.title}</h3>
+                  <p className="text-sm text-fg-secondary">{utility.description}</p>
+                  {available ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        if (utility.target) onNavigate?.(utility.target);
+                      }}
+                    >
+                      Open
+                    </Button>
+                  ) : (
+                    <>
+                      <Badge variant="neutral">Not available yet</Badge>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled
+                        title="This utility is not implemented in this version"
+                      >
+                        Open
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

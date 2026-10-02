@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-02
+
+Auditoría funcional + cierre de pendientes de rendimiento: **3 bugs de "lista que degrada a
+0" en servicios Main corregidos**, la única vista con *jank* (Tools → Apps) virtualizada, el
+flake de E2E identificado y endurecido, y el FPS medido bajo carga real. Sin capacidad nueva
+visible al usuario → **0.4.2** (patch).
+
+### Fixed
+
+- **`bundles:check-installed`: `JSON.parse` sin proteger reventaba con un solo elemento.**
+  `ConvertTo-Json` colapsa un pipeline de un elemento en un **string suelto** (no un array);
+  `installedNames.some(...)` lanzaba `TypeError` sobre ese string y el `catch` lo tragaba, así
+  que **toda app del catálogo se reportaba como "no instalada"**. Ahora el payload se
+  normaliza a array antes de iterar. Test: `app-bundles.test.ts` (un `"Google Chrome"` suelto
+  ⇒ `chrome` instalada) — familia del bug de `startup-apps`.
+- **`cleaning:get-schedules` / `cleaning:get-history`: fechas que quedaban como strings.**
+  El archivo JSON devolvía `nextRun`/`lastRun`/`timestamp` como ISO strings y el renderer
+  llama `.toLocaleDateString()` sobre ellas ⇒ `TypeError: ... is not a function` al abrir
+  *Scheduled Cleaning*. Ahora se reviven a `Date` al parsear. Tests: `scheduled-cleaning.test.ts`
+  (instancias de `Date`, y tolerancia a payload no-array).
+- **`cleaning:get-schedules`: un archivo corrupto envenenaba el estado del módulo.** Un
+  payload no-array se asignaba tal cual a `schedules` (estado de módulo), y luego
+  `schedules.findIndex(...)` lanzaba en `updateSchedule`/`deleteSchedule`. Ahora un payload
+  inválido devuelve `[]` y nunca sustituye el estado por un valor no-array.
+
+### Changed
+
+- **Tools → Apps virtualizada con el mismo `VirtualList` que Drivers** (sin una segunda forma
+  de virtualizar): **1 866 → 331 nodos DOM** (48 apps reales) y **2 → 0 frames perdidos** en
+  scroll; peor frame **50,2 → 17,0 ms**. Umbral 50 filas, idéntico a Drivers. Fila extraída a
+  `AppRow` memoizado. Test nuevo en `e2e/performance.spec.ts` (500 apps ⇒ filas DOM < 120).
+- **Acciones muertas endurecidas** (botones que no hacían nada): *Dashboard* → *Clean Junk* /
+  *Optimize* ahora navegan a Cleaner/Boost; *Tools → Utilities* abre Network/System Info donde
+  existe y marca el resto **"Not available yet"** (deshabilitado); los *Fix* de Audit/Security
+  y *Export CSV* de Statistics quedan deshabilitados con tooltip; los toggles/inputs no
+  implementados de Settings quedan deshabilitados (el toggle de tema sigue vivo).
+- **`scripts/measure-ui-perf.mjs`: nuevo `--load <audit|services|system|drivers>`** que
+  mantiene un canal IPC pesado en vuelo durante todo el scroll y reporta `loadMs`, para medir
+  FPS bajo contención real de CPU.
+
+### Added
+
+- **`docs/CODE_SIGNING.md`**: pasos, coste y wiring (`CSC_LINK`/`CSC_KEY_PASSWORD` o Azure
+  Trusted Signing) para firmar los binarios. El build sin firmar de hoy **no** cambia; el
+  aviso de SmartScreen **no** se puede eliminar sin certificado de pago (reportado como tal).
+- **`e2e/helpers.ts`**: `gotoApp()` con retry acotado sólo para fallos transitorios de red de
+  Chromium (`ERR_NO_BUFFER_SPACE`, `ERR_CONNECTION_*`), aplicado a toda la suite.
+
+### Fixed (tests)
+
+- **Flake de E2E nombrado y endurecido:** `settings.spec.ts › should display updates section`
+  fallaba ~1/5 corridas con `page.goto: net::ERR_NO_BUFFER_SPACE` (capa de red de Chromium
+  bajo contención). Reemplazado el `page.goto` directo por `gotoApp()` en los 13 specs.
+  **Verificado: 6/6 corridas consecutivas limpias, 76/76 tests.**
+
+Verificado con gates frescos: `tsc --noEmit` 0 · `eslint --max-warnings 0` 0 · `vitest` 332/332 ·
+`playwright` 76/76 · `build` y `electron:build` exit 0.
+
 ## [0.4.1] - 2026-10-02
 
 Ronda de diagnóstico de latencia UI: la lentitud percibida no era el render, eran

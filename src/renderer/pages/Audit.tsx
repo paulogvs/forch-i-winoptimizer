@@ -114,7 +114,12 @@ export const Audit: React.FC = () => {
                         )}
                       </div>
                       {check.autoFixable && check.status !== 'pass' && (
-                        <Button variant="secondary" size="sm">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled
+                          title="Automatic fix is not implemented yet — apply the recommendation manually."
+                        >
                           Fix
                         </Button>
                       )}

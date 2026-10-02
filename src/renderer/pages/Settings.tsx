@@ -66,25 +66,37 @@ export const Settings: React.FC<SettingsProps> = ({ theme, onThemeToggle }) => {
               onChange={onThemeToggle}
               label="Dark Mode"
             />
-            <Input label="Accent Color" type="color" defaultValue="#06B6D4" />
+            <Input
+              label="Accent Color"
+              type="color"
+              defaultValue="#06B6D4"
+              disabled
+              title="Accent color customization is not implemented yet"
+            />
           </div>
         </Card>
 
         <Card title="General">
           <div className="flex flex-col gap-4">
-            <Toggle checked={true} onChange={() => {}} label="Start with Windows" />
-            <Toggle checked={false} onChange={() => {}} label="Minimize to tray on close" />
-            <Toggle checked={true} onChange={() => {}} label="Enable notifications" />
-            <Toggle checked={false} onChange={() => {}} label="Automatic updates" />
+            <Toggle checked={true} onChange={() => {}} disabled label="Start with Windows" title="Not implemented yet" />
+            <Toggle checked={false} onChange={() => {}} disabled label="Minimize to tray on close" title="Not implemented yet" />
+            <Toggle checked={true} onChange={() => {}} disabled label="Enable notifications" title="Not implemented yet" />
+            <Toggle checked={false} onChange={() => {}} disabled label="Automatic updates" title="Not implemented yet" />
           </div>
         </Card>
 
         <Card title="Cleaner">
           <div className="flex flex-col gap-4">
-            <Toggle checked={true} onChange={() => {}} label="Scan browser cache" />
-            <Toggle checked={true} onChange={() => {}} label="Scan Windows temp files" />
-            <Toggle checked={false} onChange={() => {}} label="Scan recycle bin" />
-            <Input label="Exclude paths" placeholder="C:\Important" helperText="Comma-separated list of paths to exclude" />
+            <Toggle checked={true} onChange={() => {}} disabled label="Scan browser cache" title="Not implemented yet" />
+            <Toggle checked={true} onChange={() => {}} disabled label="Scan Windows temp files" title="Not implemented yet" />
+            <Toggle checked={false} onChange={() => {}} disabled label="Scan recycle bin" title="Not implemented yet" />
+            <Input
+              label="Exclude paths"
+              placeholder="C:\Important"
+              helperText="Comma-separated list of paths to exclude"
+              disabled
+              title="Path exclusions are not implemented yet"
+            />
           </div>
         </Card>
 

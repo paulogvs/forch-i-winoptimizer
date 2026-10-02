@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupElectronMock } from './setup';
+import { gotoApp } from './helpers';
 
 test.describe('Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await setupElectronMock(page);
-    await page.goto('/');
+    await gotoApp(page);
   });
 
   test('should display sidebar', async ({ page }) => {

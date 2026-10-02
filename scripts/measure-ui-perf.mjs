@@ -52,6 +52,9 @@ const CYCLES = Number(arg('cycles', '3'));
 // Frame-timing additions (same script, same instrumentation path).
 const FPS_ONLY = process.argv.includes('--fps-only');
 const SCROLL_ROWS = Number(arg('rows', '500'));
+// Optional concurrent IPC load while scrolling (FPS under CPU contention):
+// audit | services | system | drivers. Empty = measure at rest (baseline).
+const LOAD = arg('load', '');
 
 const now = () => Date.now();
 const median = (xs) => {
@@ -521,14 +524,14 @@ async function measureInteractions(app, page) {
  * Diagnostics only: this runs inside page.evaluate() from the harness. No
  * production code (`src/`) is touched or shipped.
  */
-async function measureScrollFps(app, page, { navIndex = null, label = '', steps = 90, settleMs = 150, readyMs = 300, maxWaitMs = 20000 } = {}) {
+async function measureScrollFps(app, page, { navIndex = null, label = '', steps = 90, settleMs = 150, readyMs = 300, maxWaitMs = 20000, load = '' } = {}) {
   if (navIndex != null) await navigate(app, page, navIndex);
   // Let the first paint land; the scroller poll below waits for IPC-backed
   // lists (e.g. Tools > Apps, ~10 s on a cold channel) to actually fill.
   await page.waitForTimeout(readyMs);
 
   const measured = await page.evaluate(
-    async ({ steps, settleMs, maxWaitMs }) => {
+    async ({ steps, settleMs, maxWaitMs, load }) => {
       if (document.visibilityState === 'hidden') {
         return { skipped: 'document hidden (rAF throttled)', visibilityState: document.visibilityState };
       }
@@ -566,6 +569,32 @@ async function measureScrollFps(app, page, { navIndex = null, label = '', steps 
       const maxTop = scroller.scrollHeight - scroller.clientHeight;
       const startTop = scroller.scrollTop;
 
+      // Optional concurrent IPC load: kick off a real (heavy) channel and keep
+      // it in flight for the whole scroll, so the frame timing reflects CPU
+      // contention with a scan instead of an idle machine.
+      const loaders = {
+        audit: async () => {
+          await window.electronAPI.clearCache();
+          return window.winoptimizer.audit.run();
+        },
+        services: async () => {
+          await window.electronAPI.clearCache();
+          return window.electronAPI.getSystemServices({ force: true });
+        },
+        system: async () => window.electronAPI.getSystemInfo({ force: true }),
+        drivers: async () => window.winoptimizer.drivers.scan({ force: true }),
+      };
+      let loadPromise = null;
+      let loadStart = null;
+      let loadEnd = null;
+      let loadError = null;
+      if (load && loaders[load]) {
+        loadStart = performance.now();
+        loadPromise = loaders[load]().catch((e) => {
+          loadError = String((e && e.message) || e);
+        });
+      }
+
       const deltas = [];
       let running = true;
       let last = null;
@@ -584,6 +613,13 @@ async function measureScrollFps(app, page, { navIndex = null, label = '', steps 
       await new Promise((r) => setTimeout(r, settleMs));
       running = false;
       scroller.scrollTop = startTop;
+
+      // Let the concurrent load finish so its duration is reported (the FPS
+      // numbers above already captured the overlap window).
+      if (loadPromise) {
+        await loadPromise;
+        loadEnd = performance.now();
+      }
 
       const d = deltas.filter((x) => x > 0);
       const sorted = [...d].sort((a, b) => a - b);
@@ -608,10 +644,13 @@ async function measureScrollFps(app, page, { navIndex = null, label = '', steps 
         droppedFrames: d.filter((x) => x > 33.3).length,
         domNodes: document.querySelectorAll('*').length,
         visibilityState: document.visibilityState,
+        load: load || null,
+        loadMs: loadStart != null && loadEnd != null ? Math.round(loadEnd - loadStart) : null,
+        loadError,
         deltas: d.map((x) => Math.round(x * 10) / 10),
       };
     },
-    { steps, settleMs, maxWaitMs }
+    { steps, settleMs, maxWaitMs, load }
   );
 
   return { label, ...measured };
@@ -647,14 +686,14 @@ async function injectMockDrivers(app, count) {
 }
 
 /** Scroll FPS across the views with the most rows. */
-async function measureScrollFpsSuite(app, page, { rows = 500 } = {}) {
+async function measureScrollFpsSuite(app, page, { rows = 500, load = '' } = {}) {
   const out = {};
   out.mockDrivers = await injectMockDrivers(app, rows).catch((err) => ({ error: String(err?.message || err) }));
-  out.drivers = await measureScrollFps(app, page, { navIndex: 4, label: `drivers-${rows}-virtualized` });
-  out.toolsApps = await measureScrollFps(app, page, { navIndex: 3, label: 'tools-apps-installed' });
-  out.bundles = await measureScrollFps(app, page, { navIndex: 8, label: 'bundles' });
+  out.drivers = await measureScrollFps(app, page, { navIndex: 4, label: `drivers-${rows}-virtualized`, load });
+  out.toolsApps = await measureScrollFps(app, page, { navIndex: 3, label: 'tools-apps-installed', load });
+  out.bundles = await measureScrollFps(app, page, { navIndex: 8, label: 'bundles', load });
   // Tweaks is a scroll target only if its sections overflow; reported either way.
-  out.tweaks = await measureScrollFps(app, page, { navIndex: 10, label: 'tweaks' });
+  out.tweaks = await measureScrollFps(app, page, { navIndex: 10, label: 'tweaks', load });
   return out;
 }
 
@@ -698,6 +737,9 @@ async function main() {
   const result = {
     meta: {      when: new Date().toISOString(),
       cycles: CYCLES,
+      // Load mode for the scroll FPS pass: '' = at rest, otherwise the IPC
+      // channel kept in flight while scrolling (CPU-contention measurement).
+      load: LOAD || null,
       // Methodology note: page-load and interaction latencies are timestamped
       // INSIDE the renderer by a MutationObserver installed before page
       // scripts, and clicks are dispatched from in-page. This excludes
@@ -715,7 +757,7 @@ async function main() {
   // Focused frame-timing run: skip startup + the 42-navigation cycles and only
   // measure scroll FPS (same instrumentation path as the full run below).
   if (FPS_ONLY) {
-    console.error(`[fps] launching app (scroll frame timing, rows=${SCROLL_ROWS})...`);
+    console.error(`[fps] launching app (scroll frame timing, rows=${SCROLL_ROWS}${LOAD ? `, load=${LOAD}` : ''})...`);
     const app = await electron.launch({ args: ['.'], cwd: ROOT });
     const page = await app.firstWindow();
     await page.context().addInitScript(INIT_SCRIPT);
@@ -723,7 +765,7 @@ async function main() {
     await page.waitForLoadState('load');
     await page.reload({ waitUntil: 'load' });
     await page.waitForTimeout(500);
-    result.scrollFps = await measureScrollFpsSuite(app, page, { rows: SCROLL_ROWS });
+    result.scrollFps = await measureScrollFpsSuite(app, page, { rows: SCROLL_ROWS, load: LOAD });
     await app.close();
     writeResult(result);
     console.log(JSON.stringify({ meta: result.meta, scrollFps: result.scrollFps }, null, 2));
@@ -796,7 +838,7 @@ async function main() {
 
   console.error('[extra] scroll frame timing...');
   try {
-    result.scrollFps = await measureScrollFpsSuite(app, page, { rows: SCROLL_ROWS });
+    result.scrollFps = await measureScrollFpsSuite(app, page, { rows: SCROLL_ROWS, load: LOAD });
     for (const [view, m] of Object.entries(result.scrollFps)) {
       if (view === 'mockDrivers') continue;
       if (m && m.skipped) console.error(`  ${view}: skipped (${m.skipped})`);

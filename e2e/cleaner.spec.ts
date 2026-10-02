@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { setupElectronMock } from './setup';
+import { gotoApp } from './helpers';
 
 test.describe('Cleaner', () => {
   test.beforeEach(async ({ page }) => {
     await setupElectronMock(page);
-    await page.goto('/');
+    await gotoApp(page);
     await page.click('text=Cleaner');
   });
 

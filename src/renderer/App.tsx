@@ -44,10 +44,10 @@ const App: React.FC = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard': return <Dashboard />;
+      case 'dashboard': return <Dashboard onNavigate={setCurrentPage} />;
       case 'cleaner': return <Cleaner />;
       case 'boost': return <Boost />;
-      case 'tools': return <Tools />;
+      case 'tools': return <Tools onNavigate={setCurrentPage} />;
       case 'drivers': return <Drivers />;
       case 'network': return <Network />;
       case 'audit': return <Audit />;

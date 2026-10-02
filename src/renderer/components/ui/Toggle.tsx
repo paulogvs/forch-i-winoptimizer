@@ -6,6 +6,8 @@ export interface ToggleProps {
   label?: string;
   disabled?: boolean;
   className?: string;
+  /** Native tooltip, used to explain disabled/unimplemented switches. */
+  title?: string;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -14,6 +16,7 @@ export const Toggle: React.FC<ToggleProps> = ({
   label,
   disabled = false,
   className = '',
+  title,
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -30,6 +33,7 @@ export const Toggle: React.FC<ToggleProps> = ({
       aria-label={label}
       className="toggle"
       disabled={disabled}
+      title={title}
       onClick={() => !disabled && onChange(!checked)}
       onKeyDown={handleKeyDown}
     />

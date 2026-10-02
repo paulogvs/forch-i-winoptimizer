@@ -184,7 +184,11 @@ export async function checkInstalledApps(): Promise<Map<string, boolean>> {
 
   if (result.success && result.stdout) {
     try {
-      const installedNames: string[] = JSON.parse(result.stdout);
+      // `ConvertTo-Json` collapses a one-element pipeline into a bare string,
+      // so `installedNames.some(...)` used to throw on that string and the
+      // catch swallowed it -> every app reported as "not installed".
+      const parsed: unknown = JSON.parse(result.stdout);
+      const installedNames = (Array.isArray(parsed) ? parsed : [parsed]).map((name) => String(name));
       for (const bundle of APP_BUNDLES) {
         for (const app of bundle.apps) {
           const isInstalled = installedNames.some((name) =>

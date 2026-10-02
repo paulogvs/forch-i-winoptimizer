@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { setupElectronMock } from './setup';
+import { gotoApp } from './helpers';
 
 test.describe('Free RAM quick action (P1.1)', () => {
   test.beforeEach(async ({ page }) => {
     await setupElectronMock(page);
-    await page.goto('/');
+    await gotoApp(page);
   });
 
   const pushStatus = (

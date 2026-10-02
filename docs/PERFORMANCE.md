@@ -303,23 +303,93 @@ Corrección derivada del TDD: un payload no-JSON en el bloque de startup hacía
 `JSON.parse` lanzara y **rechazaba toda la auditoría** (bug preexistente, v0.4.0). Ahora
 `countFromJson` degrada a 0 sin tocar al resto de los 30 checks.
 
-### Gates frescos (post-cambios)
+---
 
-- `npx vitest run` → **328/328** (36 archivos), exit 0
-- `npx tsc --noEmit` → exit 0
-- `npx eslint . --max-warnings 0` → exit 0
-- `npm run build` → exit 0
+## Ronda v0.4.2 — virtualización de Tools·Apps y FPS bajo carga
 
-## Pendiente / no instrumentado
+### Virtualización de la lista de apps instaladas
+
+La medición de scroll de v0.4.1 encontró un único foco de *jank*: **Tools → Apps**
+(lista **no** virtualizada, 1 866 nodos, 2 frames perdidos, peor frame 50,2 ms). En
+v0.4.2 se virtualiza con el **mismo** componente que ya usaba Drivers (`VirtualList` de
+`@tanstack/react-virtual`, umbral de 50 filas, igual que Drivers), sin introducir una
+segunda forma de virtualizar. La fila se extrajo a un `AppRow` memoizado.
+
+| Métrica (Tools → Apps, 48 apps reales / 500 sintéticas) | v0.4.1 | v0.4.2 |
+|---|---|---|
+| Nodos DOM (48 apps instaladas reales) | **1 866** | **331** |
+| Nodos DOM (lista sintética de 500) | 1 866+ | **< 120 filas** |
+| Frames perdidos (scroll a 60 FPS) | **2** | **0** |
+| Peor frame | **50,2 ms** | 17,0 ms |
+
+Verificado por `e2e/performance.spec.ts` (nueva aserción: 500 apps → filas DOM < 120).
+
+### FPS bajo carga real de CPU (pendiente #1)
+
+Medido con el soporte nuevo `--load <canal>` de `scripts/measure-ui-perf.mjs`: mantiene
+un canal IPC pesado **en vuelo durante todo el scroll** y muestrea el intervalo real
+entre frames. `audit:run` tarda ~11,5 s y cubre toda la ventana de scroll (~1,5 s), así
+que el solapamiento es real (el FPS con carga se mide mientras PowerShell compite por los
+4 hilos). Equipo: Intel i3-4170 (4 hilos). Artefactos:
+`docs/perf/ui-scroll-fps-at-rest-0.4.2.json`, `docs/perf/ui-scroll-fps-under-audit-0.4.2.json`,
+`docs/perf/ui-scroll-fps-under-drivers-0.4.2.json`.
+
+En **reposo** (dos corridas; la primera paga el arranque en frío de Chromium — 6 frames
+perdidos en Drivers —, la segunda — ya caliente — no pierde ninguno):
+
+| Vista | p50 FPS | p95 | mín | Frames perdidos | Peor frame |
+|---|---|---|---|---|---|
+| Drivers (500, virtualizada) | 59,9 | 59,5 | 58,8 | **0** | 17,0 ms |
+| Tools → Apps (real) | 59,9 | 59,5 | 59,5 | **0** | 16,8 ms |
+| Bundles (48) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
+| Tweaks (19) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
+
+**Bajo `audit:run` en vuelo** (11,5 s):
+
+| Vista | p50 FPS | p95 | mín | Frames perdidos | Peor frame |
+|---|---|---|---|---|---|
+| Drivers (500) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
+| Tools → Apps (real) | 59,9 | 59,5 | 58,1 | **0** | 17,2 ms |
+| Bundles (48) | 59,9 | 59,5 | 59,2 | **0** | 16,9 ms |
+| Tweaks (19) | 59,9 | 59,2 | 58,5 | **0** | 17,1 ms |
+
+**Bajo `drivers:scan` en vuelo** (~1,67 s): idéntico — 60 FPS, **0** frames perdidos en
+las 4 vistas (peor frame 16,9 ms).
+
+**Lectura:** con la lista de Apps ya virtualizada, **un `audit:run`/`drivers:scan` en
+paralelo no degrada el scroll**. El *jank* de Tools → Apps de v0.4.1 era **coste de
+render** (1 866 nodos en el renderer), no contención de CPU del escaneo: al eliminarlo, la
+carga de PowerShell deja de importar para los frames. La contención de CPU había sido la
+hipótesis; la medición la refuta.
+
+### Main thread del renderer vs compositor (pendiente #2)
+
+**No se pudo separar, y se reporta como tal.** El harness mide el intervalo real entre
+frames vía `requestAnimationFrame`, que es el presupuesto de **main thread del renderer**;
+si el main thread se atasca, el frame se retrasa — pero esa señal no distingue el coste de
+*layout/paint* del renderer del de *rasterización/composición* de la GPU. Las vías nativas
+de Electron que habrían permitido separarlos (`--enable-logging` + trace de `viz`,
+`app.getGPUFeatureStatus`, `gpu:info`) tendrían que ejecutarse contra el binario real y
+limpiar el ruido de arranque; no se hizo dentro del alcance. Sin esa instrumentación, la
+atribución renderer-vs-compositor sería especulación, así que **no se reporta un número**.
+
+Lo que sí se puede afirmar con la evidencia actual: el peor frame bajo carga (17,2 ms) es
+< 33,3 ms (2 frames a 60 Hz) ⇒ no hay long tasks que lleguen a perderse por **ninguno** de
+los dos lados en las mediciones tomadas.
+
+### Pendiente / no instrumentado
 
 - **FPS de scroll / frame timing**: ✅ **medido** — ver § *FPS / frame timing (scroll)*.
 - **`drivers:scan`, `bundles:check-installed`, `system:get-info`**: ✅ **re-medidos** con
   ≥5 repeticiones — ver § *Canales re-medidos*.
-- **FPS bajo carga real de CPU** (scroll *mientras* corre un `audit:run`/`drivers:scan` en
-  paralelo): no instrumentado. La medición FPS se hizo con la app en reposo de IPC; falta
-  cuantificar la contención cuando un scan de PowerShell compite por los 4 hilos.
-- **Coste de GPU / compositor**: los FPS reportados son del renderer limitados por vsync; no
-  se separó compositing de GPU ni se probó en equipos con otra GPU integrada.
+- **FPS bajo carga real de CPU** (scroll *mientras* corre un `audit:run`/`drivers:scan`):
+  ✅ **medido en v0.4.2** — ver § *Ronda v0.4.2 → FPS bajo carga real de CPU*; 60 FPS y 0
+  frames perdidos con el scan en vuelo (la virtualización de Tools·Apps eliminó el único
+  *jank* que quedaba).
+- **Coste de GPU / compositor** (separar renderer de compositing): ❌ **no se pudo**
+  separar con la instrumentación disponible (`requestAnimationFrame` mide el main thread
+  del renderer, no la GPU). Reportado explícitamente en § *Ronda v0.4.2 → Main thread del
+  renderer vs compositor*; **no** se reporta un número inventado.
 - `backgroundThrottling`: se mantuvo el default seguro de Electron (no se desactiva).
 
 *Build. Learn. Evolve.*

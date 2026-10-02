@@ -195,7 +195,14 @@ export const Security: React.FC = () => {
                       )}
                     </div>
                     {check.autoFixable && check.status !== 'pass' && (
-                      <Button variant="secondary" size="sm">Fix</Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled
+                        title="Automatic fix is not implemented yet — apply the recommendation from the Privacy tab."
+                      >
+                        Fix
+                      </Button>
                     )}
                   </div>
                 </Card>

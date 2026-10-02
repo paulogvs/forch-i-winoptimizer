@@ -7,8 +7,13 @@ import { ScanProgress } from '../components/ui/ScanProgress';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { formatBytes, formatUptime } from '../utils/format';
 import type { SystemInfo } from '@shared/electron-api';
+import type { PageId } from '@shared/types';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onNavigate?: (page: PageId) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const progress = useScanProgress('system');
@@ -157,8 +162,12 @@ export const Dashboard: React.FC = () => {
             <Button variant="primary" onClick={() => loadSystemInfo(true)}>
               Scan Now
             </Button>
-            <Button variant="secondary">Clean Junk</Button>
-            <Button variant="secondary">Optimize</Button>
+            <Button variant="secondary" onClick={() => onNavigate?.('cleaner')}>
+              Clean Junk
+            </Button>
+            <Button variant="secondary" onClick={() => onNavigate?.('boost')}>
+              Optimize
+            </Button>
           </div>
         </Card>
       </div>

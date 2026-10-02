@@ -130,6 +130,22 @@ describe('App Bundles', () => {
       expect(result.get('firefox')).toBe(false);
     });
 
+    it('detects a single installed app emitted as a bare JSON string (ConvertTo-Json single-item case)', async () => {
+      // PowerShell `ConvertTo-Json` collapses a one-element pipeline into a bare
+      // string, not an array. The old code called `.some()` on that string,
+      // threw, and swallowed the error -> every bundle app reported "not installed".
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify('Google Chrome'),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await checkInstalledApps();
+      expect(result.get('chrome')).toBe(true);
+      expect(result.get('firefox')).toBe(false);
+    });
+
     it('should handle empty installed list', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,

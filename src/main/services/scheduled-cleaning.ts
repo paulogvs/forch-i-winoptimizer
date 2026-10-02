@@ -5,6 +5,50 @@ import type { CleaningSchedule, CleaningHistoryEntry } from '@shared/types';
 let schedules: CleaningSchedule[] = [];
 let history: CleaningHistoryEntry[] = [];
 
+function toDate(value: unknown): Date | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * The schedules file is JSON, so `nextRun`/`lastRun` come back as ISO strings
+ * and the payload may not even be an array (a corrupt/partial file). Revive the
+ * dates the renderer calls `.toLocaleDateString()` on and always return an
+ * array — one bad file must never make `schedules.findIndex` explode later.
+ */
+function parseStoredSchedules(stdout: string): CleaningSchedule[] {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+      .map((entry) => ({
+        ...(entry as unknown as CleaningSchedule),
+        lastRun: toDate(entry.lastRun),
+        nextRun: toDate(entry.nextRun) ?? new Date(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Revive history timestamps; always return an array. */
+function parseStoredHistory(stdout: string): CleaningHistoryEntry[] {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+      .map((entry) => ({
+        ...(entry as unknown as CleaningHistoryEntry),
+        timestamp: toDate(entry.timestamp) ?? new Date(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getSchedules(): Promise<CleaningSchedule[]> {
   const result = await runPowerShell(
     '$path = "$env:APPDATA\\FORCH.iA WinOptimizer\\schedules.json"; ' +
@@ -12,9 +56,7 @@ export async function getSchedules(): Promise<CleaningSchedule[]> {
   );
 
   if (result.success && result.stdout) {
-    try {
-      schedules = JSON.parse(result.stdout);
-    } catch { /* ignore */ }
+    schedules = parseStoredSchedules(result.stdout);
   }
 
   return schedules;
@@ -218,9 +260,7 @@ export async function getHistory(): Promise<CleaningHistoryEntry[]> {
   );
 
   if (result.success && result.stdout) {
-    try {
-      history = JSON.parse(result.stdout);
-    } catch { /* ignore */ }
+    history = parseStoredHistory(result.stdout);
   }
 
   return history;

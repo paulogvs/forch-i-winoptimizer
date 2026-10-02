@@ -7,7 +7,9 @@ export const Statistics: React.FC = () => {
     <div className="page">
       <div className="flex justify-between items-center mb-6">
         <h2 className="page-title">Statistics</h2>
-        <Button variant="secondary">Export CSV</Button>
+        <Button variant="secondary" disabled title="CSV export is not implemented yet">
+          Export CSV
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

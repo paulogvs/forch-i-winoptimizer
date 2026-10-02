@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { setupElectronMock } from './setup';
+import { gotoApp } from './helpers';
 
 type PushStatus = (status: {
   busy: boolean;
@@ -12,7 +13,7 @@ type PushStatus = (status: {
 test.describe('Global operation mutex (P0.3)', () => {
   test.beforeEach(async ({ page }) => {
     await setupElectronMock(page);
-    await page.goto('/');
+    await gotoApp(page);
   });
 
   const pushStatus = (page: Page, status: Parameters<PushStatus>[0]) =>
