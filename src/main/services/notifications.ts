@@ -1,4 +1,5 @@
 import { Notification } from 'electron';
+import { areNotificationsEnabled } from './settings';
 
 export interface NotificationOptions {
   title: string;
@@ -8,6 +9,9 @@ export interface NotificationOptions {
 }
 
 export function showNotification(options: NotificationOptions): void {
+  // Respect the "Enable notifications" setting: never notify when off.
+  if (!areNotificationsEnabled()) return;
+
   if (Notification.isSupported()) {
     const notification = new Notification({
       title: options.title,

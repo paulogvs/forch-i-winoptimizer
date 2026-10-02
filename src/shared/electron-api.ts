@@ -1,5 +1,8 @@
 import type { ScanProgressEvent } from './scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from './tweaks';
+import type { AppSettings, SettingsPayload, UpdateSettingsResult } from './settings';
+import type { StatsEvent, StatsExportResult } from './stats';
+import type { UpdateStatus } from './updater-status';
 
 export interface SystemInfo {
   platform: string;
@@ -371,6 +374,21 @@ export interface ElectronAPI {
   checkForUpdates: () => Promise<UpdateInfo>;
   downloadUpdate: (url: string) => Promise<string>;
   onUpdateProgress: (callback: (percent: number) => void) => () => void;
+  /** Subscribe to background updater lifecycle status. Returns an unsubscribe. */
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+  // Settings (single source of truth in main)
+  getSettings: () => Promise<SettingsPayload>;
+  updateSettings: (patch: Partial<AppSettings>) => Promise<UpdateSettingsResult>;
+  // Usage statistics (real recorded events)
+  getStats: () => Promise<StatsEvent[]>;
+  exportStats: () => Promise<StatsExportResult>;
+  // Background updater (electron-updater)
+  getUpdateStatus: () => Promise<UpdateStatus>;
+  checkForUpdatesNow: () => Promise<UpdateStatus>;
+  downloadUpdateNow: () => Promise<UpdateStatus>;
+  installUpdateNow: () => Promise<OperationResult>;
+  // Windows utilities (validated before launch)
+  launchTool: (id: string) => Promise<OperationResult>;
   // Window controls
   window: WindowControlsAPI;
   // Scan progress (P0.3)

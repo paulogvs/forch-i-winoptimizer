@@ -15,6 +15,7 @@ import { Statistics } from './pages/Statistics';
 import { Security } from './pages/Security';
 import { Settings } from './pages/Settings';
 import { useScanningIndicator } from './hooks/useScanProgress';
+import { applyAccentColor } from './utils/accent';
 import type { PageId, Theme } from '@shared/types';
 
 const App: React.FC = () => {
@@ -34,6 +35,17 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Apply the persisted accent as soon as the app boots, so the choice is not
+  // lost when the user lands on a page other than Settings.
+  useEffect(() => {
+    void window.electronAPI
+      .getSettings()
+      .then((result) => applyAccentColor(result.settings.accentColor))
+      .catch(() => {
+        /* main process unavailable (e.g. pure renderer preview) */
+      });
+  }, []);
+
   const handleThemeToggle = useCallback(() => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
@@ -50,7 +62,7 @@ const App: React.FC = () => {
       case 'tools': return <Tools onNavigate={setCurrentPage} />;
       case 'drivers': return <Drivers />;
       case 'network': return <Network />;
-      case 'audit': return <Audit />;
+      case 'audit': return <Audit onNavigate={setCurrentPage} />;
       case 'benchmark': return <Benchmark />;
       case 'bundles': return <Bundles />;
       case 'cleaning': return <Cleaning />;

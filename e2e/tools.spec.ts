@@ -68,9 +68,10 @@ test.describe('Tools', () => {
     await expect(page.locator('text=Startup Apps')).toBeVisible();
   });
 
-  test('should switch to utilities tab', async ({ page }) => {
+  test('should switch to utilities tab and list real Windows tools', async ({ page }) => {
     await page.click('button:has-text("Utilities")');
-    await expect(page.locator('text=Registry Cleaner')).toBeVisible();
+    await expect(page.locator('text=Task Manager')).toBeVisible();
+    await expect(page.getByTestId('launch-tool-task-manager')).toBeVisible();
   });
 
   test('should display installed apps', async ({ page }) => {

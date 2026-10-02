@@ -392,6 +392,55 @@ Puedes reportar errores en la [sección de issues](https://github.com/paulogvs/f
 
 ---
 
+## Novedades v0.5.0
+
+Todas las funciones que antes aparecían como *stub deshabilitado* (“Not implemented yet”)
+ahora funcionan de verdad.
+
+### Settings
+
+- **Accent color** — elegí un color; se derivan los tokens (`--color-accent`,
+  `--color-accent-hover`, `--color-border-focus`, `--color-chart-primary`) y se aplican
+  en vivo. Se guarda y se vuelve a aplicar al abrir la app. *Reset to brand cyan* vuelve al
+  cyan de marca.
+- **Start with Windows** — registra la app para que arranque con Windows. El toggle **lee el
+  estado real del sistema operativo**, así que nunca miente. En la build **portable** aparece
+  deshabilitado con la explicación (no aplica).
+- **Minimize to tray on close** — al cerrar, la app queda en la bandeja del sistema. El menú
+  de la bandeja tiene *Show* y *Quit* (Quit cierra de verdad). Desactivalo para cerrar normal.
+- **Enable notifications** — apaga/enciende las notificaciones nativas de Windows.
+- **Automatic updates** — chequeos de fondo cada 4 horas (sólo build instalada, no portable).
+  La tarjeta **Updates** muestra el estado (buscando / al día / disponible / descargando /
+  error) con **Check now**, **Download** y **Restart & install**.
+- **Cleaner** — *Scan browser cache*, *Scan Windows temp files* y *Scan recycle bin* controlan
+  qué escanea el Cleaner (mismo motor, sin lógica duplicada). *Exclude paths* acepta rutas
+  separadas por comas (se aplican al perder el foco) que el escáner ignora.
+
+### Statistics
+
+- **Export CSV** — abre el diálogo nativo de guardado y escribe los datos reales en un CSV.
+- **Gráficos** — barras/líneas en SVG puro: junk encontrado por escaneo, archivos limpiados,
+  historial de puntaje de auditoría y RAM liberada. Se alimentan de eventos reales; si no hay
+  datos, se muestra un **empty state honesto** (no se inventan valores). Accesibles: cada
+  gráfico es un `role="img"` con una lista equivalente para lectores de pantalla.
+
+### Audit y Security
+
+- El botón **Fix** ya no está muerto. Como la auditoría **no** debe tocar la máquina a ciegas,
+  *Fix* abre el flujo reversible que resuelve el hallazgo: Audit → *Security · Privacy*,
+  *Tweaks*, *Cleaner* o *Network* según el caso; Security → pestaña *Privacy*. El tooltip
+  indica el destino.
+
+### Tools → Utilities
+
+- La pestaña **Windows utilities** abre herramientas reales del sistema (Administrador de
+  tareas, Liberador de espacio, Administrador de dispositivos, Servicios, Información del
+  sistema, Panel de control, Monitor de recursos, Programas y características, Conexiones de
+  red, Administración de discos, Visor de eventos, Monitor de rendimiento). El binario se
+  valida en `System32` antes de lanzarlo y cualquier error se informa en pantalla.
+
+---
+
 ## Soporte
 
 - **GitHub:** https://github.com/paulogvs/forch-i-winoptimizer

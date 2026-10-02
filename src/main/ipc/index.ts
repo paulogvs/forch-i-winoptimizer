@@ -1,5 +1,5 @@
 import type { IpcMainInvokeEvent, BrowserWindow } from 'electron';
-import { ipcMain } from 'electron';
+import { ipcMain, dialog } from 'electron';
 import type { BenchmarkReport, CleaningSchedule } from '@shared/types';
 import { getSystemInfo } from '../services/system-info';
 import { cache, withCache, type CacheOptions } from '../services/cache';
@@ -28,6 +28,16 @@ import { checkAllSources, formatReport, getPendingUpdates, formatPendingForDispl
 import { importUpdates, importAllPending, rejectUpdate, rejectAllPending } from '../source-updater';
 import type { PendingUpdate } from '../source-updater';
 import { withOperationLock, getOperationStatus, setOperationNotifier } from '../services/operation-lock';
+import { getSettings, updateSettings, getScanPreferences } from '../services/settings';
+import {
+  getStatsEvents,
+  recordStatsEvent,
+  defaultStatsFileName,
+  exportStatsCsv,
+} from '../services/stats';
+import { launchWindowsTool } from '../services/tool-launcher';
+import type { AppSettings } from '@shared/settings';
+import type { JunkCategory } from '../services/junk-scanner';
 
 /**
  * Channels whose handlers mutate system state (PowerShell / winget / service
@@ -63,6 +73,8 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'tweaks:restore',
   'tweaks:apply-many',
   'tweaks:restore-many',
+  'settings:update',
+  'tools:launch',
 ]);
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
@@ -96,7 +108,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   // global lock so it never interleaves with another mutating operation).
   handle('memory:free', async () => {
     const { freeMemory } = await import('../services/memory-free');
-    return freeMemory();
+    const result = await freeMemory();
+    if (result.success && result.freedMb > 0) {
+      recordStatsEvent({ type: 'boost', bytes: Math.round(result.freedMb * 1024 * 1024) });
+    }
+    return result;
   });
 
   // System info (TTL 60s; `force` bypasses after an explicit Refresh)
@@ -104,13 +120,47 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     withCache('systemInfo', () => getSystemInfo(createProgressReporter('system')), options ?? {})
   );
 
-  // Junk file scanner (TTL 30s)
+  // Junk file scanner (TTL 30s). The scan scope comes from the persisted
+  // settings (Cleaner toggles + exclude paths) so there is a single source of
+  // truth and no duplicated scan logic in the renderer.
   handle('cleaner:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
-    withCache('junk', () => scanForJunkFiles(createProgressReporter('junk')), options ?? {})
+    withCache(
+      'junk',
+      async () => {
+        const prefs = getScanPreferences();
+        const categories: JunkCategory[] = ['cache', 'logs', 'thumbnails', 'windows-update'];
+        if (prefs.scanWindowsTempFiles) categories.push('temp');
+        if (prefs.scanBrowserCache) categories.push('browser-cache');
+        if (prefs.scanRecycleBin) categories.push('recycle-bin');
+
+        const result = await scanForJunkFiles(createProgressReporter('junk'), {
+          categories,
+          excludePaths: prefs.excludePaths,
+        });
+        recordStatsEvent({ type: 'scan', bytes: result.totalSize, files: result.totalCount });
+        return result;
+      },
+      options ?? {}
+    )
   );
 
   handle('cleaner:delete', async (_event: IpcMainInvokeEvent, files: string[]) => {
-    const result = await deleteJunkFiles(files);
+    const targets = Array.isArray(files) ? files : [];
+    const result = await deleteJunkFiles(targets);
+
+    // Attribute freed bytes using the last scan result (if it is still warm).
+    const lastScan = cache.get<JunkScanResult>('junk');
+    let bytes = 0;
+    if (lastScan) {
+      const wanted = new Set(targets);
+      bytes = lastScan.files
+        .filter((f) => wanted.has(f.path))
+        .reduce((sum, f) => sum + f.size, 0);
+    }
+    if (result.deleted > 0) {
+      recordStatsEvent({ type: 'clean', files: result.deleted, bytes });
+    }
+
     cache.invalidateModule('junk');
     return result;
   });
@@ -223,7 +273,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
 
   // ===== System Audit (TTL 30s) =====
   handle('audit:run', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
-    withCache('health', () => runSystemAudit(), options ?? {})
+    withCache(
+      'health',
+      async () => {
+        const report = await runSystemAudit();
+        recordStatsEvent({ type: 'audit', score: report.score });
+        return report;
+      },
+      options ?? {}
+    )
   );
 
   // ===== Benchmark =====
@@ -300,6 +358,64 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     cache.clear();
     return { success: true };
   });
+
+  // ===== Settings (single source of truth in main) =====
+  handle('settings:get', () => getSettings());
+  handle('settings:update', (_event: IpcMainInvokeEvent, patch: Partial<AppSettings>) => {
+    const result = updateSettings(patch ?? {});
+    // A settings change may toggle the tray (window behaviour) or the
+    // automatic-update schedule; apply both immediately. Imported lazily so the
+    // heavy electron-updater/tray modules stay out of the base IPC graph.
+    void import('../window-behavior').then(({ refreshWindowBehavior }) =>
+      refreshWindowBehavior()
+    );
+    void import('../updater').then(({ syncAutoUpdateSchedule }) => syncAutoUpdateSchedule());
+    return result;
+  });
+
+  // ===== Usage statistics =====
+  handle('stats:get', () => getStatsEvents());
+  handle('stats:export', async () => {
+    const options = {
+      title: 'Export statistics as CSV',
+      defaultPath: defaultStatsFileName(),
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    };
+    const result =
+      mainWindow && !mainWindow.isDestroyed()
+        ? await dialog.showSaveDialog(mainWindow, options)
+        : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) {
+      return { success: false, message: 'Export canceled.' };
+    }
+    return exportStatsCsv(result.filePath);
+  });
+
+  // ===== Background updater (electron-updater) =====
+  // Imported lazily: `electron-updater` is heavy and must stay out of the base
+  // IPC graph (and out of unit tests that register handlers with a bare mock).
+  const updater = () => import('../updater');
+  handle('updater:status', async () => (await updater()).getUpdateStatus());
+  handle('updater:check-now', async () => {
+    const mod = await updater();
+    mod.checkForUpdatesManually();
+    return mod.getUpdateStatus();
+  });
+  handle('updater:download-now', async () => {
+    const mod = await updater();
+    await mod.downloadUpdateNow();
+    return mod.getUpdateStatus();
+  });
+  handle('updater:install-now', async () => {
+    const mod = await updater();
+    mod.quitAndInstallUpdate();
+    return { success: true };
+  });
+
+  // ===== Windows utilities =====
+  handle('tools:launch', (_event: IpcMainInvokeEvent, id: string) =>
+    launchWindowsTool(String(id))
+  );
 
   // ===== Safe Tweaks (P2) =====
   handle('tweaks:get', () => getTweaks());

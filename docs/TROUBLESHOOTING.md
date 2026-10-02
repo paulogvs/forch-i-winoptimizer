@@ -284,6 +284,48 @@ Signing** (inmediato). Pasos, coste y wiring del build en
 
 ---
 
+### 18. Actualizaciones automáticas no funcionan (v0.5.0)
+
+**Síntomas:** en *Settings → Updates*, *Automatic updates* está deshabilitado, o el estado
+queda en error, o el chequeo nunca encuentra nada.
+
+**Por qué ocurre:**
+- **Build portable** — el `.exe` portable se auto-extrae a una carpeta temporal; el
+  `electron-updater` no puede reemplazarlo en caliente. Por eso el toggle se deshabilita y se
+  explica en pantalla. **Solución:** usá la build instalable (NSIS) o descargá el Setup más
+  reciente de GitHub Releases y reinstalá.
+- **Build instalable sin `latest.yml`** — el updater necesita el `latest.yml` de
+  electron-builder junto al Setup en la misma Release. Si falta, el chequeo falla con error.
+  Se publica siempre junto a los binarios.
+- **Sin conexión / firewall** — el chequeo consulta GitHub Releases. Verificá tu red.
+
+**Recordatorio:** el botón *Check for Updates* de la tarjeta consulta la API de GitHub
+(informativo); *Check now* dispara el chequeo del updater de fondo.
+
+---
+
+### 19. "Start with Windows" no se puede activar (v0.5.0)
+
+**Síntomas:** el toggle aparece deshabilitado, o al activarlo vuelve a apagarse.
+
+**Por qué ocurre:** en la build **portable** no aplica (la ruta del ejecutable es temporal), y
+se muestra deshabilitado con la explicación. En la build instalable el toggle **lee el estado
+real** de Windows: si el registro de arranque no se pudo escribir, el toggle refleja la
+verdad en lugar de mentir. Verificá en *Administrador de tareas → Inicio* o en
+*Configuración → Aplicaciones → Inicio*.
+
+---
+
+### 20. Statistics: "No activity recorded yet"
+
+**Síntomas:** la página Statistics muestra el empty state o gráficos vacíos.
+
+**Por qué ocurre:** es **honesto**: todavía no hay eventos reales registrados. Los datos se
+crean al usar el Cleaner (escaneo/limpieza), ejecutar una auditoría o *Free RAM*. No se
+inventan valores. El **Export CSV** funciona igualmente (exporta el encabezado).
+
+---
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

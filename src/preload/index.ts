@@ -3,6 +3,8 @@ import type { IpcRendererEvent } from 'electron';
 import type { ElectronAPI, WinOptimizerAPI, OperationStatus, FreeMemoryResult } from '../shared/electron-api';
 import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
+import type { AppSettings } from '../shared/settings';
+import type { UpdateStatus } from '../shared/updater-status';
 
 const api: ElectronAPI = {
   // System
@@ -36,6 +38,23 @@ const api: ElectronAPI = {
   // Updater
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   downloadUpdate: (url: string) => ipcRenderer.invoke('updater:download', url),
+
+  // Settings (main is the single source of truth)
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  updateSettings: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:update', patch),
+
+  // Usage statistics
+  getStats: () => ipcRenderer.invoke('stats:get'),
+  exportStats: () => ipcRenderer.invoke('stats:export'),
+
+  // Background updater (electron-updater)
+  getUpdateStatus: () => ipcRenderer.invoke('updater:status'),
+  checkForUpdatesNow: () => ipcRenderer.invoke('updater:check-now'),
+  downloadUpdateNow: () => ipcRenderer.invoke('updater:download-now'),
+  installUpdateNow: () => ipcRenderer.invoke('updater:install-now'),
+
+  // Windows utilities
+  launchTool: (id: string) => ipcRenderer.invoke('tools:launch', id),
 
   // Window controls (P0.1)
   window: {
@@ -82,6 +101,13 @@ const api: ElectronAPI = {
     const handler = (_event: IpcRendererEvent, percent: number) => callback(percent);
     ipcRenderer.on('updater:progress', handler);
     return () => ipcRenderer.removeListener('updater:progress', handler);
+  },
+
+  // Background updater lifecycle (electron-updater).
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
+    const handler = (_event: IpcRendererEvent, status: UpdateStatus) => callback(status);
+    ipcRenderer.on('updater:status', handler);
+    return () => ipcRenderer.removeListener('updater:status', handler);
   },
 };
 

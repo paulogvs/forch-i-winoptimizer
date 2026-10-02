@@ -3,6 +3,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
+import { useAppStore } from '../stores/useAppStore';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
 
 interface SecurityCheck {
@@ -15,7 +16,10 @@ interface SecurityCheck {
 }
 
 export const Security: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'security' | 'privacy' | 'dns'>('security');
+  // Tab is shared through the store so cross-page "Fix" actions (e.g. Audit)
+  // can land directly on Privacy.
+  const activeTab = useAppStore((state) => state.securityTab);
+  const setActiveTab = useAppStore((state) => state.setSecurityTab);
   const [securityChecks, setSecurityChecks] = useState<SecurityCheck[]>([]);
   const [privacySettings, setPrivacySettings] = useState<PrivacySetting[]>([]);
   const [securityActions, setSecurityActions] = useState<SecurityAction[]>([]);
@@ -198,8 +202,9 @@ export const Security: React.FC = () => {
                       <Button
                         variant="secondary"
                         size="sm"
-                        disabled
-                        title="Automatic fix is not implemented yet — apply the recommendation from the Privacy tab."
+                        onClick={() => setActiveTab('privacy')}
+                        title="Open the Privacy tab to apply this setting (reversible)."
+                        data-testid={`security-fix-${check.id}`}
                       >
                         Fix
                       </Button>

@@ -147,6 +147,36 @@ Para algunas funciones (eliminar archivos del sistema, gestionar servicios) nece
 
 ---
 
+### Funciones v0.5.0
+
+**¿Los cambios de Settings se guardan al cerrar la app?**
+Sí. Se guardan en `settings.json` dentro de `%APPDATA%/forch-i-winoptimizer/` y se vuelven a
+aplicar al abrir. El color de acento incluido.
+
+**¿Por qué "Automatic updates" está deshabilitado en la versión portable?**
+Porque el ejecutable portable se auto-extrae y **no** puede actualizarse de forma confiable
+en caliente (`electron-updater` necesita la instalación NSIS y el `latest.yml`). En portable,
+descargá el instalador más reciente desde GitHub Releases y reemplazá el `.exe`.
+
+**¿Por qué "Start with Windows" no está disponible en la versión portable?**
+El arranque automático registra la ruta del ejecutable instalado. En portable la ruta es
+temporal (carpeta de extracción), así que se deshabilita y se explica en pantalla.
+
+**¿Windows SmartScreen bloquea el instalador? ¿Es un virus?**
+No. Los binarios **no están firmados** (certificado de pago); SmartScreen avisa por eso, no
+por malware. Verificá la integridad con `checksums.sha256` y usá *Más información →
+Ejecutar de todas formas*. Detalle en `docs/CODE_SIGNING.md`.
+
+**¿El botón "Fix" de Audit modifica el sistema?**
+No directamente. Abre el flujo reversible donde se resuelve (por ejemplo, Security → Privacy
+o Tweaks). Así el cambio siempre pasa por preview/confirmación/revert.
+
+**¿De dónde salen los datos de Statistics?**
+De acciones reales que ya hiciste: escaneos del Cleaner, limpiezas, auditorías y *Free RAM*.
+Si no hay datos, se muestra un empty state; nunca se inventan valores.
+
+---
+
 ### Soporte
 
 **¿Cómo reporto un error?**

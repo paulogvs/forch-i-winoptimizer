@@ -5,6 +5,8 @@ import { setupAutoUpdater } from './updater';
 import { WINDOW_BACKGROUND } from '../shared/theme';
 import { registerWindowControls, attachWindowStateEvents } from './window-controls';
 import { setProgressSender } from './services/scan-progress';
+import { setBehaviorWindow, refreshWindowBehavior, beginQuit } from './window-behavior';
+import { destroyTray } from './tray';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -41,6 +43,10 @@ function createWindow(): void {
   // Window controls (P0.1): forward native maximize/unmaximize to the renderer.
   attachWindowStateEvents(mainWindow);
 
+  // Close-to-tray + tray icon, driven by the persisted setting.
+  setBehaviorWindow(mainWindow);
+  refreshWindowBehavior();
+
   // Scan progress (P0.3): stream stage/percent events to this window.
   setProgressSender((event) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -50,6 +56,8 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     setProgressSender(null);
+    setBehaviorWindow(null);
+    destroyTray();
     mainWindow = null;
   });
 }
@@ -72,6 +80,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// A real quit (tray menu, Ctrl+Q, updater install) must let the window close.
+app.on('before-quit', () => {
+  beginQuit();
 });
 
 // Security: prevent new window creation

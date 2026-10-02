@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-02
+
+Todas las funciones que estaban como *stub deshabilitado* pasan a ser reales: los 9
+controles de **Settings**, el **Export CSV** y los **gráficos** de Statistics, los
+**Fix** de Audit/Security y los lanzadores de **Tools → Utilities**. Sin dependencias
+nuevas (red npm bloqueada): los gráficos son SVG/CSS a mano.
+
+### Added
+
+- **Settings — controles vivos (fin del `Not implemented yet`):**
+  - **Accent color** real: deriva tokens `--color-accent`, `--color-accent-hover`,
+    `--color-accent-muted`, `--color-border-focus`, `--color-chart-primary` desde un
+    único `#RRGGBB` y los aplica en vivo (`renderer/utils/accent.ts`). Persistido y
+    re-aplicado en el arranque. Sin colores hardcodeados en los componentes.
+  - **Start with Windows**: `app.setLoginItemSettings` + lectura del estado **real** del
+    SO (`app.getLoginItemSettings`) para que el toggle nunca mienta. En portable se
+    muestra deshabilitado con explicación honesta.
+  - **Minimize to tray on close**: intercepta el cierre, `Tray` con `assets/icons/icon.ico`
+    y menú *Show*/*Quit*; desactivable para cerrar de verdad.
+  - **Enable notifications**: `Notification` de Electron respeta el toggle (gate en el
+    servicio de notificaciones).
+  - **Automatic updates**: cablea el `electron-updater` existente (`updater.ts`) al toggle;
+    UI de estado (idle/checking/available/not-available/downloading/downloaded/error) con
+    *Check now* / *Download* / *Restart & install*. Nunca descarga/instala en tests.
+  - **Scan browser cache / Scan Windows temp files / Scan recycle bin**: expuestos al
+    motor de escaneo existente (`junk-scanner`) como categories; sin duplicar lógica.
+  - **Exclude paths**: prefijos ignorados por el escáner (`isExcludedPath`).
+  - Persistencia centralizada en `settings.json` (`app.getPath('userData')`), única
+    fuente de verdad en el proceso main.
+- **Statistics:** **Export CSV** real (datos reales, diálogo de guardado nativo) y
+  **gráficos SVG/CSS** propios (`BarChart`, `LineChart`) con datos reales y empty states
+  honestos; accesibles (rol `img` + lista espejo, no sólo color).
+- **Audit / Security — Fix:** los botones ya no están muertos; abren el flujo reversible
+  que resuelve el hallazgo (Audit → Security·Privacy / Tweaks / Cleaner / Network…;
+  Security → Privacy) en lugar de mutar la máquina a ciegas. Tooltips actualizados.
+- **Tools → Utilities:** lanzador real de utilidades de Windows (`taskmgr`, `cleanmgr`,
+  `devmgmt.msc`, `services.msc`, `msinfo32`, `control`, `resmon`, `appwiz.cpl`, `ncpa.cpl`,
+  `diskmgmt.msc`, `eventvwr.msc`, `perfmon.msc`) con validación del binario en `System32`
+  y feedback de éxito/error (`tool-launcher.ts`).
+- Servicios/host nuevos: `services/settings.ts`, `services/stats.ts`, `services/tool-launcher.ts`,
+  `tray.ts`, `window-behavior.ts`, y contratos `shared/settings.ts`, `shared/stats.ts`,
+  `shared/updater-status.ts`, `shared/windows-tools.ts`.
+- Tests: **+63** unit/integration (395 total) y **+12** E2E (88 total).
+
+### Changed
+
+- `MUTATING_CHANNELS` incluye `settings:update` y `tools:launch` (serializados por el
+  mutex global).
+- El updater de fondo ya no abre un diálogo de descarga en `update-available`: la decisión
+  vive en la UI de Updates (evita dobles descargas).
+- Versión **0.5.0** (`package.json` + `package-lock.json`).
+
+### Security
+
+- Las features que escriben estado de máquina (login item) se prueban **encendiendo y
+  apagando**, dejando el sistema igual; ningún canal mutante se ejecuta sobre la máquina real
+  en tests.
+
 ## [0.4.2] - 2026-10-02
 
 Auditoría funcional + cierre de pendientes de rendimiento: **3 bugs de "lista que degrada a

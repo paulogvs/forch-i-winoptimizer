@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { scanForJunkFiles, deleteJunkFiles } from './junk-scanner';
+import { scanForJunkFiles, deleteJunkFiles, isExcludedPath } from './junk-scanner';
 
 // Mock powershell module
 vi.mock('./powershell', () => ({
@@ -89,6 +89,48 @@ describe('junk-scanner', () => {
       // Verify that runPowerShell was called with expanded paths
       const calls = vi.mocked(runPowerShell).mock.calls;
       expect(calls.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('isExcludedPath', () => {
+    it('matches an exact prefix and its children (case-insensitive)', () => {
+      expect(isExcludedPath('C:\\Keep\\a.tmp', ['C:\\Keep'])).toBe(true);
+      expect(isExcludedPath('c:\\keep\\nested\\b.tmp', ['C:\\KEEP'])).toBe(true);
+    });
+
+    it('does not match a sibling with a shared prefix', () => {
+      expect(isExcludedPath('C:\\KeepOther\\a.tmp', ['C:\\Keep'])).toBe(false);
+    });
+
+    it('ignores blank entries and trailing separators', () => {
+      expect(isExcludedPath('C:\\a.tmp', ['  ', ''])).toBe(false);
+      expect(isExcludedPath('C:\\Keep\\a.tmp', ['C:\\Keep\\'])).toBe(true);
+    });
+  });
+
+  describe('scan options', () => {
+    it('filters results by exclude paths', async () => {
+      const mockFiles = [
+        { FullName: 'C:\\Windows\\Temp\\keep.tmp', Name: 'keep.tmp', Length: 10, LastWriteTime: '' },
+        { FullName: 'C:\\Windows\\Temp\\skip.tmp', Name: 'skip.tmp', Length: 20, LastWriteTime: '' },
+      ];
+      vi.mocked(runPowerShell).mockResolvedValue({ success: true, stdout: '[]', stderr: '', exitCode: 0 });
+      vi.mocked(parsePowerShellJson).mockReturnValue(mockFiles);
+
+      const result = await scanForJunkFiles(undefined, { excludePaths: ['C:\\Windows\\Temp\\skip.tmp'] });
+
+      expect(result.files.map((f) => f.name)).toEqual(['keep.tmp']);
+    });
+
+    it('restricts the PowerShell targets to the requested categories', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({ success: true, stdout: '', stderr: '', exitCode: 0 });
+      vi.mocked(parsePowerShellJson).mockReturnValue(null);
+
+      await scanForJunkFiles(undefined, { categories: ['temp'] });
+
+      const script = String(vi.mocked(runPowerShell).mock.calls.at(-1)?.[0] ?? '');
+      expect(script).toContain("'temp'");
+      expect(script).not.toContain("'browser-cache'");
     });
   });
 

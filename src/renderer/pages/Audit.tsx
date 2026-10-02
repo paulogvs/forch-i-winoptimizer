@@ -3,9 +3,28 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
-import type { AuditReport } from '@shared/types';
+import { useAppStore } from '../stores/useAppStore';
+import type { AuditCheck, AuditReport, PageId } from '@shared/types';
 
-export const Audit: React.FC = () => {
+interface AuditProps {
+  onNavigate?: (page: PageId) => void;
+}
+
+/**
+ * Where each audit category is actually resolved. The audit itself never
+ * mutates the machine: "Fix" opens the page that owns the reversible flow
+ * (Tweaks preview/restore, Privacy apply, Cleaner selection, ...).
+ */
+const FIX_TARGETS: Record<AuditCheck['category'], { page: PageId; label: string }> = {
+  privacy: { page: 'security', label: 'Security → Privacy' },
+  performance: { page: 'tweaks', label: 'Tweaks' },
+  memory: { page: 'boost', label: 'Boost' },
+  storage: { page: 'cleaner', label: 'Cleaner' },
+  startup: { page: 'tools', label: 'Tools → Startup Manager' },
+  network: { page: 'network', label: 'Network' },
+};
+
+export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
   const [report, setReport] = useState<AuditReport | null>(null);
   const [auditing, setAuditing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -35,6 +54,14 @@ export const Audit: React.FC = () => {
   }, []);
 
   const categories = ['privacy', 'performance', 'memory', 'storage', 'startup', 'network'] as const;
+
+  const handleFix = (check: AuditCheck) => {
+    const target = FIX_TARGETS[check.category];
+    if (!target) return;
+    // Privacy fixes live behind the Security page's Privacy tab.
+    if (check.category === 'privacy') useAppStore.getState().setSecurityTab('privacy');
+    onNavigate?.(target.page);
+  };
 
   return (
     <div className="page">
@@ -117,8 +144,9 @@ export const Audit: React.FC = () => {
                         <Button
                           variant="secondary"
                           size="sm"
-                          disabled
-                          title="Automatic fix is not implemented yet — apply the recommendation manually."
+                          onClick={() => handleFix(check)}
+                          title={`Open ${FIX_TARGETS[check.category].label} to apply this safely.`}
+                          data-testid={`audit-fix-${check.id}`}
                         >
                           Fix
                         </Button>

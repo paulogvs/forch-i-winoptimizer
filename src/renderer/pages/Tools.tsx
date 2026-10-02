@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import { VirtualList } from '../components/ui/VirtualList';
 import { formatBytes } from '../utils/format';
+import { WINDOWS_TOOLS } from '@shared/windows-tools';
 import type { DebloatCandidate, DebloatResult, InstalledApp, StartupApp } from '@shared/electron-api';
 import type { PageId } from '@shared/types';
 
@@ -14,16 +15,8 @@ interface ToolsProps {
   onNavigate?: (page: PageId) => void;
 }
 
-/**
- * Utilities tab. Entries with a `target` navigate to a real, working page;
- * the rest are honestly marked "Not available yet" instead of rendering a
- * dead button that silently does nothing.
- */
-const UTILITIES: { icon: string; title: string; description: string; target?: PageId }[] = [
-  { icon: '🔍', title: 'Registry Cleaner', description: 'Scan and fix registry errors' },
-  { icon: '💽', title: 'Disk Defragmenter', description: 'Optimize disk performance' },
-  { icon: '🔒', title: 'Privacy Eraser', description: 'Remove browsing history and traces' },
-  { icon: '🗑️', title: 'File Shredder', description: 'Permanently delete sensitive files' },
+/** In-app utilities that open a real, dedicated page instead of an OS tool. */
+const NAV_UTILITIES: { icon: string; title: string; description: string; target: PageId }[] = [
   { icon: '🌐', title: 'Network Optimizer', description: 'Optimize network settings', target: 'network' },
   { icon: 'ℹ️', title: 'System Info', description: 'View detailed system information', target: 'dashboard' },
 ];
@@ -89,6 +82,8 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [selectedBloatware, setSelectedBloatware] = useState<string[]>([]);
   const [removing, setRemoving] = useState(false);
   const [debloatResult, setDebloatResult] = useState<DebloatResult | null>(null);
+  const [launchingTool, setLaunchingTool] = useState<string | null>(null);
+  const [toolFeedback, setToolFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (activeTab === 'apps') {
@@ -212,6 +207,19 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
       console.error('Debloat failed:', error);
     } finally {
       setRemoving(false);
+    }
+  };
+
+  const handleLaunchTool = async (id: string) => {
+    setLaunchingTool(id);
+    setToolFeedback(null);
+    try {
+      const result = await window.electronAPI.launchTool(id);
+      setToolFeedback({ ok: result.success, message: result.message });
+    } catch (error) {
+      setToolFeedback({ ok: false, message: `Failed to open utility: ${String(error)}` });
+    } finally {
+      setLaunchingTool(null);
     }
   };
 
@@ -434,42 +442,73 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
       )}
 
       {activeTab === 'utilities' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {UTILITIES.map((utility) => {
-            const available = Boolean(utility.target);
-            return (
-              <Card key={utility.title} hoverable>
-                <div className="flex flex-col items-center text-center gap-3 p-4">
-                  <span className="text-3xl">{utility.icon}</span>
-                  <h3 className="text-md font-semibold text-fg-primary">{utility.title}</h3>
-                  <p className="text-sm text-fg-secondary">{utility.description}</p>
-                  {available ? (
+        <div className="flex flex-col gap-6">
+          {toolFeedback && (
+            <div
+              role="status"
+              data-testid="tool-feedback"
+              className={`p-3 rounded-lg text-sm ${
+                toolFeedback.ok ? 'text-success' : 'text-error'
+              }`}
+            >
+              {toolFeedback.message}
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-fg-secondary mb-3">In-app utilities</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {NAV_UTILITIES.map((utility) => (
+                <Card key={utility.title} hoverable>
+                  <div className="flex flex-col items-center text-center gap-3 p-4">
+                    <span className="text-3xl">{utility.icon}</span>
+                    <h3 className="text-md font-semibold text-fg-primary">{utility.title}</h3>
+                    <p className="text-sm text-fg-secondary">{utility.description}</p>
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => {
-                        if (utility.target) onNavigate?.(utility.target);
-                      }}
+                      onClick={() => onNavigate?.(utility.target)}
                     >
                       Open
                     </Button>
-                  ) : (
-                    <>
-                      <Badge variant="neutral">Not available yet</Badge>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled
-                        title="This utility is not implemented in this version"
-                      >
-                        Open
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-fg-secondary mb-3">
+              Windows utilities
+            </h3>
+            <p className="text-xs text-fg-tertiary mb-3">
+              Opens the system tool that ships with Windows. The binary is validated
+              before launching and any error is reported here.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {WINDOWS_TOOLS.map((tool) => (
+                <Card key={tool.id} hoverable>
+                  <div className="flex flex-col items-center text-center gap-3 p-4">
+                    <span className="text-3xl" aria-hidden="true">
+                      {tool.icon}
+                    </span>
+                    <h3 className="text-md font-semibold text-fg-primary">{tool.name}</h3>
+                    <p className="text-sm text-fg-secondary">{tool.description}</p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleLaunchTool(tool.id)}
+                      loading={launchingTool === tool.id}
+                      data-testid={`launch-tool-${tool.id}`}
+                      title={`Open ${tool.file}`}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

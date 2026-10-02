@@ -54,6 +54,28 @@ interface JunkTarget {
 
 const MAX_FILES_PER_TARGET = 5000;
 
+/** Caller-controlled scan scope, derived from the user's settings. */
+export interface JunkScanOptions {
+  /** Only these categories are scanned. `undefined` scans every category. */
+  categories?: readonly JunkCategory[];
+  /** Case-insensitive path prefixes to skip. */
+  excludePaths?: readonly string[];
+}
+
+/** True when `filePath` sits under one of the excluded prefixes. */
+export function isExcludedPath(filePath: string, excludePaths: readonly string[]): boolean {
+  const lower = filePath.toLowerCase();
+  return excludePaths.some((raw) => {
+    const prefix = raw.trim().toLowerCase().replace(/[\\/]+$/, '');
+    if (prefix.length === 0) return false;
+    return (
+      lower === prefix ||
+      lower.startsWith(`${prefix}\\`) ||
+      lower.startsWith(`${prefix}/`)
+    );
+  });
+}
+
 const DEFAULT_RULES: CleanerRule[] = [
   {
     id: 'temp-files',
@@ -153,9 +175,10 @@ function psQuote(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
-function buildTargets(): JunkTarget[] {
+function buildTargets(categories?: readonly JunkCategory[]): JunkTarget[] {
   const targets: JunkTarget[] = [];
   for (const rule of DEFAULT_RULES) {
+    if (categories && !categories.includes(rule.category)) continue;
     for (const rulePath of rule.paths) {
       for (const pattern of rule.patterns) {
         targets.push({ category: rule.category, path: rulePath, pattern });
@@ -172,14 +195,18 @@ function buildTargets(): JunkTarget[] {
  * Paths/patterns are emitted as single-quoted PowerShell literals so that
  * `$Recycle.Bin` is not treated as a variable.
  */
-export async function scanForJunkFiles(reporter?: ScanProgressReporter): Promise<JunkScanResult> {
+export async function scanForJunkFiles(
+  reporter?: ScanProgressReporter,
+  options: JunkScanOptions = {}
+): Promise<JunkScanResult> {
   const progress = reporter ?? createNoopReporter('junk');
   const categories = emptyCategories();
   const files: JunkFile[] = [];
+  const excludePaths = options.excludePaths ?? [];
 
   progress.report('discover', 8, 'Preparing junk scan targets...');
 
-  const targetLiterals = buildTargets()
+  const targetLiterals = buildTargets(options.categories)
     .map((t) => `[pscustomobject]@{ Category=${psQuote(t.category)}; Path=${psQuote(t.path)}; Filter=${psQuote(t.pattern)} }`)
     .join(', ');
 
@@ -220,6 +247,7 @@ export async function scanForJunkFiles(reporter?: ScanProgressReporter): Promise
 
     for (const file of list) {
       if (!file || !file.FullName) continue;
+      if (isExcludedPath(file.FullName, excludePaths)) continue;
 
       const category: JunkCategory = file.Category ?? 'temp';
       const size = Number(file.Length) || 0;

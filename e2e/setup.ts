@@ -296,6 +296,90 @@ export async function setupElectronMock(page: Page): Promise<void> {
         };
       },
       clearCache: () => Promise.resolve({ success: true }),
+      // Settings (v0.5.0): main is the source of truth. Tests can seed state
+      // through `window.__settings` before the page mounts.
+      getSettings: () => {
+        const w = window as unknown as { __settings?: Record<string, unknown>; __environment?: Record<string, unknown> };
+        return Promise.resolve({
+          settings: {
+            accentColor: '#06B6D4',
+            startWithWindows: false,
+            minimizeToTrayOnClose: false,
+            enableNotifications: true,
+            automaticUpdates: false,
+            scanBrowserCache: true,
+            scanWindowsTempFiles: true,
+            scanRecycleBin: false,
+            excludePaths: [],
+            ...(w.__settings ?? {}),
+          },
+          environment: {
+            portable: false,
+            loginItemSupported: true,
+            platform: 'win32',
+            ...(w.__environment ?? {}),
+          },
+        });
+      },
+      updateSettings: (patch: Record<string, unknown>) => {
+        const w = window as unknown as {
+          __settings?: Record<string, unknown>;
+          __environment?: Record<string, unknown>;
+        };
+        w.__settings = { ...(w.__settings ?? {}), ...patch };
+        return Promise.resolve({
+          settings: {
+            accentColor: '#06B6D4',
+            startWithWindows: false,
+            minimizeToTrayOnClose: false,
+            enableNotifications: true,
+            automaticUpdates: false,
+            scanBrowserCache: true,
+            scanWindowsTempFiles: true,
+            scanRecycleBin: false,
+            excludePaths: [],
+            ...w.__settings,
+          },
+          environment: {
+            portable: false,
+            loginItemSupported: true,
+            platform: 'win32',
+            ...(w.__environment ?? {}),
+          },
+          ok: true,
+          message: 'Settings saved.',
+        });
+      },
+      // Statistics (v0.5.0): seed real-looking events via `window.__statsEvents`.
+      getStats: () => {
+        const w = window as unknown as { __statsEvents?: unknown[] };
+        return Promise.resolve(w.__statsEvents ?? []);
+      },
+      exportStats: () => Promise.resolve({ success: true, message: 'Exported 0 event(s).' }),
+      // Background updater: inactive by default.
+      getUpdateStatus: () =>
+        Promise.resolve({ state: 'idle', version: null, percent: null, message: null }),
+      checkForUpdatesNow: () =>
+        Promise.resolve({ state: 'checking', version: null, percent: null, message: null }),
+      downloadUpdateNow: () =>
+        Promise.resolve({ state: 'downloading', version: '9.9.9', percent: 50, message: null }),
+      installUpdateNow: () => Promise.resolve({ success: true, message: 'Installing.' }),
+      onUpdateStatus: (callback: (status: unknown) => void) => {
+        const w = window as unknown as { __updateStatusListeners?: Array<(status: unknown) => void> };
+        w.__updateStatusListeners = w.__updateStatusListeners ?? [];
+        w.__updateStatusListeners.push(callback);
+        return () => {
+          w.__updateStatusListeners = (w.__updateStatusListeners ?? []).filter((l) => l !== callback);
+        };
+      },
+      // Windows utilities (v0.5.0): report success by default; tests can flip
+      // `window.__toolLaunchResult` to assert the failure path.
+      launchTool: (id: string) => {
+        const w = window as unknown as { __toolLaunchResult?: unknown };
+        return Promise.resolve(
+          w.__toolLaunchResult ?? { success: true, message: `Opened ${id}.` }
+        );
+      },
       // Quick "Free RAM" (P1.1): success by default; E2E can override through
       // `window.__freeMemoryResult` to assert the failure path.
       freeMemory: () => {
@@ -345,16 +429,20 @@ export async function setupElectronMock(page: Page): Promise<void> {
         stopMonitoring: () => Promise.resolve({ success: true }),
       },
       audit: {
-        run: () =>
-          Promise.resolve({
-            checks: [],
-            totalChecks: 0,
-            passedCount: 0,
-            warningCount: 0,
-            criticalCount: 0,
-            score: 100,
-            timestamp: new Date(),
-          }),
+        run: () => {
+          const w = window as unknown as { __auditReport?: unknown };
+          return Promise.resolve(
+            w.__auditReport ?? {
+              checks: [],
+              totalChecks: 0,
+              passedCount: 0,
+              warningCount: 0,
+              criticalCount: 0,
+              score: 100,
+              timestamp: new Date(),
+            }
+          );
+        },
       },
       benchmark: {
         run: () =>
