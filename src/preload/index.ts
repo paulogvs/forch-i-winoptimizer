@@ -150,6 +150,7 @@ const winoptimizer: WinOptimizerAPI = {
   security: {
     getActions: () => ipcRenderer.invoke('security:get-actions'),
     runAction: (actionId: string) => ipcRenderer.invoke('security:run-action', actionId),
+    scan: (options) => ipcRenderer.invoke('security:scan', options),
   },
   dns: {
     benchmark: () => ipcRenderer.invoke('dns:benchmark'),

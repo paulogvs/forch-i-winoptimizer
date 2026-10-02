@@ -343,3 +343,26 @@ Si ninguna de estas soluciones funciona:
 ---
 
 *Build. Learn. Evolve.*
+
+---
+
+### Security Scan devuelve "Unknown" o "Requires admin"
+
+**Síntomas:** El Security Scan muestra checks en "Unknown" o "Requires admin".
+
+**Qué significa:**
+- **Unknown**: el dato no se pudo leer (no es un error de permisos). El scanner no
+  inventa resultados — prefiere declarar que no midió.
+- **Requires admin**: el dato necesita elevación. El error observable fue "acceso
+  denegado".
+
+**Soluciones:**
+1. Ejecuta la app como administrador si quieres medir los checks que requieren
+   privilegios (ej. TPM, BitLocker).
+2. Consulta `docs/SECURITY_CHECKS.md` para ver exactamente qué consulta hace cada
+   check.
+3. Si un check debería pasar pero sale "Unknown" de forma persistente, revisa que
+   PowerShell no esté restringido y reporta el caso con la evidencia que muestra la UI.
+
+**Nota:** el Security Scan es de solo lectura salvo auto-fix explícito (en v0.6.0
+ningún check se auto-repara; todos muestran guía o acción separada).

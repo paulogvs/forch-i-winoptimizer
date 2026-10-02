@@ -1,31 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
+import { Tooltip } from '../components/ui/Tooltip';
 import { useAppStore } from '../stores/useAppStore';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
+import {
+  SECURITY_CHECK_BY_ID,
+  SECURITY_SCORE_FORMULA,
+  type SecurityCheckResult,
+  type SecurityCheckStatus,
+  type SecurityScanReport,
+} from '@shared/security-scan';
 
-interface SecurityCheck {
-  id: string;
-  title: string;
-  description: string;
-  status: 'pass' | 'warning' | 'critical';
-  recommendation: string;
-  autoFixable: boolean;
-}
+const STATUS_LABEL: Record<SecurityCheckStatus, string> = {
+  pass: 'Pass',
+  warn: 'Warning',
+  fail: 'Fail',
+  unknown: 'Unknown',
+  'not-applicable': 'Not applicable',
+  'requires-admin': 'Requires admin',
+};
+
+const STATUS_BADGE: Record<
+  SecurityCheckStatus,
+  'success' | 'warning' | 'error' | 'info' | 'neutral'
+> = {
+  pass: 'success',
+  warn: 'warning',
+  fail: 'error',
+  unknown: 'neutral',
+  'not-applicable': 'info',
+  'requires-admin': 'info',
+};
+
+const STATUS_ICON: Record<SecurityCheckStatus, string> = {
+  pass: '✓',
+  warn: '!',
+  fail: '✕',
+  unknown: '?',
+  'not-applicable': '–',
+  'requires-admin': '↑',
+};
+
+const SEVERITY_BADGE: Record<string, 'error' | 'warning' | 'info' | 'neutral'> = {
+  critical: 'error',
+  high: 'warning',
+  medium: 'neutral',
+  low: 'neutral',
+};
 
 export const Security: React.FC = () => {
   // Tab is shared through the store so cross-page "Fix" actions (e.g. Audit)
   // can land directly on Privacy.
   const activeTab = useAppStore((state) => state.securityTab);
   const setActiveTab = useAppStore((state) => state.setSecurityTab);
-  const [securityChecks, setSecurityChecks] = useState<SecurityCheck[]>([]);
+  const [report, setReport] = useState<SecurityScanReport | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySetting[]>([]);
   const [securityActions, setSecurityActions] = useState<SecurityAction[]>([]);
   const [dnsResults, setDnsResults] = useState<DNSBenchmarkResult[]>([]);
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [scanError, setScanError] = useState<string | null>(null);
   const [applying, setApplying] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,32 +84,25 @@ export const Security: React.FC = () => {
     }
   };
 
-  const runSecurityScan = async () => {
+  const runSecurityScan = useCallback(async () => {
     setScanning(true);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 5, 90));
-    }, 100);
-
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const checks: SecurityCheck[] = [
-      { id: 'defender', title: 'Windows Defender Real-time Protection', description: 'Real-time protection is enabled and active', status: 'pass', recommendation: 'No action needed', autoFixable: false },
-      { id: 'firewall', title: 'Windows Firewall', description: 'Firewall is enabled for all network profiles', status: 'pass', recommendation: 'No action needed', autoFixable: false },
-      { id: 'updates', title: 'Windows Updates', description: 'System is up to date with latest security patches', status: 'pass', recommendation: 'No action needed', autoFixable: false },
-      { id: 'uac', title: 'User Account Control (UAC)', description: 'UAC is set to recommended level', status: 'pass', recommendation: 'No action needed', autoFixable: false },
-      { id: 'telemetry', title: 'Telemetry Level', description: 'Telemetry is set to required minimum', status: 'warning', recommendation: 'Consider disabling telemetry for better privacy', autoFixable: true },
-      { id: 'password', title: 'Password Policy', description: 'Password policy could be stronger', status: 'warning', recommendation: 'Enable password complexity requirements', autoFixable: false },
-      { id: 'remote-desktop', title: 'Remote Desktop', description: 'Remote Desktop is disabled', status: 'pass', recommendation: 'No action needed', autoFixable: false },
-      { id: 'smb1', title: 'SMBv1 Protocol', description: 'SMBv1 is disabled (recommended)', status: 'pass', recommendation: 'No action needed', autoFixable: false },
-    ];
-
-    clearInterval(progressInterval);
-    setProgress(100);
-    setSecurityChecks(checks);
-    setScanning(false);
-  };
+    setProgress(10);
+    setScanError(null);
+    const tick = setInterval(() => setProgress((prev) => Math.min(prev + 4, 90)), 150);
+    try {
+      // force=true: an explicit user action must re-read the machine, not a
+      // warm TTL entry.
+      const result = await window.winoptimizer.security.scan({ force: true });
+      setReport(result);
+      setProgress(100);
+    } catch (error) {
+      console.error('Security scan failed:', error);
+      setScanError(error instanceof Error ? error.message : 'The security scan failed.');
+    } finally {
+      clearInterval(tick);
+      setScanning(false);
+    }
+  }, []);
 
   const applyPrivacySetting = async (settingId: string) => {
     setApplying(settingId);
@@ -122,16 +152,22 @@ export const Security: React.FC = () => {
     }
   };
 
-  const passCount = securityChecks.filter((c) => c.status === 'pass').length;
-  const warningCount = securityChecks.filter((c) => c.status === 'warning').length;
-  const criticalCount = securityChecks.filter((c) => c.status === 'critical').length;
+  const summary = report?.summary ?? {
+    pass: 0,
+    warn: 0,
+    fail: 0,
+    unknown: 0,
+    'not-applicable': 0,
+    'requires-admin': 0,
+  };
+  const measuredCount = summary.unknown + summary['not-applicable'] + summary['requires-admin'];
 
   const appliedPrivacyCount = privacySettings.filter((s) => s.isApplied).length;
 
   return (
     <div className="page">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="page-title">Security & Privacy</h2>
+        <h2 className="page-title">Security &amp; Privacy</h2>
         <div className="flex gap-2">
           <Button
             variant={activeTab === 'security' ? 'primary' : 'secondary'}
@@ -156,62 +192,143 @@ export const Security: React.FC = () => {
 
       {activeTab === 'security' && (
         <>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex gap-2">
-              <Badge variant="success">{passCount} Passed</Badge>
-              <Badge variant="warning">{warningCount} Warnings</Badge>
-              <Badge variant="error">{criticalCount} Critical</Badge>
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="success">{summary.pass} Passed</Badge>
+              <Badge variant="warning">{summary.warn} Warnings</Badge>
+              <Badge variant="error">{summary.fail} Failed</Badge>
+              {summary.unknown > 0 && <Badge variant="neutral">{summary.unknown} Unknown</Badge>}
+              {summary['not-applicable'] > 0 && (
+                <Badge variant="info">{summary['not-applicable']} Not applicable</Badge>
+              )}
+              {summary['requires-admin'] > 0 && (
+                <Badge variant="info">{summary['requires-admin']} Requires admin</Badge>
+              )}
             </div>
-            <Button variant="primary" onClick={runSecurityScan} loading={scanning}>
+            <Button
+              variant="primary"
+              onClick={runSecurityScan}
+              loading={scanning}
+              data-testid="security-scan-button"
+            >
               {scanning ? 'Scanning...' : 'Run Security Scan'}
             </Button>
           </div>
 
           {scanning && (
-            <Progress value={progress} label="Running security checks..." className="mb-4" />
+            <Progress value={progress} label="Running live security checks..." className="mb-4" />
           )}
 
-          {securityChecks.length > 0 && !scanning && (
-            <div className="flex flex-col gap-4">
-              {securityChecks.map((check) => (
-                <Card key={check.id}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-md font-semibold text-fg-primary">{check.title}</h3>
-                        <Badge
-                          variant={
-                            check.status === 'critical'
-                              ? 'error'
-                              : check.status === 'warning'
-                                ? 'warning'
-                                : 'success'
-                          }
-                        >
-                          {check.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-fg-secondary">{check.description}</p>
-                      {check.status !== 'pass' && (
-                        <p className="text-xs text-fg-tertiary mt-1">
-                          <strong>Recommendation:</strong> {check.recommendation}
-                        </p>
-                      )}
-                    </div>
-                    {check.autoFixable && check.status !== 'pass' && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setActiveTab('privacy')}
-                        title="Open the Privacy tab to apply this setting (reversible)."
-                        data-testid={`security-fix-${check.id}`}
+          {scanError && (
+            <Card className="mb-4">
+              <p className="text-sm text-fg-secondary">
+                The scan could not complete: {scanError}
+              </p>
+            </Card>
+          )}
+
+          {report && !scanning && (
+            <div data-testid="security-report">
+              <Card className="mb-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-4">
+                    <Tooltip content={SECURITY_SCORE_FORMULA}>
+                      <div
+                        className="text-2xl font-semibold"
+                        style={{ color: 'var(--color-chart-primary)' }}
+                        data-testid="security-score"
+                        aria-label={
+                          report.score === null
+                            ? 'Security score: not scored'
+                            : `Security score: ${report.score} of 100`
+                        }
                       >
-                        Fix
-                      </Button>
-                    )}
+                        {report.score === null ? '—' : report.score}
+                        <span className="text-sm text-fg-tertiary font-normal">
+                          {report.score === null ? ' not scored' : ' / 100'}
+                        </span>
+                      </div>
+                    </Tooltip>
+                    <div className="text-xs text-fg-tertiary max-w-xl">
+                      <div>
+                        {report.scoredChecks} of {report.totalChecks} checks scored
+                        {report.excludedChecks > 0
+                          ? ` · ${report.excludedChecks} excluded (not measured / not applicable)`
+                          : ''}
+                        .
+                      </div>
+                      <div className="mt-1">{SECURITY_SCORE_FORMULA}</div>
+                    </div>
                   </div>
-                </Card>
-              ))}
+                  <div className="text-xs text-fg-tertiary text-right">
+                    <div>{report.machine.osCaption || 'Operating system: unknown'}</div>
+                    <div>
+                      Build {report.machine.osBuild || '?'}
+                      {report.machine.displayVersion ? ` (${report.machine.displayVersion})` : ''} ·{' '}
+                      {report.machine.edition || 'edition unknown'}
+                    </div>
+                    <div>
+                      {report.machine.isAdmin ? 'Running as administrator' : 'Running without admin'}
+                      {measuredCount > 0 ? ` · ${measuredCount} check(s) not measured` : ''}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <div className="flex flex-col gap-4">
+                {report.checks.map((check: SecurityCheckResult) => {
+                  const meta = SECURITY_CHECK_BY_ID.get(check.id);
+                  const status = check.status;
+                  return (
+                    <Card key={check.id}>
+                      <div data-testid={`security-check-${check.id}`} className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className="text-md font-semibold text-fg-primary">
+                              {meta?.title ?? check.id}
+                            </h3>
+                            {meta && (
+                              <Badge variant={SEVERITY_BADGE[meta.severity] ?? 'neutral'}>
+                                {meta.severity} severity
+                              </Badge>
+                            )}
+                            <Badge variant={STATUS_BADGE[status]}>
+                              <span aria-hidden="true">{STATUS_ICON[status]} </span>
+                              {STATUS_LABEL[status]}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-fg-secondary">{check.reason}</p>
+                          <p className="text-xs text-fg-tertiary mt-1 font-mono break-words">
+                            <strong>Observed:</strong> {check.evidence}
+                          </p>
+                          {status !== 'pass' && meta && (
+                            <p className="text-xs text-fg-tertiary mt-1">
+                              <strong>How to fix:</strong> {meta.guidance}
+                            </p>
+                          )}
+                        </div>
+                        {check.id === 'antivirus' &&
+                          (status === 'fail' || status === 'warn') && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setActiveTab('privacy')}
+                              title="Open the built-in Windows-protection actions."
+                              data-testid="security-fix-antivirus"
+                            >
+                              Actions
+                            </Button>
+                          )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-fg-tertiary mt-4">
+                This scan only reads the machine. It never changes system state; any repair is a
+                separate, explicit action.
+              </p>
             </div>
           )}
 

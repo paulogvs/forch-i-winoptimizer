@@ -195,3 +195,29 @@ https://github.com/paulogvs/forch-i-winoptimizer
 ---
 
 *Build. Learn. Evolve.*
+
+---
+
+### Security Scan (v0.6.0)
+
+**¿Por qué un check del Security Scan sale "Unknown"?**
+Significa que el dato **no se pudo leer** y el error no fue de permisos. Es
+deliberado: preferimos decir "no medido" antes que inventar un resultado. Revisa
+`docs/SECURITY_CHECKS.md` para ver qué consulta hace cada check.
+
+**¿Por qué sale "Requires admin"?**
+Ese dato necesita elevación (el error observable fue "acceso denegado"). Ejemplos
+típicos: TPM y BitLocker cuando la app corre sin privilegios de administrador.
+Ejecuta la app como administrador si quieres medirlos.
+
+**¿Por qué BitLocker o Secure Boot salen "Not applicable"?**
+El chequeo no aplica a tu máquina: BitLocker no está en ediciones Home (sin el
+cmdlet), y Secure Boot solo aplica a firmware UEFI (en BIOS legacy no aplica).
+
+**¿El puntaje es un número mágico?**
+No. La fórmula es explícita y aparece en el tooltip y en `docs/SECURITY_CHECKS.md`.
+Los checks no medidos / no aplicables **no** cuentan en el denominador.
+
+**¿El scan cambia mi sistema?**
+No. El Security Scan es **de solo lectura**. La reparación de un hallazgo es una
+guía concreta o una acción separada; ninguna acción del scanner modifica el sistema.

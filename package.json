@@ -1,6 +1,6 @@
 {
   "name": "forch-i-winoptimizer",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Windows optimizer built with FORCH.iA ecosystem",
   "author": "Paulo Velasco",
   "license": "MIT",
@@ -20,6 +20,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "test:e2e:electron": "npm run build && playwright test --config=playwright.electron.config.ts",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "electron:pack": "npm run build && electron-builder --dir"

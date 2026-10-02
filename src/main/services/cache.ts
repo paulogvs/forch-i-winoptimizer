@@ -101,6 +101,7 @@ export const CACHE_TTL = {
   services: 60_000,
   health: 30_000,
   privacy: 30_000,
+  security: 30_000,
 } as const;
 
 export type CacheModule = keyof typeof CACHE_TTL;

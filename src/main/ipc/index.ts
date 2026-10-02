@@ -22,6 +22,7 @@ import { checkForDrift, reapplyTweak, reapplyAllTweaks, getDriftStatus, startDri
 import { runSystemAudit } from '../services/system-audit';
 import { runBenchmark, generateMarkdownReport } from '../services/benchmark';
 import { getPrivacySettings, applyPrivacySetting, applyAllPrivacySettings, runSecurityAction, getSecurityActions, benchmarkDNS, setDNS } from '../services/security-privacy';
+import { runSecurityScan } from '../services/security-scan';
 import { getAppBundles, checkInstalledApps, installApp, installApps, uninstallApp } from '../services/app-bundles';
 import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow, getHistory, getDefaultSchedules } from '../services/scheduled-cleaning';
 import { checkAllSources, formatReport, getPendingUpdates, formatPendingForDisplay } from '../source-updater';
@@ -316,6 +317,21 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     cache.invalidateModule('health');
     return result;
   });
+  // Live security scan (v0.6.0): READ-ONLY, hence not in MUTATING_CHANNELS.
+  // TTL-cached for 30s; a scored run is recorded as an audit data point.
+  handle('security:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache(
+      'security',
+      async () => {
+        const report = await runSecurityScan();
+        if (report.score !== null) {
+          recordStatsEvent({ type: 'audit', score: report.score });
+        }
+        return report;
+      },
+      options ?? {}
+    )
+  );
   handle('dns:benchmark', () => benchmarkDNS());
   handle('dns:set', async (_event: IpcMainInvokeEvent, primaryDNS: string, secondaryDNS: string) => {
     const result = await setDNS(primaryDNS, secondaryDNS);

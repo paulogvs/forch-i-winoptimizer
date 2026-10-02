@@ -450,3 +450,30 @@ ahora funcionan de verdad.
 ---
 
 *Build. Learn. Evolve.*
+
+---
+
+## Security Scan (v0.6.0)
+
+El **Security Scan** es un escaneo **de solo lectura** contra tu máquina real.
+Cada fila muestra la **evidencia observada** (el valor realmente leído), no solo un
+icono. Los estados posibles son:
+
+- **Pass** — cumple.
+- **Warning** — parcial / mejorable.
+- **Fail** — no cumple.
+- **Unknown** — no se pudo leer el dato (y no es un problema de permisos). No se
+  inventa: un dato no leído nunca se marca como *fail*.
+- **Not applicable** — el chequeo no aplica a esta PC (ej. Secure Boot en BIOS legacy,
+  BitLocker en edición Home sin el cmdlet).
+- **Requires admin** — el dato necesita elevación; el error observable fue "acceso
+  denegado".
+
+El **puntaje** usa una fórmula explícita (visible en el tooltip): excluye del
+denominador los checks *unknown* / *not-applicable* / *requires-admin*, porque no
+tiene sentido penalizar lo que no aplica ni lo que no se pudo medir. Si nada es
+medible, muestra *not scored* en vez de un número.
+
+Por qué un check puede salir **unknown** o **requires-admin** y cómo interpretarlo:
+ver `docs/SECURITY_CHECKS.md`. El scan **no modifica el sistema**; la
+reparación es una guía o una acción aparte.

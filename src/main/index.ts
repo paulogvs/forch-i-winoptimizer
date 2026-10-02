@@ -10,6 +10,13 @@ import { destroyTray } from './tray';
 
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * When FORCHI_E2E=1 the app runs windowless and quits on window close.
+ * Used only by the real-Electron E2E harness (`npm run test:e2e:electron`) so
+ * a headless CI/agent host can launch it. Normal runs are unaffected.
+ */
+const E2E_MODE = process.env.FORCHI_E2E === '1';
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -17,6 +24,7 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     frame: false,
+    show: !E2E_MODE,
     backgroundColor: WINDOW_BACKGROUND,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -29,7 +37,7 @@ function createWindow(): void {
   // Load the dev server URL in development, or the built files in production
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    if (!E2E_MODE) mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
@@ -59,6 +67,8 @@ function createWindow(): void {
     setBehaviorWindow(null);
     destroyTray();
     mainWindow = null;
+    // E2E host: quit when the window closes (there is no tray to survive in).
+    if (E2E_MODE) app.quit();
   });
 }
 

@@ -61,3 +61,4 @@ yarn-error.log*
 tmp/
 temp/
 *.tmp
+COMMIT_MSG.txt

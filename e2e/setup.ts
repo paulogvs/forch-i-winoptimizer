@@ -462,6 +462,48 @@ export async function setupElectronMock(page: Page): Promise<void> {
       security: {
         getActions: () => Promise.resolve([]),
         runAction: () => Promise.resolve({ success: true, message: 'ok' }),
+        // Live scanner mock (v0.6.0). Tests can seed `window.__securityReport`.
+        scan: () => {
+          const w = window as unknown as { __securityReport?: unknown };
+          return Promise.resolve(
+            w.__securityReport ?? {
+              checks: [
+                { id: 'antivirus', status: 'pass', evidence: 'Acme AV: real-time on, signatures up to date', reason: 'Real-time protection is active.' },
+                { id: 'firewall', status: 'pass', evidence: 'Domain: on, Private: on, Public: on', reason: 'Firewall is enabled.' },
+                { id: 'uac', status: 'pass', evidence: 'EnableLUA=1', reason: 'UAC is enabled.' },
+                { id: 'smb1', status: 'pass', evidence: 'EnableSMB1Protocol=False', reason: 'SMBv1 is disabled.' },
+                { id: 'secure-boot', status: 'pass', evidence: 'Confirm-SecureBootUEFI = True', reason: 'Secure Boot is enabled.' },
+                { id: 'tpm', status: 'pass', evidence: 'TPM 2.0', reason: 'TPM is ready.' },
+                { id: 'bitlocker', status: 'pass', evidence: 'ProtectionStatus=On', reason: 'Drive encrypted.' },
+                { id: 'windows-update', status: 'warn', evidence: 'Last installed update: 100 days ago', reason: 'The last update is old.' },
+                { id: 'guest-account', status: 'pass', evidence: 'Guest disabled', reason: 'Guest is disabled.' },
+                { id: 'remote-desktop', status: 'pass', evidence: 'fDenyTSConnections=1', reason: 'RDP disabled.' },
+              ],
+              summary: {
+                pass: 8,
+                warn: 1,
+                fail: 0,
+                unknown: 1,
+                'not-applicable': 0,
+                'requires-admin': 0,
+              },
+              score: 93,
+              scoredChecks: 9,
+              excludedChecks: 1,
+              totalChecks: 10,
+              machine: {
+                osCaption: 'Microsoft Windows 11 Pro',
+                osVersion: '10.0.22631',
+                osBuild: '22631',
+                edition: 'Professional',
+                displayVersion: '23H2',
+                isAdmin: true,
+                collectedAt: new Date().toISOString(),
+              },
+              timestamp: new Date().toISOString(),
+            }
+          );
+        },
       },
       dns: {
         benchmark: () => Promise.resolve([]),

@@ -15,6 +15,8 @@ export function setBehaviorWindow(window: BrowserWindow | null): void {
 
   window.on('close', (event: Event) => {
     if (quitting) return;
+    // In E2E mode the headless host has no tray: always let close mean quit.
+    if (process.env.FORCHI_E2E === '1') return;
     if (getSettings().settings.minimizeToTrayOnClose) {
       event.preventDefault();
       window.hide();

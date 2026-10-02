@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-02
+
+El **Security Scan** deja de ser una lista de 8 chequeos hardcodeados y pasa a ser
+un **escáner real**: cada resultado proviene de una consulta en vivo al sistema
+(CIM/WMI, registro, `Get-*`). Sin listas de software, sin resultados ni colores
+hardcodeados; catálogo único compartido entre main y renderer.
+
+### Added
+
+- **Escáner de seguridad real (`src/main/services/security-scan.ts`):** 10 chequeos
+  de **sólo lectura** ejecutados en **una sola invocación de PowerShell** batcheada
+  (patrón de `system-audit.ts`), con `try/catch` por check (un check que falla no
+  rompe el scan) y **caché TTL 30 s** (`withCache('security')`).
+- **Estados honestos y diferenciados:** `pass` / `warn` / `fail` / `unknown` /
+  `not-applicable` / `requires-admin`, cada uno con la razón real y la **evidencia
+  observada**. Regla de oro: si un dato no se pudo leer, es `unknown` o
+  `requires-admin` — nunca `fail` ni un "todo verde" inventado.
+- **Antivirus sin listas:** se resuelve leyendo `SecurityCenter2 => AntiVirusProduct`
+  y decodificando `productState` en vivo. Un AV de terceros se detecta igual que
+  Defender.
+- **Scoring transparente:** fórmula explícita mostrada en la UI (tooltip) y en
+  `docs/SECURITY_CHECKS.md`. Excluye del denominador los checks
+  `unknown`/`not-applicable`/`requires-admin`; devuelve `null` ("not scored") si
+  nada es medible.
+- **Catálogo único (`src/shared/security-scan.ts`):** `SECURITY_CHECK_CATALOG` es la
+  única fuente de verdad; main ejecuta y ordena las consultas, el renderer las
+  etiqueta. Documentado en `docs/SECURITY_CHECKS.md`.
+- **Canal IPC `security:scan`** respetando los 4 planos (handler + preload + tipos +
+  consumidor), alineado y sin duplicar listas.
+- **Real-Electron E2E** (`e2e/security-real-electron.spec.ts`): lanza el Electron
+  **real** y ejercita el scanner de punta a punta (renderer → preload → IPC → main →
+  PowerShell) contra la máquina. Antes los E2E mockeaban `window.electronAPI`, así
+  que el proceso main nunca se probaba contra Windows.
+- **Tests unitarios por check con fixtures** de configuraciones distintas (Win11 Pro
+  completo, Win10 Home sin BitLocker, VM sin TPM/Secure Boot, AV de terceros, sin
+  admin, payload corrupto/no-array): cobertura de **cada estado**.
+- **`docs/SECURITY_CHECKS.md`:** catálogo auditable (check → consulta → estados →
+  severidad → ¿auto-reparable?).
+
+### Changed
+
+- **UI de Security:** el reporte real muestra puntaje con tooltip de fórmula,
+  resumen por estado, **evidencia observada** por check y guía concreta. Severidad y
+  estado usan **tokens de tema** (`--color-chart-primary`, variantes de `Badge`); la
+  información nunca depende sólo del color.
+- **Auto-fix:** todos los chequeos de seguridad son de sólo lectura en v0.6.0; ninguno
+  muta el sistema. La reparación es guía explícita o acción separada.
+
+### Security
+
+- Ninguna acción del escáner modifica el sistema. Sin acciones destructivas
+  (debloat, cleaner, drivers, dns, servicios) ejecutadas durante el desarrollo.
+
 ## [0.5.0] - 2026-10-02
 
 Todas las funciones que estaban como *stub deshabilitado* pasan a ser reales: los 9

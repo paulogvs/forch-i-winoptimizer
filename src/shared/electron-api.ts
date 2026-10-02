@@ -3,6 +3,7 @@ import type { TweakApplyResult, TweakPreview, TweakView } from './tweaks';
 import type { AppSettings, SettingsPayload, UpdateSettingsResult } from './settings';
 import type { StatsEvent, StatsExportResult } from './stats';
 import type { UpdateStatus } from './updater-status';
+import type { SecurityScanReport } from './security-scan';
 
 export interface SystemInfo {
   platform: string;
@@ -462,6 +463,8 @@ export interface WinOptimizerAPI {
   security: {
     getActions: () => Promise<SecurityAction[]>;
     runAction: (actionId: string) => Promise<OperationResult>;
+    /** Live, read-only security scan of the real machine (v0.6.0). */
+    scan: (options?: CacheOptions) => Promise<SecurityScanReport>;
   };
   dns: {
     benchmark: () => Promise<DNSBenchmarkResult[]>;
