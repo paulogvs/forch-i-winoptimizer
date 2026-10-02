@@ -49,6 +49,9 @@ const arg = (name, fallback) => {
 };
 const OUT = arg('out', '');
 const CYCLES = Number(arg('cycles', '3'));
+// Frame-timing additions (same script, same instrumentation path).
+const FPS_ONLY = process.argv.includes('--fps-only');
+const SCROLL_ROWS = Number(arg('rows', '500'));
 
 const now = () => Date.now();
 const median = (xs) => {
@@ -507,6 +510,155 @@ async function measureInteractions(app, page) {
 }
 
 /**
+ * Frame timing during a programmatic scroll.
+ *
+ * Every view gets the exact same traversal (top -> bottom in `steps` equal
+ * steps) and the exact same viewport, and every frame delta is sampled from the
+ * renderer's requestAnimationFrame callbacks while that scroll is running.
+ * Frame delta -> FPS = 1000/delta, so the reported p50/p95/min FPS are derived
+ * from real frame intervals, not from a sampling timer.
+ *
+ * Diagnostics only: this runs inside page.evaluate() from the harness. No
+ * production code (`src/`) is touched or shipped.
+ */
+async function measureScrollFps(app, page, { navIndex = null, label = '', steps = 90, settleMs = 150, readyMs = 300, maxWaitMs = 20000 } = {}) {
+  if (navIndex != null) await navigate(app, page, navIndex);
+  // Let the first paint land; the scroller poll below waits for IPC-backed
+  // lists (e.g. Tools > Apps, ~10 s on a cold channel) to actually fill.
+  await page.waitForTimeout(readyMs);
+
+  const measured = await page.evaluate(
+    async ({ steps, settleMs, maxWaitMs }) => {
+      if (document.visibilityState === 'hidden') {
+        return { skipped: 'document hidden (rAF throttled)', visibilityState: document.visibilityState };
+      }
+      const findScroller = () => {
+        const candidates = [...document.querySelectorAll('*')].filter((el) => {
+          const oy = getComputedStyle(el).overflowY;
+          return el.scrollHeight > el.clientHeight + 60 && (oy === 'auto' || oy === 'scroll');
+        });
+        return candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] ?? document.scrollingElement;
+      };
+      let scroller = null;
+      const deadline = performance.now() + maxWaitMs;
+      for (;;) {
+        const s = findScroller();
+        if (s && s.scrollHeight > s.clientHeight + 40) {
+          scroller = s;
+          break;
+        }
+        if (performance.now() > deadline) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      if (!scroller) {
+        const s = findScroller();
+        return {
+          skipped: 'no scrollable area (after wait)',
+          scrollHeight: s ? s.scrollHeight : 0,
+          clientHeight: s ? s.clientHeight : 0,
+          visibilityState: document.visibilityState,
+        };
+      }
+      const target =
+        scroller === document.scrollingElement
+          ? 'document'
+          : String(scroller.className || scroller.tagName).trim().slice(0, 60) || scroller.tagName;
+      const maxTop = scroller.scrollHeight - scroller.clientHeight;
+      const startTop = scroller.scrollTop;
+
+      const deltas = [];
+      let running = true;
+      let last = null;
+      const tick = (t) => {
+        if (last != null) deltas.push(t - last);
+        last = t;
+        if (running) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      await new Promise((r) => requestAnimationFrame(r)); // let the sampler attach
+
+      for (let i = 0; i <= steps; i++) {
+        scroller.scrollTop = Math.round((maxTop * i) / steps);
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      await new Promise((r) => setTimeout(r, settleMs));
+      running = false;
+      scroller.scrollTop = startTop;
+
+      const d = deltas.filter((x) => x > 0);
+      const sorted = [...d].sort((a, b) => a - b);
+      const pct = (p) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+      const p50 = pct(0.5);
+      const p95 = pct(0.95);
+      const worst = sorted[sorted.length - 1];
+      const fps = (ms) => (ms ? Math.round((1000 / ms) * 10) / 10 : null);
+      return {
+        target,
+        scrollHeight: scroller.scrollHeight,
+        clientHeight: scroller.clientHeight,
+        maxTop,
+        frames: d.length,
+        durationMs: Math.round(d.reduce((s, x) => s + x, 0)),
+        p50FrameMs: Math.round(p50 * 10) / 10,
+        p95FrameMs: Math.round(p95 * 10) / 10,
+        worstFrameMs: Math.round(worst * 10) / 10,
+        p50Fps: fps(p50),
+        p95Fps: fps(p95),
+        minFps: fps(worst),
+        droppedFrames: d.filter((x) => x > 33.3).length,
+        domNodes: document.querySelectorAll('*').length,
+        visibilityState: document.visibilityState,
+        deltas: d.map((x) => Math.round(x * 10) / 10),
+      };
+    },
+    { steps, settleMs, maxWaitMs }
+  );
+
+  return { label, ...measured };
+}
+
+/**
+ * Replace the `drivers:scan` ipcMain handler with a synthetic 500-driver
+ * payload so the virtualized list can be scrolled with a known row count on the
+ * real Electron binary. This mutates the RUNNING app's handler registry from
+ * the harness (main-process evaluate), never the production source.
+ */
+async function injectMockDrivers(app, count) {
+  return app.evaluate(({ ipcMain }, n) => {
+    const drivers = Array.from({ length: n }, (_, i) => ({
+      id: `mock-${i}`,
+      name: `Device ${i}`,
+      manufacturer: 'Generic',
+      currentVersion: '1.0.0.0',
+      latestVersion: '1.0.0.0',
+      isUpToDate: true,
+      deviceClass: 'System',
+      hardwareId: `HW${i}`,
+      releaseDate: '2025-01-01',
+      downloadUrl: '',
+      size: 0,
+    }));
+    const payload = { drivers, totalDevices: n, outdatedCount: 0, upToDateCount: n, scanDate: new Date().toISOString() };
+    const hadHandler = !!ipcMain._invokeHandlers && ipcMain._invokeHandlers.has('drivers:scan');
+    ipcMain.removeHandler('drivers:scan');
+    ipcMain.handle('drivers:scan', () => payload);
+    return { ok: true, count: n, hadHandler };
+  }, count);
+}
+
+/** Scroll FPS across the views with the most rows. */
+async function measureScrollFpsSuite(app, page, { rows = 500 } = {}) {
+  const out = {};
+  out.mockDrivers = await injectMockDrivers(app, rows).catch((err) => ({ error: String(err?.message || err) }));
+  out.drivers = await measureScrollFps(app, page, { navIndex: 4, label: `drivers-${rows}-virtualized` });
+  out.toolsApps = await measureScrollFps(app, page, { navIndex: 3, label: 'tools-apps-installed' });
+  out.bundles = await measureScrollFps(app, page, { navIndex: 8, label: 'bundles' });
+  // Tweaks is a scroll target only if its sections overflow; reported either way.
+  out.tweaks = await measureScrollFps(app, page, { navIndex: 10, label: 'tweaks' });
+  return out;
+}
+
+/**
  * Split one real sidebar navigation into its two parts:
  *   - actionability: Playwright's locator.click() waiting for a stable box /
  *     hit test / pointer events (plus any main-thread stall it blocks on)
@@ -559,6 +711,24 @@ async function main() {
   };
   // Kept at module scope so a fatal error still dumps what was measured.
   RESULT = result;
+
+  // Focused frame-timing run: skip startup + the 42-navigation cycles and only
+  // measure scroll FPS (same instrumentation path as the full run below).
+  if (FPS_ONLY) {
+    console.error(`[fps] launching app (scroll frame timing, rows=${SCROLL_ROWS})...`);
+    const app = await electron.launch({ args: ['.'], cwd: ROOT });
+    const page = await app.firstWindow();
+    await page.context().addInitScript(INIT_SCRIPT);
+    await page.bringToFront();
+    await page.waitForLoadState('load');
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForTimeout(500);
+    result.scrollFps = await measureScrollFpsSuite(app, page, { rows: SCROLL_ROWS });
+    await app.close();
+    writeResult(result);
+    console.log(JSON.stringify({ meta: result.meta, scrollFps: result.scrollFps }, null, 2));
+    return;
+  }
 
   console.error('[1/4] startup (3 launches)...');
   result.startup = await measureStartup();
@@ -622,6 +792,23 @@ async function main() {
   } catch (err) {
     result.clickOverhead = { error: String(err?.message || err) };
     console.error(`  clickOverhead ERROR ${result.clickOverhead.error}`);
+  }
+
+  console.error('[extra] scroll frame timing...');
+  try {
+    result.scrollFps = await measureScrollFpsSuite(app, page, { rows: SCROLL_ROWS });
+    for (const [view, m] of Object.entries(result.scrollFps)) {
+      if (view === 'mockDrivers') continue;
+      if (m && m.skipped) console.error(`  ${view}: skipped (${m.skipped})`);
+      else if (m && m.p50Fps != null)
+        console.error(
+          `  ${view}: p50 ${m.p50Fps} fps, p95 ${m.p95Fps}, min ${m.minFps}, dropped ${m.droppedFrames}, worst ${m.worstFrameMs}ms`
+        );
+      else console.error(`  ${view}: ${JSON.stringify(m)}`);
+    }
+  } catch (err) {
+    result.scrollFps = { error: String(err?.message || err) };
+    console.error(`  scrollFps ERROR ${result.scrollFps.error}`);
   }
 
   // Retention: compare heap / DOM / listeners between cycle 0 and the last.
@@ -698,7 +885,7 @@ async function main() {
   if (pageIssues.length) console.error(JSON.stringify(pageIssues.slice(0, 10), null, 2));
   // Full detail goes to the file; stdout carries the digest so a failed run is
   // still readable in the terminal.
-  console.log(JSON.stringify({ meta: result.meta, summary: result.summary }, null, 2));
+  console.log(JSON.stringify({ meta: result.meta, summary: result.summary, scrollFps: result.scrollFps }, null, 2));
 }
 
 let RESULT = null;

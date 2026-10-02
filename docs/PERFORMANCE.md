@@ -158,11 +158,39 @@ Otras señales de fluidez (mismo harness):
 |---|---|---|
 | Errores de navegación | 0 | **0** |
 | Long tasks > 50 ms (máx. duración) | 2 (144 ms) | 3 (**65 ms**) |
-| `drivers:scan` | 11 641 ms | no concluyente (31 457 ms en una corrida en frío, 4 838 ms en otra: varianza de Defender sobre `dist/`) |
 
-No concluyente (medido pero con varianza insuficiente para afirmar): `drivers:scan`,
-`bundles:check-installed` (5 768 → 6 500 ms) y `system:get-info` (3 336 → 742 ms en una
-muestra; requiere más repeticiones).
+### Canales re-medidos (`drivers:scan`, `bundles:check-installed`, `system:get-info`)
+
+Los tres canales que quedaron *no concluyentes* en la ronda anterior se re-midieron con
+**5 repeticiones cada uno** mediante `scripts/measure-ipc-channels.mjs`. Método idéntico a
+`scripts/measure-system-info.mjs`: servicios compilados reales de `dist/main/services` contra
+PowerShell real, **un canal por invocación y secuencial, sin navegación en paralelo**. Las
+llamadas van directo al servicio, así que `withCache` no interviene y cada corrida paga el
+coste en frío.
+
+Equipo: Intel i3-4170 @3.70 GHz (el mismo de la ronda anterior). `dist/` ya llevaba horas
+compilado, por lo que Defender había terminado de analizarlo.
+
+| Canal IPC | Mediana | Mín | Máx | Repeticiones (ms) | Spawns |
+|---|---|---|---|---|---|
+| `system:get-info` | **1 693 ms** | 1 202 | 7 949 | 7949, 1693, 2090, 1202, 1224 | 1 |
+| `drivers:scan` | **2 440 ms** | 1 917 | 7 037 | 7037, 2620, 2243, 2440, 1917 | 1 |
+| `bundles:check-installed` | **1 024 ms** | 886 | 5 897 | 5897, 1024, 886, 950, 1475 | 1 |
+
+**Decisión: confirmar** los tres canales con estos números. La varianza **no** era de Defender
+sobre `dist/`: era el **arranque en frío de `powershell.exe`**. La primera corrida de cada
+canal cuesta 5,9–7,9 s (arranque del proceso y perfil) y las siguientes caen a 0,9–2,6 s; por
+eso la mediana es la cifra honesta y el máximo corresponde a la primera corrida. Se **retiran**
+los números anteriores que no se podían defender (`11 641 ms`, `31 457 ms`/`4 838 ms`,
+`5 768 → 6 500 ms` y `3 336 → 742 ms`): el `742 ms` de `system:get-info` era un acierto de
+caché, no el coste del canal en frío. Integridad confirmada en las 15 corridas (15/15 ok:
+`cpu`/`mem` presentes, 90 dispositivos, 48 apps con 6 instaladas).
+
+Reproducir:
+
+```bash
+node scripts/measure-ipc-channels.mjs --runs 5 --out docs/perf/ipc-channels-2026-10-02.json
+```
 
 ### Métricas de UI / navegación (arranque, render, interacción)
 
@@ -216,6 +244,41 @@ node scripts/measure-ui-perf.mjs --cycles 3            # → docs/perf/ui-metric
 node scripts/measure-ui-perf.mjs --out docs/perf/x.json
 ```
 
+### FPS / frame timing (scroll)
+
+Lo único que la ronda anterior dejó **sin medir** y lo que la queja original percibía como
+"lento". Se instrumentó con el **mismo harness** (`scripts/measure-ui-perf.mjs`, ampliado con
+`requestAnimationFrame` y un modo `--fps-only`): un scroll programático **arriba→abajo** con
+el mismo número de pasos y el mismo viewport por vista, muestreando el intervalo real entre
+frames (`FPS = 1000 / Δframe`). *Frames perdidos* = intervalos > 33,3 ms (2 frames a 60 Hz).
+Toda la instrumentación vive **en el script de medición, no en `src/`** (verificado con
+`git diff`).
+
+Aclaración de la premisa: la vista de **500 filas** es la lista **virtualizada de Drivers**, no
+Tweaks — el catálogo real de Tweaks tiene 8 entradas. Las 500 filas se inyectan en el
+`ipcMain` del binario real en tiempo de medición (`drivers:scan` → payload sintético), sin tocar
+código de producción. Apps y Bundles usan sus datos reales.
+
+| Vista (filas) | Frames | p50 FPS | p95 FPS | mín FPS | Frames perdidos (>33,3 ms) | Peor frame | Nodos DOM |
+|---|---|---|---|---|---|---|---|
+| **Drivers (500, virtualizada)** | 100 | **59,9** | 59,5 | 59,2 | **0** | 16,9 ms | 250 |
+| **Tools → Apps (instaladas, 14471 px)** | 100 | **59,9** | 58,1 | **19,9** | **2** | 50,2 ms | 1 866 |
+| **Bundles (48 apps)** | 99 | **59,9** | 59,5 | 58,5 | **0** | 17,1 ms | 495 |
+| **Tweaks (8)** | 99 | **59,9** | 58,8 | 58,1 | **0** | 17,2 ms | 413 |
+
+**Lectura:** todas las vistas se mantienen a **~60 FPS (vsync)** durante el scroll. La
+virtualización hace su trabajo donde importa: la lista de **500 filas** renderiza 250 nodos y
+**no pierde ni un frame**. El único caso con *jank* es **Tools → Apps** (lista no virtualizada,
+1 866 nodos): 2 frames perdidos y un peor frame de 50,2 ms — un tirón puntual, no un problema
+sostenido. Tweaks entra como referencia (8 filas): fluido. Es decir, el scroll **no** es el
+cuello de botella que percibía la queja; lo eran los canales IPC (ya corregidos, § arriba).
+
+Reproducir:
+
+```bash
+node scripts/measure-ui-perf.mjs --fps-only --rows 500 --out docs/perf/ui-scroll-fps-2026-10-02.json
+```
+
 ### Qué se optimizó
 
 1. **`services:get-all`** — un proceso PowerShell por servicio → un solo proceso con
@@ -248,14 +311,14 @@ Corrección derivada del TDD: un payload no-JSON en el bloque de startup hacía
 
 ## Pendiente / no instrumentado
 
-- **FPS de scroll / frame timing**: **no medido**. La virtualización y el chunked reveal están
-  verificados por conteo de DOM (< 120 filas para 500), no por frames renderizados. Queda
-  como medición recomendada en un equipo con perfilador.
-  *(Sí se midieron **long tasks** con `PerformanceObserver('longtask')` — ver tabla
-  144 → 65 ms en § Métricas de UI / navegación.)*
-- **`drivers:scan`, `bundles:check-installed`, `system:get-info`**: medidos pero
-  **no concluyentes** por varianza de Defender sobre el binario recién compilado; requieren
-  más repeticiones para afirmar.
+- **FPS de scroll / frame timing**: ✅ **medido** — ver § *FPS / frame timing (scroll)*.
+- **`drivers:scan`, `bundles:check-installed`, `system:get-info`**: ✅ **re-medidos** con
+  ≥5 repeticiones — ver § *Canales re-medidos*.
+- **FPS bajo carga real de CPU** (scroll *mientras* corre un `audit:run`/`drivers:scan` en
+  paralelo): no instrumentado. La medición FPS se hizo con la app en reposo de IPC; falta
+  cuantificar la contención cuando un scan de PowerShell compite por los 4 hilos.
+- **Coste de GPU / compositor**: los FPS reportados son del renderer limitados por vsync; no
+  se separó compositing de GPU ni se probó en equipos con otra GPU integrada.
 - `backgroundThrottling`: se mantuvo el default seguro de Electron (no se desactiva).
 
 *Build. Learn. Evolve.*
