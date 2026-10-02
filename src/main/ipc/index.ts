@@ -233,16 +233,22 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   });
 
   // ===== Security & Privacy =====
+  // NOTE: `privacy:get-settings` must NOT share the `health` module used by
+  // `audit:run` — a shared module with identical params serves one channel's
+  // payload to the other, which crashed the renderer on `report.checks.filter`.
   handle('privacy:get-settings', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
-    withCache('health', () => getPrivacySettings(), options ?? {})
+    withCache('privacy', () => getPrivacySettings(), options ?? {})
   );
   handle('privacy:apply-setting', async (_event: IpcMainInvokeEvent, settingId: string) => {
     const result = await applyPrivacySetting(settingId);
+    cache.invalidateModule('privacy');
+    // Privacy settings feed the audit's privacy checks, so the report is stale too.
     cache.invalidateModule('health');
     return result;
   });
   handle('privacy:apply-all', async () => {
     const result = await applyAllPrivacySettings();
+    cache.invalidateModule('privacy');
     cache.invalidateModule('health');
     return result;
   });

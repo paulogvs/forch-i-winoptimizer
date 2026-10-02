@@ -18,6 +18,7 @@ vi.mock('./powershell', () => ({
       return null;
     }
   }),
+  toArray: (value: unknown) => (value == null ? [] : Array.isArray(value) ? value : [value]),
 }));
 
 import { runPowerShell } from './powershell';
@@ -28,10 +29,19 @@ describe('Security & Privacy', () => {
   });
 
   describe('getPrivacySettings', () => {
+    const telemetryRow = (value: number): string =>
+      JSON.stringify([
+        {
+          Path: 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection',
+          ValueName: 'AllowTelemetry',
+          Value: value,
+        },
+      ]);
+
     it('should return privacy settings', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '0',
+        stdout: telemetryRow(0),
         stderr: '',
         exitCode: 0,
       });
@@ -46,27 +56,45 @@ describe('Security & Privacy', () => {
     it('should detect applied settings', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '0', // Telemetry disabled (recommended value)
+        stdout: telemetryRow(0), // Telemetry disabled (recommended value)
         stderr: '',
         exitCode: 0,
       });
 
       const result = await getPrivacySettings();
       const telemetry = result.find((s) => s.id === 'telemetry-level');
+      expect(telemetry?.currentValue).toBe(0);
       expect(telemetry?.isApplied).toBe(true);
     });
 
     it('should detect non-applied settings', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '1', // Telemetry enabled (not recommended)
+        stdout: telemetryRow(1), // Telemetry enabled (not recommended)
         stderr: '',
         exitCode: 0,
       });
 
       const result = await getPrivacySettings();
       const telemetry = result.find((s) => s.id === 'telemetry-level');
+      expect(telemetry?.currentValue).toBe(1);
       expect(telemetry?.isApplied).toBe(false);
+    });
+
+    // Regression guard: used to spawn one PowerShell process per setting (17 in a
+    // row) — `privacy:get-settings` was still pending after 30 s on the Security page.
+    it('reads every registry value in a single PowerShell call', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: '[]',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await getPrivacySettings();
+
+      expect(vi.mocked(runPowerShell)).toHaveBeenCalledTimes(1);
+      expect(result.length).toBeGreaterThan(0);
     });
   });
 
@@ -179,6 +207,26 @@ describe('Security & Privacy', () => {
       for (let i = 1; i < result.length; i++) {
         expect(result[i]?.avgLatency).toBeGreaterThanOrEqual(result[i - 1]?.avgLatency ?? 0);
       }
+    });
+
+    // Regression guard: pings ran in a serial `for ... of await` loop, so an
+    // unreachable server cost its full timeout for every server in the list —
+    // `dns:benchmark` was measured at 35 s on the Security page.
+    it('pings every server concurrently instead of waiting in sequence', async () => {
+      let inFlight = 0;
+      let maxInFlight = 0;
+      vi.mocked(runPowerShell).mockImplementation(async () => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight -= 1;
+        return { success: true, stdout: '20', stderr: '', exitCode: 0 };
+      });
+
+      const result = await benchmarkDNS();
+
+      expect(result.length).toBeGreaterThan(1);
+      expect(maxInFlight).toBeGreaterThan(1);
     });
   });
 

@@ -1,4 +1,4 @@
-import { runPowerShell } from './powershell';
+import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
 
 export interface PrivacySetting {
   id: string;
@@ -163,24 +163,47 @@ const DNS_SERVERS: DNSBenchmarkResult[] = [
 ];
 
 export async function getPrivacySettings(): Promise<PrivacySetting[]> {
-  const settings: PrivacySetting[] = [];
+  // Single PowerShell process for every registry read. The previous version
+  // awaited one `runPowerShell` per setting (17 serial spawns) — measured as
+  // `privacy:get-settings` still pending after 30 s on the Security page.
+  const lookups = PRIVACY_SETTINGS.map(
+    (setting) => `  @{ Path = '${setting.registryPath}'; ValueName = '${setting.valueName}' }`
+  ).join(',\n');
 
-  for (const setting of PRIVACY_SETTINGS) {
-    const result = await runPowerShell(`
-      $value = Get-ItemProperty -Path "${setting.registryPath}" -Name "${setting.valueName}" -ErrorAction SilentlyContinue;
-      if ($value) { Write-Output $value.${setting.valueName} } else { Write-Output "NOT_SET" }
-    `);
+  const result = await runPowerShell(`
+    $settings = @(
+${lookups}
+    );
+    $out = @();
+    foreach ($s in $settings) {
+      $props = Get-ItemProperty -Path $s.Path -Name $s.ValueName -ErrorAction SilentlyContinue;
+      $value = $null;
+      if ($props) { $value = $props.($s.ValueName) };
+      $out += @{ Path = $s.Path; ValueName = $s.ValueName; Value = $value };
+    };
+    $out | ConvertTo-Json -Compress
+  `);
 
-    const currentValue = result.stdout.trim() === 'NOT_SET' ? null : parseInt(result.stdout.trim(), 10);
+  const parsed = result.success
+    ? parsePowerShellJson<Array<{ Path?: string; ValueName?: string; Value?: number | string | null }>>(result.stdout)
+    : null;
 
-    settings.push({
+  const currentByKey = new Map<string, number | null>();
+  for (const row of toArray(parsed)) {
+    if (!row || typeof row.Path !== 'string' || typeof row.ValueName !== 'string') continue;
+    const raw = row.Value;
+    const numeric = typeof raw === 'number' ? raw : parseInt(String(raw ?? ''), 10);
+    currentByKey.set(`${row.Path}|${row.ValueName}`, Number.isFinite(numeric) ? numeric : null);
+  }
+
+  return PRIVACY_SETTINGS.map((setting) => {
+    const currentValue = currentByKey.get(`${setting.registryPath}|${setting.valueName}`) ?? null;
+    return {
       ...setting,
       currentValue,
       isApplied: currentValue === setting.recommendedValue,
-    });
-  }
-
-  return settings;
+    };
+  });
 }
 
 export async function applyPrivacySetting(settingId: string): Promise<{
@@ -259,10 +282,12 @@ export function getSecurityActions(): SecurityAction[] {
 }
 
 export async function benchmarkDNS(): Promise<DNSBenchmarkResult[]> {
-  const results: DNSBenchmarkResult[] = [];
-
-  for (const dns of DNS_SERVERS) {
-    const result = await runPowerShell(`
+  // Every server is pinged concurrently. The previous serial `for ... of await`
+  // paid each server's full timeout one after another — `dns:benchmark` measured
+  // at 35 s when a server was unreachable.
+  const results = await Promise.all(
+    DNS_SERVERS.map(async (dns) => {
+      const result = await runPowerShell(`
       $ping = Test-Connection -ComputerName ${dns.primaryDNS} -Count 4 -ErrorAction SilentlyContinue;
       if ($ping) {
         $avgLatency = ($ping | Measure-Object -Property ResponseTime -Average).Average;
@@ -272,14 +297,15 @@ export async function benchmarkDNS(): Promise<DNSBenchmarkResult[]> {
       }
     `);
 
-    const latency = parseInt(result.stdout.trim(), 10) || 0;
+      const latency = parseInt(result.stdout.trim(), 10) || 0;
 
-    results.push({
-      ...dns,
-      avgLatency: latency,
-      reliability: latency > 0 ? 100 : 0,
-    });
-  }
+      return {
+        ...dns,
+        avgLatency: latency,
+        reliability: latency > 0 ? 100 : 0,
+      };
+    })
+  );
 
   // Sort by latency
   results.sort((a, b) => a.avgLatency - b.avgLatency);

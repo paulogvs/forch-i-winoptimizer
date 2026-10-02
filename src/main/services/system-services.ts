@@ -130,15 +130,22 @@ const OPTIMIZABLE_SERVICES: Record<string, { action: 'disable' | 'manual'; impac
 };
 
 export async function getSystemServices(): Promise<SystemService[]> {
+  // One bulk CIM enumeration, then a hashtable join in PowerShell. The previous
+  // version ran `Get-CimInstance -Filter "Name='...'"` once per service: ~300 WMI
+  // queries inside a single call, measured at 68 s on the Security page.
   const result = await runPowerShell(`
     $services = Get-Service | Where-Object { $_.Name -ne 'WMPNetworkSvc' -or $_.Status -eq 'Running' };
+    $cimByName = @{};
+    foreach ($cimService in (Get-CimInstance -ClassName Win32_Service)) {
+      $cimByName[$cimService.Name] = $cimService;
+    }
     $result = @();
     foreach ($service in $services) {
-      $cimService = Get-CimInstance -ClassName Win32_Service -Filter "Name='$($service.Name)'" -ErrorAction SilentlyContinue;
+      $cimService = $cimByName[$service.Name];
       $result += @{
         Name = $service.Name;
         DisplayName = $service.DisplayName;
-        Description = $cimService.Description;
+        Description = $(if ($cimService) { $cimService.Description } else { $null });
         Status = $service.Status.ToString();
         StartType = $service.StartType.ToString()
       }

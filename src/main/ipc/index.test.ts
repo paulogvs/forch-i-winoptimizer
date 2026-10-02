@@ -26,8 +26,26 @@ vi.mock('../services/tweaks', () => ({
   restoreTweaks: vi.fn(async () => ({ restored: 0, failed: 0 })),
 }));
 
+vi.mock('../services/system-audit', () => ({
+  runSystemAudit: vi.fn(),
+}));
+
+vi.mock('../services/security-privacy', () => ({
+  getPrivacySettings: vi.fn(),
+  applyPrivacySetting: vi.fn(),
+  applyAllPrivacySettings: vi.fn(),
+  runSecurityAction: vi.fn(),
+  getSecurityActions: vi.fn(),
+  benchmarkDNS: vi.fn(),
+  setDNS: vi.fn(),
+}));
+
 import { registerIpcHandlers, MUTATING_CHANNELS } from './index';
 import { withOperationLock, setOperationNotifier } from '../services/operation-lock';
+import { runSystemAudit } from '../services/system-audit';
+import { getPrivacySettings } from '../services/security-privacy';
+import { cache } from '../services/cache';
+import type { AuditReport, PrivacySetting } from '@shared/types';
 
 describe('IPC handler registration (P0.3 global mutex)', () => {
   beforeEach(() => {
@@ -97,5 +115,88 @@ describe('IPC handler registration (P0.3 global mutex)', () => {
     for (const channel of expected) {
       expect(MUTATING_CHANNELS.has(channel), `"${channel}" must be serialized`).toBe(true);
     }
+  });
+});
+
+// Regression: `privacy:get-settings` and `audit:run` both used `withCache('health')`
+// with no params, so the second channel was served the first channel's payload.
+// The renderer then crashed on `report.checks.filter(...)` and React unmounted the
+// whole tree (blank window). Each channel must own a distinct cache module.
+describe('cache module isolation between channels', () => {
+  const auditReport: AuditReport = {
+    checks: [
+      {
+        id: 'audit-1',
+        name: 'Audit check',
+        category: 'privacy',
+        status: 'pass',
+        description: '',
+        recommendation: '',
+        impact: 'low',
+        autoFixable: false,
+      },
+    ],
+    totalChecks: 1,
+    passedCount: 1,
+    warningCount: 0,
+    criticalCount: 0,
+    score: 90,
+    timestamp: new Date('2026-01-01T00:00:00.000Z'),
+  };
+
+  const privacySettings: PrivacySetting[] = [
+    {
+      id: 'privacy-1',
+      name: 'Telemetry off',
+      description: '',
+      category: 'telemetry',
+      registryPath: 'HKLM\\Software\\Test',
+      valueName: 'TestValue',
+      recommendedValue: 0,
+      currentValue: 1,
+      isApplied: false,
+      impact: 'low',
+    },
+  ];
+
+  beforeEach(() => {
+    handlers.clear();
+    cache.clear();
+    vi.mocked(runSystemAudit).mockReset();
+    vi.mocked(getPrivacySettings).mockReset();
+    registerIpcHandlers(null);
+  });
+
+  it('does not serve privacy:get-settings from an audit:run entry', async () => {
+    vi.mocked(runSystemAudit).mockResolvedValue(auditReport);
+    vi.mocked(getPrivacySettings).mockResolvedValue(privacySettings);
+
+    await handlers.get('audit:run')?.({});
+    const privacy = await handlers.get('privacy:get-settings')?.({});
+
+    expect(privacy).toEqual(privacySettings);
+  });
+
+  it('does not serve audit:run from a privacy:get-settings entry', async () => {
+    vi.mocked(runSystemAudit).mockResolvedValue(auditReport);
+    vi.mocked(getPrivacySettings).mockResolvedValue(privacySettings);
+
+    await handlers.get('privacy:get-settings')?.({});
+    const audit = await handlers.get('audit:run')?.({});
+
+    expect(audit).toMatchObject({ checks: auditReport.checks, score: auditReport.score });
+    expect(Array.isArray((audit as AuditReport).checks)).toBe(true);
+  });
+
+  it('invalidates the privacy module after applying a privacy setting', async () => {
+    vi.mocked(getPrivacySettings).mockResolvedValue(privacySettings);
+
+    await handlers.get('privacy:get-settings')?.({});
+    expect(vi.mocked(getPrivacySettings)).toHaveBeenCalledTimes(1);
+
+    await handlers.get('privacy:apply-setting')?.({}, 'privacy-1');
+    await handlers.get('privacy:get-settings')?.({});
+
+    expect(vi.mocked(getPrivacySettings)).toHaveBeenCalledTimes(2);
   });
 });

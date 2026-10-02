@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { runSystemAudit } from './system-audit';
+import { runSystemAudit, splitAuditOutput } from './system-audit';
 
 vi.mock('./powershell', () => ({
   runPowerShell: vi.fn(),
@@ -13,6 +13,27 @@ vi.mock('./powershell', () => ({
 }));
 
 import { runPowerShell } from './powershell';
+
+const marker = (index: number): string => `@@FCHK_${index}@@`;
+
+/**
+ * Build the stdout a batched audit run would produce: one payload per marker,
+ * with `overrides` substituted into the block whose script contains `needle`.
+ * Everything else defaults to NOT_SET so a mis-routed payload fails assertions.
+ */
+function auditStdout(
+  command: string,
+  overrides: Array<{ needle: string; value: string }> = []
+): string {
+  const count = (command.match(/@@FCHK_\d+@@/g) ?? []).length;
+  const blocks = command.split(/@@FCHK_\d+@@/);
+  const values: string[] = Array.from({ length: count }, () => 'NOT_SET');
+  for (const { needle, value } of overrides) {
+    const index = blocks.slice(1).findIndex((block) => block.includes(needle));
+    if (index >= 0 && index < values.length) values[index] = value;
+  }
+  return values.map((value, i) => `${marker(i)}\n${value}`).join('\n');
+}
 
 describe('System Audit', () => {
   beforeEach(() => {
@@ -86,22 +107,12 @@ describe('System Audit', () => {
     });
 
     it('should detect telemetry level correctly', async () => {
-      vi.mocked(runPowerShell).mockImplementation((command: string) => {
-        if (command.includes('AllowTelemetry')) {
-          return Promise.resolve({
-            success: true,
-            stdout: '0', // Telemetry disabled
-            stderr: '',
-            exitCode: 0,
-          });
-        }
-        return Promise.resolve({
-          success: true,
-          stdout: '0',
-          stderr: '',
-          exitCode: 0,
-        });
-      });
+      vi.mocked(runPowerShell).mockImplementation(async (command: string) => ({
+        success: true,
+        stdout: auditStdout(command, [{ needle: 'AllowTelemetry', value: '0' }]),
+        stderr: '',
+        exitCode: 0,
+      }));
 
       const result = await runSystemAudit();
       const telemetryCheck = result.checks.find((c) => c.id === 'privacy-telemetry');
@@ -110,27 +121,57 @@ describe('System Audit', () => {
     });
 
     it('should detect high memory usage', async () => {
-      vi.mocked(runPowerShell).mockImplementation((command: string) => {
-        if (command.includes('Win32_OperatingSystem') && command.includes('FreePhysicalMemory')) {
-          return Promise.resolve({
-            success: true,
-            stdout: '90', // 90% memory usage
-            stderr: '',
-            exitCode: 0,
-          });
-        }
-        return Promise.resolve({
-          success: true,
-          stdout: '0',
-          stderr: '',
-          exitCode: 0,
-        });
-      });
+      vi.mocked(runPowerShell).mockImplementation(async (command: string) => ({
+        success: true,
+        stdout: auditStdout(command, [{ needle: 'FreePhysicalMemory', value: '90' }]),
+        stderr: '',
+        exitCode: 0,
+      }));
 
       const result = await runSystemAudit();
       const memoryCheck = result.checks.find((c) => c.id === 'memory-usage');
       expect(memoryCheck).toBeDefined();
       expect(memoryCheck?.status).toBe('critical');
+    });
+
+    // Regression guard: the audit used to pay one PowerShell process per check —
+    // 31 spawns at ~1.8 s each (~56 s of pure process startup, 73 s measured end
+    // to end). Every check now runs inside a single process, delimited by markers.
+    it('runs every check in a single PowerShell process', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await runSystemAudit();
+
+      expect(runPowerShell).toHaveBeenCalledTimes(1);
+      const command: string = vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '';
+      const markers = command.match(/@@FCHK_\d+@@/g) ?? [];
+      expect(result.totalChecks).toBe(31);
+      expect(markers).toHaveLength(result.totalChecks);
+      // The command must stay well under CreateProcess' 32 767-char limit
+      // (UTF-16 script is base64-encoded for -EncodedCommand).
+      expect(command.length).toBeLessThan(12_000);
+    });
+  });
+
+  describe('splitAuditOutput', () => {
+    it('routes each marker block to its own payload', () => {
+      const stdout = `${marker(0)}\nfirst\n${marker(1)}\nsecond`;
+      expect(splitAuditOutput(stdout, 2)).toEqual(['first', 'second']);
+    });
+
+    it('keeps multi-line payloads intact', () => {
+      const stdout = `${marker(0)}\nline1\nline2\n${marker(1)}\nvalue`;
+      expect(splitAuditOutput(stdout, 2)).toEqual(['line1\nline2', 'value']);
+    });
+
+    it('returns one empty payload per check when markers are missing', () => {
+      expect(splitAuditOutput('', 3)).toEqual(['', '', '']);
+      expect(splitAuditOutput('something went wrong', 3)).toEqual(['', '', '']);
     });
   });
 });

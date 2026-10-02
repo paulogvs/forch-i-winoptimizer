@@ -124,6 +124,25 @@ describe('system-services', () => {
       expect(result[0]!.description).toBe('');
       expect(result[0]!.status).toBe('stopped');
     });
+
+    // Regression guard: the script used to run `Get-CimInstance -Filter "Name='...'"` once
+    // per service (~300 WMI queries in one call) — measured at 68 s on the Security page.
+    it('fetches descriptions with one bulk CIM query, not one per service', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: '[]',
+        stderr: '',
+        exitCode: 0,
+      });
+      vi.mocked(parsePowerShellJson).mockReturnValue([]);
+
+      await getSystemServices();
+
+      expect(vi.mocked(runPowerShell)).toHaveBeenCalledTimes(1);
+      const script = vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '';
+      expect(script).toMatch(/Get-CimInstance\s+-ClassName\s+Win32_Service/);
+      expect(script).not.toMatch(/-Filter\s+"Name=/);
+    });
   });
 
   describe('toggleService', () => {

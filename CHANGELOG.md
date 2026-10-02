@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-02
+
+Ronda de diagnóstico de latencia UI: la lentitud percibida no era el render, eran
+**canales IPC de 30–70 s que bloqueaban páginas enteras**.
+
+### Changed
+
+- **`audit:run`: 31 procesos PowerShell → 1 (batching).** Los 31 checks de la auditoría se
+  ejecutaban en **31 spawns separados**; ahora un único `-EncodedCommand` ejecuta todos los
+  scripts y devuelve payloads separados por marcadores `@@FCHK_<i>@@` que `splitAuditOutput`
+  reparte a cada check respetando el orden (31 nombres → 6 grupos de script). Test de
+  regresión: 1 sola llamada `runPowerShell`, 31 marcadores, comando < 12 000 caracteres
+  (límite real de CreateProcess: 32 767 chars UTF-16 antes del base64). **Medido:**
+  `audit:run` **72 991 → 7 789 ms (−89 %)** (sonda aislada en frío); **76 635 → 9 273 ms
+  (−88 %)** desde el harness de UI.
+- **`services:get-all`: un proceso por servicio → lote CIM bulk** en un solo proceso.
+  **Medido: 61 687 ms (timeout a 60 s → devolvía `[]`) → 2 779 ms (−95 %)**;
+  68 036 → 3 935 ms en el harness.
+- **`privacy:get-settings`: 17 lookups de registro en 17 procesos → 1 proceso.**
+  **Medido: 35 696 → 2 276 ms (−94 %)**.
+- **`dns:benchmark`: sondeo en serie → `Promise.all`.**
+  **Medido: 27 204 → 12 754 ms (−53 %)**; 35 470 → 13 472 ms en el harness.
+- **Long task máxima 144 → 65 ms**; navegaciones sin errores (0/42); `settledMs` máximo de
+  una navegación 7 359 → 87 ms; arranque hasta primera ventana 915 → 772 ms (p50 de 3
+  arranques) y FCP 800 → 629 ms.
+- **Documentación:** método, tablas antes/después, desglose de los 5 854 ms de trabajo
+  PowerShell puro y gates en `docs/PERFORMANCE.md`; artefactos crudos (baseline / después /
+  final) en `docs/perf/*.json`.
+
+### Added
+
+- **`scripts/measure-ui-perf.mjs`: harness de UI** (Playwright sobre `dist/main/index.js`,
+  sin tocar código de producción): arranque (ventana → DCL → FCP), navegación por sidebar
+  (14 páginas × 3 ciclos = 42), round-trip de **cada** invocación IPC (instrumentando
+  `ipcMain._invokeHandlers`, lectura de una estructura interna de Electron),
+  `PerformanceObserver('longtask')`, interacciones (refresh del dashboard, modal, scroll) y
+  retención (heap / nodos DOM / listeners). Salida: `docs/perf/*.json`. Uso:
+  `npm run build && node scripts/measure-ui-perf.mjs [--out archivo] [--cycles N]`
+
+### Fixed
+
+- **Bug preexistente (v0.4.0): un payload no-JSON en el bloque de startup hacía que
+  `JSON.parse` lanzara y rechazara TODA la auditoría** (`audit:run` fallaba entera por un
+  solo check). Ahora `countFromJson` degrada a 0 sin tocar a los otros 30 checks —
+  detectado por el test nuevo del batching.
+
+Verificado con gates frescos: `tsc --noEmit` 0 · `eslint` 0 warnings · `vitest` 328/328 ·
+`playwright` 75/75 · `build` y `electron:build` exit 0.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

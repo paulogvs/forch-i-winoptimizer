@@ -1,53 +1,125 @@
 import { runPowerShell } from './powershell';
 import type { AuditCheck, AuditReport } from '@shared/types';
 
-export async function runSystemAudit(): Promise<AuditReport> {
-  const checks: AuditCheck[] = [];
+/** One check's stdout payload: the exact shape the check bodies already read. */
+type CheckOutput = { stdout: string };
 
-  // === Privacy Checks ===
-  checks.push(...await runPrivacyChecks());
+const EMPTY_OUTPUT: CheckOutput = { stdout: '' };
 
-  // === Performance Checks ===
-  checks.push(...await runPerformanceChecks());
+const marker = (index: number): string => `@@FCHK_${index}@@`;
 
-  // === Memory Checks ===
-  checks.push(...await runMemoryChecks());
-
-  // === Storage Checks ===
-  checks.push(...await runStorageChecks());
-
-  // === Startup Checks ===
-  checks.push(...await runStartupChecks());
-
-  // === Network Checks ===
-  checks.push(...await runNetworkChecks());
-
-  const passedCount = checks.filter((c) => c.status === 'pass').length;
-  const warningCount = checks.filter((c) => c.status === 'warning').length;
-  const criticalCount = checks.filter((c) => c.status === 'critical').length;
-
-  // Score: 100 - (warnings * 5) - (criticals * 15)
-  const score = Math.max(0, 100 - (warningCount * 5) - (criticalCount * 15));
-
-  return {
-    checks,
-    totalChecks: checks.length,
-    passedCount,
-    warningCount,
-    criticalCount,
-    score,
-    timestamp: new Date(),
-  };
+/**
+ * Wrap every check script in its own scope and print a marker before it, so a
+ * single PowerShell process serves all checks and stdout can be split back
+ * apart. try/catch keeps one failing check from aborting the remaining ones.
+ */
+function buildAuditScript(scripts: readonly string[]): string {
+  return scripts
+    .map(
+      (script, index) =>
+        `Write-Output '${marker(index)}'\ntry {\n& {\n${script}\n}\n} catch { Write-Output '' }`
+    )
+    .join('\n');
 }
 
-async function runPrivacyChecks(): Promise<AuditCheck[]> {
-  const checks: AuditCheck[] = [];
+/**
+ * Split the combined stdout into one payload per script, in script order.
+ * Missing markers (failed or aborted run) yield empty payloads - the same
+ * degradation a single failed `runPowerShell` call used to produce.
+ */
+export function splitAuditOutput(stdout: string, count: number): string[] {
+  const payloads: string[] = Array.from({ length: count }, () => '');
+  let current = -1;
+  let buffer: string[] = [];
 
+  const flush = (): void => {
+    if (current >= 0 && current < count) payloads[current] = buffer.join('\n').trim();
+    buffer = [];
+  };
+
+  for (const line of stdout.split(/\r?\n/)) {
+    const match = /^@@FCHK_(\d+)@@$/.exec(line.trim());
+    if (match) {
+      flush();
+      current = Number(match[1]);
+      continue;
+    }
+    if (current >= 0) buffer.push(line);
+  }
+  flush();
+  return payloads;
+}
+
+/**
+ * Startup-app count from a JSON payload, degrading to 0 instead of throwing:
+ * one non-JSON block (a stray warning, an aborted check) must not reject the
+ * whole `audit:run` for the other 30 checks.
+ */
+function countFromJson(stdout: string): number {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (Array.isArray(parsed)) return parsed.length;
+    return parsed !== null && typeof parsed === 'object' ? 1 : 0;
+  } catch {
+    return 0;
+  }
+}
+const PRIVACY_SCRIPTS: string[] = [
   // Telemetry level
-  const telemetryResult = await runPowerShell(`
+  `
     $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection" -Name "AllowTelemetry" -ErrorAction SilentlyContinue;
     if ($value) { Write-Output $value.AllowTelemetry } else { Write-Output "NOT_SET" }
-  `);
+  `,
+
+  // Cortana
+  `
+    $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search" -Name "AllowCortana" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.AllowCortana } else { Write-Output "NOT_SET" }
+  `,
+
+  // Activity History
+  `
+    $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System" -Name "EnableActivityFeed" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.EnableActivityFeed } else { Write-Output "NOT_SET" }
+  `,
+
+  // Advertising ID
+  `
+    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo" -Name "Enabled" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.Enabled } else { Write-Output "NOT_SET" }
+  `,
+
+  // Location tracking
+  `
+    $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DeviceAccess\\Global\\{BFA794E4-F964-4FDB-90F6-51056CFE4B44}" -Name "Value" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.Value } else { Write-Output "NOT_SET" }
+  `,
+
+  // Feedback notifications
+  `
+    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Siuf\\Rules" -Name "NumberOfSIUFInPeriod" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.NumberOfSIUFInPeriod } else { Write-Output "NOT_SET" }
+  `,
+
+  // App diagnostics
+  `
+    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppDiagnostics" -Name "AppDiagnosticsEnabled" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.AppDiagnosticsEnabled } else { Write-Output "NOT_SET" }
+  `,
+
+  // Tailored experiences
+  `
+    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.TailoredExperiencesWithDiagnosticDataEnabled } else { Write-Output "NOT_SET" }
+  `,
+];
+
+function buildPrivacyChecks(
+  outputs: readonly CheckOutput[]
+): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const [telemetryResult = EMPTY_OUTPUT, cortanaResult = EMPTY_OUTPUT, activityResult = EMPTY_OUTPUT, adIdResult = EMPTY_OUTPUT, locationResult = EMPTY_OUTPUT, feedbackResult = EMPTY_OUTPUT, diagResult = EMPTY_OUTPUT, tailoredResult = EMPTY_OUTPUT] = outputs;
+
   const telemetryValue = telemetryResult.stdout.trim();
   checks.push({
     id: 'privacy-telemetry',
@@ -60,11 +132,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Cortana
-  const cortanaResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search" -Name "AllowCortana" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.AllowCortana } else { Write-Output "NOT_SET" }
-  `);
   const cortanaValue = cortanaResult.stdout.trim();
   checks.push({
     id: 'privacy-cortana',
@@ -77,11 +144,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Activity History
-  const activityResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System" -Name "EnableActivityFeed" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.EnableActivityFeed } else { Write-Output "NOT_SET" }
-  `);
   const activityValue = activityResult.stdout.trim();
   checks.push({
     id: 'privacy-activity-history',
@@ -94,11 +156,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Advertising ID
-  const adIdResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo" -Name "Enabled" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.Enabled } else { Write-Output "NOT_SET" }
-  `);
   const adIdValue = adIdResult.stdout.trim();
   checks.push({
     id: 'privacy-advertising-id',
@@ -111,11 +168,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Location tracking
-  const locationResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DeviceAccess\\Global\\{BFA794E4-F964-4FDB-90F6-51056CFE4B44}" -Name "Value" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.Value } else { Write-Output "NOT_SET" }
-  `);
   const locationValue = locationResult.stdout.trim();
   checks.push({
     id: 'privacy-location',
@@ -128,11 +180,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Feedback notifications
-  const feedbackResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Siuf\\Rules" -Name "NumberOfSIUFInPeriod" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.NumberOfSIUFInPeriod } else { Write-Output "NOT_SET" }
-  `);
   const feedbackValue = feedbackResult.stdout.trim();
   checks.push({
     id: 'privacy-feedback',
@@ -145,11 +192,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // App diagnostics
-  const diagResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppDiagnostics" -Name "AppDiagnosticsEnabled" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.AppDiagnosticsEnabled } else { Write-Output "NOT_SET" }
-  `);
   const diagValue = diagResult.stdout.trim();
   checks.push({
     id: 'privacy-app-diagnostics',
@@ -162,11 +204,6 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Tailored experiences
-  const tailoredResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.TailoredExperiencesWithDiagnosticDataEnabled } else { Write-Output "NOT_SET" }
-  `);
   const tailoredValue = tailoredResult.stdout.trim();
   checks.push({
     id: 'privacy-tailored-experiences',
@@ -182,14 +219,63 @@ async function runPrivacyChecks(): Promise<AuditCheck[]> {
   return checks;
 }
 
-async function runPerformanceChecks(): Promise<AuditCheck[]> {
-  const checks: AuditCheck[] = [];
 
+const PERFORMANCE_SCRIPTS: string[] = [
   // Power plan
-  const powerResult = await runPowerShell(`
+  `
     $plan = powercfg /getactivescheme;
     Write-Output $plan
-  `);
+  `,
+
+  // Visual effects
+  `
+    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects" -Name "VisualFXSetting" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.VisualFXSetting } else { Write-Output "NOT_SET" }
+  `,
+
+  // Page file
+  `
+    $value = Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management" -Name "PagingFiles" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.PagingFiles } else { Write-Output "NOT_SET" }
+  `,
+
+  // Startup programs count
+  `
+    $count = (Get-CimInstance -ClassName Win32_StartupCommand | Measure-Object).Count;
+    Write-Output $count
+  `,
+
+  // SysMain/Superfetch
+  `
+    $service = Get-Service -Name "SysMain" -ErrorAction SilentlyContinue;
+    if ($service) { Write-Output $service.Status } else { Write-Output "NOT_FOUND" }
+  `,
+
+  // Hibernation
+  `
+    $value = Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power" -Name "HibernateEnabled" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.HibernateEnabled } else { Write-Output "NOT_SET" }
+  `,
+
+  // Search indexing
+  `
+    $service = Get-Service -Name "WSearch" -ErrorAction SilentlyContinue;
+    if ($service) { Write-Output $service.Status } else { Write-Output "NOT_FOUND" }
+  `,
+
+  // Background apps
+  `
+    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications" -Name "GlobalUserDisabled" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.GlobalUserDisabled } else { Write-Output "NOT_SET" }
+  `,
+];
+
+function buildPerformanceChecks(
+  outputs: readonly CheckOutput[]
+): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const [powerResult = EMPTY_OUTPUT, visualResult = EMPTY_OUTPUT, pageFileResult = EMPTY_OUTPUT, startupResult = EMPTY_OUTPUT, sysMainResult = EMPTY_OUTPUT, hiberResult = EMPTY_OUTPUT, searchResult = EMPTY_OUTPUT, bgAppsResult = EMPTY_OUTPUT] = outputs;
+
   const powerPlan = powerResult.stdout;
   const isHighPerformance = powerPlan.includes('High performance') || powerPlan.includes('Ultimate Performance');
   checks.push({
@@ -203,11 +289,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Visual effects
-  const visualResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects" -Name "VisualFXSetting" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.VisualFXSetting } else { Write-Output "NOT_SET" }
-  `);
   const visualValue = visualResult.stdout.trim();
   checks.push({
     id: 'perf-visual-effects',
@@ -220,11 +301,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Page file
-  const pageFileResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management" -Name "PagingFiles" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.PagingFiles } else { Write-Output "NOT_SET" }
-  `);
   const pageFileValue = pageFileResult.stdout.trim();
   checks.push({
     id: 'perf-page-file',
@@ -237,11 +313,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Startup programs count
-  const startupResult = await runPowerShell(`
-    $count = (Get-CimInstance -ClassName Win32_StartupCommand | Measure-Object).Count;
-    Write-Output $count
-  `);
   const startupCount = parseInt(startupResult.stdout.trim(), 10) || 0;
   checks.push({
     id: 'perf-startup-count',
@@ -254,11 +325,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // SysMain/Superfetch
-  const sysMainResult = await runPowerShell(`
-    $service = Get-Service -Name "SysMain" -ErrorAction SilentlyContinue;
-    if ($service) { Write-Output $service.Status } else { Write-Output "NOT_FOUND" }
-  `);
   const sysMainStatus = sysMainResult.stdout.trim();
   checks.push({
     id: 'perf-sysmain',
@@ -271,11 +337,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Hibernation
-  const hiberResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power" -Name "HibernateEnabled" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.HibernateEnabled } else { Write-Output "NOT_SET" }
-  `);
   const hiberValue = hiberResult.stdout.trim();
   checks.push({
     id: 'perf-hibernation',
@@ -288,11 +349,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Search indexing
-  const searchResult = await runPowerShell(`
-    $service = Get-Service -Name "WSearch" -ErrorAction SilentlyContinue;
-    if ($service) { Write-Output $service.Status } else { Write-Output "NOT_FOUND" }
-  `);
   const searchStatus = searchResult.stdout.trim();
   checks.push({
     id: 'perf-search-indexing',
@@ -305,11 +361,6 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Background apps
-  const bgAppsResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications" -Name "GlobalUserDisabled" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.GlobalUserDisabled } else { Write-Output "NOT_SET" }
-  `);
   const bgAppsValue = bgAppsResult.stdout.trim();
   checks.push({
     id: 'perf-background-apps',
@@ -325,17 +376,39 @@ async function runPerformanceChecks(): Promise<AuditCheck[]> {
   return checks;
 }
 
-async function runMemoryChecks(): Promise<AuditCheck[]> {
-  const checks: AuditCheck[] = [];
 
+const MEMORY_SCRIPTS: string[] = [
   // Memory usage
-  const memResult = await runPowerShell(`
+  `
     $os = Get-CimInstance -ClassName Win32_OperatingSystem;
     $total = $os.TotalVisibleMemorySize;
     $free = $os.FreePhysicalMemory;
     $usedPercent = [math]::Round((($total - $free) / $total) * 100, 2);
     Write-Output "$usedPercent"
-  `);
+  `,
+
+  // Virtual memory
+  `
+    $os = Get-CimInstance -ClassName Win32_OperatingSystem;
+    $total = $os.TotalVirtualMemorySize;
+    $free = $os.FreeVirtualMemory;
+    $usedPercent = [math]::Round((($total - $free) / $total) * 100, 2);
+    Write-Output "$usedPercent"
+  `,
+
+  // Memory compression
+  `
+    $value = Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management" -Name "DisablePagingExecutive" -ErrorAction SilentlyContinue;
+    if ($value) { Write-Output $value.DisablePagingExecutive } else { Write-Output "NOT_SET" }
+  `,
+];
+
+function buildMemoryChecks(
+  outputs: readonly CheckOutput[]
+): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const [memResult = EMPTY_OUTPUT, virtMemResult = EMPTY_OUTPUT, memCompressionResult = EMPTY_OUTPUT] = outputs;
+
   const memUsage = parseFloat(memResult.stdout.trim()) || 0;
   checks.push({
     id: 'memory-usage',
@@ -348,14 +421,6 @@ async function runMemoryChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Virtual memory
-  const virtMemResult = await runPowerShell(`
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem;
-    $total = $os.TotalVirtualMemorySize;
-    $free = $os.FreeVirtualMemory;
-    $usedPercent = [math]::Round((($total - $free) / $total) * 100, 2);
-    Write-Output "$usedPercent"
-  `);
   const virtMemUsage = parseFloat(virtMemResult.stdout.trim()) || 0;
   checks.push({
     id: 'memory-virtual',
@@ -368,11 +433,6 @@ async function runMemoryChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Memory compression
-  const memCompressionResult = await runPowerShell(`
-    $value = Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management" -Name "DisablePagingExecutive" -ErrorAction SilentlyContinue;
-    if ($value) { Write-Output $value.DisablePagingExecutive } else { Write-Output "NOT_SET" }
-  `);
   const memCompressionValue = memCompressionResult.stdout.trim();
   checks.push({
     id: 'memory-compression',
@@ -388,15 +448,51 @@ async function runMemoryChecks(): Promise<AuditCheck[]> {
   return checks;
 }
 
-async function runStorageChecks(): Promise<AuditCheck[]> {
-  const checks: AuditCheck[] = [];
 
+const STORAGE_SCRIPTS: string[] = [
   // Disk space
-  const diskResult = await runPowerShell(`
+  `
     $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'";
     $freePercent = [math]::Round(($disk.FreeSpace / $disk.Size) * 100, 2);
     Write-Output "$freePercent"
-  `);
+  `,
+
+  // Temp files
+  `
+    $tempPath = $env:TEMP;
+    $size = (Get-ChildItem -Path $tempPath -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
+    $sizeMB = [math]::Round($size / 1MB, 2);
+    Write-Output "$sizeMB"
+  `,
+
+  // Recycle bin
+  `
+    $size = (Get-ChildItem -LiteralPath 'C:\\$Recycle.Bin' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
+    $sizeMB = [math]::Round($size / 1MB, 2);
+    Write-Output "$sizeMB"
+  `,
+
+  // Windows Update cache
+  `
+    $size = (Get-ChildItem -Path "C:\\Windows\\SoftwareDistribution\\Download" -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
+    $sizeMB = [math]::Round($size / 1MB, 2);
+    Write-Output "$sizeMB"
+  `,
+
+  // Disk fragmentation (SSD check)
+  `
+    $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'";
+    $defrag = Get-DefragAnalysis -DriveLetter C -ErrorAction SilentlyContinue;
+    if ($defrag) { Write-Output $defrag.Fragmentation } else { Write-Output "0" }
+  `,
+];
+
+function buildStorageChecks(
+  outputs: readonly CheckOutput[]
+): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const [diskResult = EMPTY_OUTPUT, tempResult = EMPTY_OUTPUT, recycleResult = EMPTY_OUTPUT, wuResult = EMPTY_OUTPUT, fragResult = EMPTY_OUTPUT] = outputs;
+
   const freePercent = parseFloat(diskResult.stdout.trim()) || 0;
   checks.push({
     id: 'storage-disk-space',
@@ -409,13 +505,6 @@ async function runStorageChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Temp files
-  const tempResult = await runPowerShell(`
-    $tempPath = $env:TEMP;
-    $size = (Get-ChildItem -Path $tempPath -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
-    $sizeMB = [math]::Round($size / 1MB, 2);
-    Write-Output "$sizeMB"
-  `);
   const tempSize = parseFloat(tempResult.stdout.trim()) || 0;
   checks.push({
     id: 'storage-temp-files',
@@ -428,12 +517,6 @@ async function runStorageChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Recycle bin
-  const recycleResult = await runPowerShell(`
-    $size = (Get-ChildItem -LiteralPath 'C:\\$Recycle.Bin' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
-    $sizeMB = [math]::Round($size / 1MB, 2);
-    Write-Output "$sizeMB"
-  `);
   const recycleSize = parseFloat(recycleResult.stdout.trim()) || 0;
   checks.push({
     id: 'storage-recycle-bin',
@@ -446,12 +529,6 @@ async function runStorageChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Windows Update cache
-  const wuResult = await runPowerShell(`
-    $size = (Get-ChildItem -Path "C:\\Windows\\SoftwareDistribution\\Download" -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum;
-    $sizeMB = [math]::Round($size / 1MB, 2);
-    Write-Output "$sizeMB"
-  `);
   const wuSize = parseFloat(wuResult.stdout.trim()) || 0;
   checks.push({
     id: 'storage-wu-cache',
@@ -464,12 +541,6 @@ async function runStorageChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Disk fragmentation (SSD check)
-  const fragResult = await runPowerShell(`
-    $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'";
-    $defrag = Get-DefragAnalysis -DriveLetter C -ErrorAction SilentlyContinue;
-    if ($defrag) { Write-Output $defrag.Fragmentation } else { Write-Output "0" }
-  `);
   const fragPercent = parseFloat(fragResult.stdout.trim()) || 0;
   checks.push({
     id: 'storage-fragmentation',
@@ -485,11 +556,10 @@ async function runStorageChecks(): Promise<AuditCheck[]> {
   return checks;
 }
 
-async function runStartupChecks(): Promise<AuditCheck[]> {
-  const checks: AuditCheck[] = [];
 
+const STARTUP_SCRIPTS: string[] = [
   // Startup apps
-  const startupResult = await runPowerShell(`
+  `
     $apps = Get-CimInstance -ClassName Win32_StartupCommand;
     $result = @();
     foreach ($app in $apps) {
@@ -500,8 +570,32 @@ async function runStartupChecks(): Promise<AuditCheck[]> {
       }
     };
     $result | ConvertTo-Json -Compress
-  `);
-  const startupCount = startupResult.stdout ? JSON.parse(startupResult.stdout).length : 0;
+  `,
+
+  // Boot time
+  `
+    $os = Get-CimInstance -ClassName Win32_OperatingSystem;
+    $lastBoot = $os.LastBootUpTime;
+    $uptime = (Get-Date) - $lastBoot;
+    $bootTime = $uptime.TotalSeconds;
+    Write-Output "$bootTime"
+  `,
+
+  // Scheduled tasks
+  `
+    $tasks = Get-ScheduledTask | Where-Object { $_.State -eq 'Ready' -and $_.Triggers -match 'AtStartup' };
+    $count = ($tasks | Measure-Object).Count;
+    Write-Output "$count"
+  `,
+];
+
+function buildStartupChecks(
+  outputs: readonly CheckOutput[]
+): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const [startupResult = EMPTY_OUTPUT, bootResult = EMPTY_OUTPUT, tasksResult = EMPTY_OUTPUT] = outputs;
+
+  const startupCount = countFromJson(startupResult.stdout);
   checks.push({
     id: 'startup-apps',
     name: 'Startup Applications',
@@ -513,14 +607,6 @@ async function runStartupChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Boot time
-  const bootResult = await runPowerShell(`
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem;
-    $lastBoot = $os.LastBootUpTime;
-    $uptime = (Get-Date) - $lastBoot;
-    $bootTime = $uptime.TotalSeconds;
-    Write-Output "$bootTime"
-  `);
   const bootTime = parseFloat(bootResult.stdout.trim()) || 0;
   checks.push({
     id: 'startup-boot-time',
@@ -533,12 +619,6 @@ async function runStartupChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Scheduled tasks
-  const tasksResult = await runPowerShell(`
-    $tasks = Get-ScheduledTask | Where-Object { $_.State -eq 'Ready' -and $_.Triggers -match 'AtStartup' };
-    $count = ($tasks | Measure-Object).Count;
-    Write-Output "$count"
-  `);
   const tasksCount = parseInt(tasksResult.stdout.trim(), 10) || 0;
   checks.push({
     id: 'startup-scheduled-tasks',
@@ -554,11 +634,10 @@ async function runStartupChecks(): Promise<AuditCheck[]> {
   return checks;
 }
 
-async function runNetworkChecks(): Promise<AuditCheck[]> {
-  const checks: AuditCheck[] = [];
 
+const NETWORK_SCRIPTS: string[] = [
   // DNS configuration
-  const dnsResult = await runPowerShell(`
+  `
     $dns = Get-DnsClientServerAddress | Where-Object { $_.ServerAddresses };
     $result = @();
     foreach ($d in $dns) {
@@ -568,7 +647,35 @@ async function runNetworkChecks(): Promise<AuditCheck[]> {
       }
     };
     $result | ConvertTo-Json -Compress
-  `);
+  `,
+
+  // Network adapter status
+  `
+    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' };
+    $count = ($adapters | Measure-Object).Count;
+    Write-Output "$count"
+  `,
+
+  // Firewall status
+  `
+    $fw = Get-NetFirewallProfile | Where-Object { $_.Enabled -eq 'True' };
+    $count = ($fw | Measure-Object).Count;
+    Write-Output "$count"
+  `,
+
+  // Proxy settings
+  `
+    $proxy = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" -Name "ProxyEnable" -ErrorAction SilentlyContinue;
+    if ($proxy) { Write-Output $proxy.ProxyEnable } else { Write-Output "NOT_SET" }
+  `,
+];
+
+function buildNetworkChecks(
+  outputs: readonly CheckOutput[]
+): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const [dnsResult = EMPTY_OUTPUT, adapterResult = EMPTY_OUTPUT, fwResult = EMPTY_OUTPUT, proxyResult = EMPTY_OUTPUT] = outputs;
+
   const dnsConfig = dnsResult.stdout.trim();
   checks.push({
     id: 'network-dns',
@@ -581,12 +688,6 @@ async function runNetworkChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Network adapter status
-  const adapterResult = await runPowerShell(`
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' };
-    $count = ($adapters | Measure-Object).Count;
-    Write-Output "$count"
-  `);
   const adapterCount = parseInt(adapterResult.stdout.trim(), 10) || 0;
   checks.push({
     id: 'network-adapters',
@@ -599,12 +700,6 @@ async function runNetworkChecks(): Promise<AuditCheck[]> {
     autoFixable: false,
   });
 
-  // Firewall status
-  const fwResult = await runPowerShell(`
-    $fw = Get-NetFirewallProfile | Where-Object { $_.Enabled -eq 'True' };
-    $count = ($fw | Measure-Object).Count;
-    Write-Output "$count"
-  `);
   const fwCount = parseInt(fwResult.stdout.trim(), 10) || 0;
   checks.push({
     id: 'network-firewall',
@@ -617,11 +712,6 @@ async function runNetworkChecks(): Promise<AuditCheck[]> {
     autoFixable: true,
   });
 
-  // Proxy settings
-  const proxyResult = await runPowerShell(`
-    $proxy = Get-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" -Name "ProxyEnable" -ErrorAction SilentlyContinue;
-    if ($proxy) { Write-Output $proxy.ProxyEnable } else { Write-Output "NOT_SET" }
-  `);
   const proxyValue = proxyResult.stdout.trim();
   checks.push({
     id: 'network-proxy',
@@ -635,4 +725,54 @@ async function runNetworkChecks(): Promise<AuditCheck[]> {
   });
 
   return checks;
+}
+
+const CHECK_GROUPS: ReadonlyArray<{
+  scripts: readonly string[];
+  build: (outputs: readonly CheckOutput[]) => AuditCheck[];
+}> = [
+  { scripts: PRIVACY_SCRIPTS, build: buildPrivacyChecks },
+  { scripts: PERFORMANCE_SCRIPTS, build: buildPerformanceChecks },
+  { scripts: MEMORY_SCRIPTS, build: buildMemoryChecks },
+  { scripts: STORAGE_SCRIPTS, build: buildStorageChecks },
+  { scripts: STARTUP_SCRIPTS, build: buildStartupChecks },
+  { scripts: NETWORK_SCRIPTS, build: buildNetworkChecks },
+];
+
+export async function runSystemAudit(): Promise<AuditReport> {
+  const scripts = CHECK_GROUPS.flatMap((group) => group.scripts);
+
+  // One PowerShell process for the whole audit. Each spawn costs ~1.8 s on this
+  // machine, so the old per-check spawns paid ~31 of them: `audit:run` measured
+  // 73 s end to end. The combined script stays under CreateProcess 32 767-char
+  // command-line limit (the script is UTF-16 then base64 encoded).
+  const result = await runPowerShell(buildAuditScript(scripts));
+  const payloads = splitAuditOutput(result.stdout, scripts.length);
+
+  const checks: AuditCheck[] = [];
+  let cursor = 0;
+  for (const group of CHECK_GROUPS) {
+    const outputs = payloads
+      .slice(cursor, cursor + group.scripts.length)
+      .map((stdout) => ({ stdout }));
+    cursor += group.scripts.length;
+    checks.push(...group.build(outputs));
+  }
+
+  const passedCount = checks.filter((c) => c.status === 'pass').length;
+  const warningCount = checks.filter((c) => c.status === 'warning').length;
+  const criticalCount = checks.filter((c) => c.status === 'critical').length;
+
+  // Score: 100 - (warnings * 5) - (criticals * 15)
+  const score = Math.max(0, 100 - warningCount * 5 - criticalCount * 15);
+
+  return {
+    checks,
+    totalChecks: checks.length,
+    passedCount,
+    warningCount,
+    criticalCount,
+    score,
+    timestamp: new Date(),
+  };
 }
