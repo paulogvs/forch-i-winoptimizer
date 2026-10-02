@@ -242,7 +242,7 @@ export interface AppBundle {
   id: string;
   name: string;
   description: string;
-  category: 'browsers' | 'media' | 'devtools' | 'utilities' | 'games';
+  category: 'browsers' | 'media' | 'devtools' | 'utilities' | 'games' | 'productivity' | 'communication' | 'security';
   apps: BundleApp[];
   icon: string;
 }

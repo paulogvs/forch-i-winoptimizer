@@ -46,6 +46,75 @@ describe('App Bundles', () => {
     });
   });
 
+  // ===== P1.3: expanded winget catalog (IDs validated live in winget, 2026-10-01) =====
+
+  describe('P1.3 catalog expansion', () => {
+    const allApps = () => getAppBundles().flatMap((b) => b.apps);
+
+    it('adds the productivity, communication and security bundles', () => {
+      const bundles = getAppBundles();
+      for (const category of ['productivity', 'communication', 'security'] as const) {
+        const bundle = bundles.find((b) => b.category === category);
+        expect(bundle, `missing bundle: ${category}`).toBeDefined();
+        expect(bundle?.name.length).toBeGreaterThan(0);
+        expect(bundle?.description.length).toBeGreaterThan(0);
+        expect((bundle?.icon ?? '').length).toBeGreaterThan(0);
+        expect(bundle?.apps.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    it('updates legacy entries to the winget ids validated in 2026', () => {
+      const apps = allApps();
+      expect(apps.find((a) => a.id === 'python')?.wingetId).toBe('Python.Python.3.13');
+      expect(apps.find((a) => a.id === 'nodejs')?.wingetId).toBe('OpenJS.NodeJS.LTS');
+      // JustinFinebel.HandBrake does NOT exist in winget; the official id does:
+      expect(apps.find((a) => a.id === 'handbrake')?.wingetId).toBe('HandBrake.HandBrake');
+      expect(apps.find((a) => a.id === 'everything')?.wingetId).toBe('voidtools.Everything');
+    });
+
+    it('ships every P1.3 plan winget id (live-validated)', () => {
+      const wingetIds = new Set(allApps().map((a) => a.wingetId));
+      const expected = [
+        'Microsoft.PowerToys',
+        'voidtools.Everything',
+        'Python.Python.3.13',
+        'OpenJS.NodeJS.LTS',
+        'Microsoft.WindowsTerminal',
+        'Microsoft.PowerShell',
+        'Gyan.FFmpeg',
+        'Obsidian.Obsidian',
+        'Notion.Notion',
+        'HandBrake.HandBrake',
+        'Zoom.Zoom',
+        'Telegram.TelegramDesktop',
+        'SlackTechnologies.Slack',
+        'OpenWhisperSystems.Signal',
+        'Bitwarden.Bitwarden',
+        'KeePassXCTeam.KeePassXC',
+        'Malwarebytes.Malwarebytes',
+        'WiresharkFoundation.Wireshark',
+        'Flow-Launcher.Flow-Launcher',
+        '9NKSQGP7F2NH',
+      ];
+      for (const id of expected) expect(wingetIds.has(id), `missing winget id: ${id}`).toBe(true);
+    });
+
+    it('keeps app ids and winget ids unique across all bundles', () => {
+      const apps = allApps();
+      const ids = apps.map((a) => a.id);
+      expect(new Set(ids).size, 'duplicate app id').toBe(ids.length);
+      const wids = apps.map((a) => a.wingetId);
+      expect(new Set(wids).size, 'duplicate winget id').toBe(wids.length);
+    });
+
+    it('every winget id passes the P0.2 validation grammar', () => {
+      const grammar = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+      for (const app of allApps()) {
+        expect(app.wingetId, app.id).toMatch(grammar);
+      }
+    });
+  });
+
   describe('checkInstalledApps', () => {
     it('should return map of installed apps', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({

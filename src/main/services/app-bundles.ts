@@ -30,6 +30,7 @@ const APP_BUNDLES: AppBundle[] = [
       { id: 'mpc-hc', name: 'MPC-HC', wingetId: 'clsid2227a280-3aea-1069-a2de-08002b30309d', description: 'Media Player Classic - Home Cinema', size: 0, isInstalled: false, isSelected: false },
       { id: 'kodi', name: 'Kodi', wingetId: 'XBMCFoundation.Kodi', description: 'Media center and entertainment hub', size: 0, isInstalled: false, isSelected: false },
       { id: 'handbrake', name: 'HandBrake', wingetId: 'HandBrake.HandBrake', description: 'Video transcoder', size: 0, isInstalled: false, isSelected: false },
+      { id: 'ffmpeg', name: 'FFmpeg', wingetId: 'Gyan.FFmpeg', description: 'Swiss-army knife for audio/video processing', size: 0, isInstalled: false, isSelected: false },
     ],
   },
   {
@@ -41,12 +42,14 @@ const APP_BUNDLES: AppBundle[] = [
     apps: [
       { id: 'vscode', name: 'Visual Studio Code', wingetId: 'Microsoft.VisualStudioCode', description: 'Popular code editor by Microsoft', size: 0, isInstalled: false, isSelected: false },
       { id: 'git', name: 'Git', wingetId: 'Git.Git', description: 'Distributed version control system', size: 0, isInstalled: false, isSelected: false },
-      { id: 'nodejs', name: 'Node.js', wingetId: 'OpenJS.NodeJS', description: 'JavaScript runtime built on Chrome V8', size: 0, isInstalled: false, isSelected: false },
-      { id: 'python', name: 'Python', wingetId: 'Python.Python.3.12', description: 'Popular programming language', size: 0, isInstalled: false, isSelected: false },
+      { id: 'nodejs', name: 'Node.js LTS', wingetId: 'OpenJS.NodeJS.LTS', description: 'JavaScript runtime built on Chrome V8 (LTS channel)', size: 0, isInstalled: false, isSelected: false },
+      { id: 'python', name: 'Python', wingetId: 'Python.Python.3.13', description: 'Popular programming language', size: 0, isInstalled: false, isSelected: false },
       { id: 'docker', name: 'Docker Desktop', wingetId: 'Docker.DockerDesktop', description: 'Containerization platform', size: 0, isInstalled: false, isSelected: false },
       { id: 'postman', name: 'Postman', wingetId: 'Postman.Postman', description: 'API development and testing tool', size: 0, isInstalled: false, isSelected: false },
       { id: 'sublime', name: 'Sublime Text', wingetId: 'SublimeHQ.SublimeText.4', description: 'Sophisticated text editor', size: 0, isInstalled: false, isSelected: false },
       { id: 'notepadpp', name: 'Notepad++', wingetId: 'Notepad++.Notepad++', description: 'Free source code editor', size: 0, isInstalled: false, isSelected: false },
+      { id: 'windowsterminal', name: 'Windows Terminal', wingetId: 'Microsoft.WindowsTerminal', description: 'Modern terminal with tabs, panes and Unicode support', size: 0, isInstalled: false, isSelected: false },
+      { id: 'powershell', name: 'PowerShell', wingetId: 'Microsoft.PowerShell', description: 'Cross-platform task automation shell (PS 7)', size: 0, isInstalled: false, isSelected: false },
     ],
   },
   {
@@ -77,7 +80,48 @@ const APP_BUNDLES: AppBundle[] = [
       { id: 'epic', name: 'Epic Games Launcher', wingetId: 'EpicGames.EpicGamesLauncher', description: 'Epic Games store and launcher', size: 0, isInstalled: false, isSelected: false },
       { id: 'discord', name: 'Discord', wingetId: 'Discord.Discord', description: 'Voice, video, and text communication', size: 0, isInstalled: false, isSelected: false },
       { id: 'geforce', name: 'NVIDIA GeForce Experience', wingetId: 'Nvidia.GeForceExperience', description: 'NVIDIA driver updates and game optimization', size: 0, isInstalled: false, isSelected: false },
-      { id: 'obs-gaming', name: 'OBS Studio', wingetId: 'OBSProject.OBSStudio', description: 'Game streaming and recording', size: 0, isInstalled: false, isSelected: false },
+      // OBS Studio lives once in the 'utilities' bundle (unique winget ids enforced by test).
+    ],
+  },
+  // ===================== P1.3 (+3 bundles, v0.4.0) =====================
+  {
+    id: 'productivity',
+    name: 'Productivity',
+    description: 'Tools to focus, organize and get more out of Windows',
+    category: 'productivity',
+    icon: '💼',
+    apps: [
+      { id: 'powertoys', name: 'Microsoft PowerToys', wingetId: 'Microsoft.PowerToys', description: 'Microsoft power-user utilities (FancyZones, PowerRename, Run)', size: 0, isInstalled: false, isSelected: false },
+      { id: 'obsidian', name: 'Obsidian', wingetId: 'Obsidian.Obsidian', description: 'Local markdown notes and knowledge base', size: 0, isInstalled: false, isSelected: false },
+      { id: 'notion', name: 'Notion', wingetId: 'Notion.Notion', description: 'All-in-one workspace for notes and projects', size: 0, isInstalled: false, isSelected: false },
+      { id: 'flowlauncher', name: 'Flow Launcher', wingetId: 'Flow-Launcher.Flow-Launcher', description: 'Keyboard-driven launcher (Spotlight-style) for Windows', size: 0, isInstalled: false, isSelected: false },
+    ],
+  },
+  {
+    id: 'communication',
+    name: 'Communication',
+    description: 'Messaging, meetings and team collaboration',
+    category: 'communication',
+    icon: '💬',
+    apps: [
+      { id: 'zoom', name: 'Zoom', wingetId: 'Zoom.Zoom', description: 'Video meetings and webinars', size: 0, isInstalled: false, isSelected: false },
+      { id: 'telegram', name: 'Telegram Desktop', wingetId: 'Telegram.TelegramDesktop', description: 'Fast cloud-based messaging client', size: 0, isInstalled: false, isSelected: false },
+      { id: 'whatsapp', name: 'WhatsApp', wingetId: '9NKSQGP7F2NH', description: 'WhatsApp desktop (Microsoft Store)', size: 0, isInstalled: false, isSelected: false },
+      { id: 'slack', name: 'Slack', wingetId: 'SlackTechnologies.Slack', description: 'Team chat organized by channels', size: 0, isInstalled: false, isSelected: false },
+      { id: 'signal', name: 'Signal', wingetId: 'OpenWhisperSystems.Signal', description: 'Encrypted messaging with strong privacy', size: 0, isInstalled: false, isSelected: false },
+    ],
+  },
+  {
+    id: 'security',
+    name: 'Security & Privacy',
+    description: 'Password managers, network inspection and protection',
+    category: 'security',
+    icon: '🛡️',
+    apps: [
+      { id: 'bitwarden', name: 'Bitwarden', wingetId: 'Bitwarden.Bitwarden', description: 'Open-source password manager', size: 0, isInstalled: false, isSelected: false },
+      { id: 'keepassxc', name: 'KeePassXC', wingetId: 'KeePassXCTeam.KeePassXC', description: 'Offline password database, local files only', size: 0, isInstalled: false, isSelected: false },
+      { id: 'malwarebytes', name: 'Malwarebytes', wingetId: 'Malwarebytes.Malwarebytes', description: 'On-demand anti-malware scanner', size: 0, isInstalled: false, isSelected: false },
+      { id: 'wireshark', name: 'Wireshark', wingetId: 'WiresharkFoundation.Wireshark', description: 'Network protocol analyzer', size: 0, isInstalled: false, isSelected: false },
     ],
   },
 ];
