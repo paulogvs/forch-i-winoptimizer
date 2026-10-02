@@ -100,7 +100,7 @@ test('security scan runs in the real Electron main process', async () => {
     await expect(page.locator('[data-testid="security-report"]')).toBeVisible({ timeout: 150_000 });
 
     const renderedChecks = await page.locator('[data-testid^="security-check-"]').count();
-    expect(renderedChecks).toBeGreaterThanOrEqual(16);
+    expect(renderedChecks).toBeGreaterThanOrEqual(22);
 
     // Read the live report through the preload bridge: this proves the whole
     // main-process pipeline (PowerShell) produced data, not a renderer fixture.
@@ -113,16 +113,24 @@ test('security scan runs in the real Electron main process', async () => {
 
     // v0.8.0: the expanded catalog must be fully wired — every check returns a
     // real state (no `unknown` from a broken/oversized script).
-    expect(report.checks.length).toBeGreaterThanOrEqual(16);
+    expect(report.checks.length).toBeGreaterThanOrEqual(22);
     expect(report.totalChecks).toBe(report.checks.length);
 
     const NEW_CHECK_IDS = [
+      // v0.8.0
       'password-policy',
       'autoplay',
       'lm-hash',
       'smb-signing',
       'listening-ports',
       'windows-update-service',
+      // v0.9.0 (admin-gated: `requires-admin` without elevation, never fail/unknown)
+      'lsass-protection',
+      'credential-guard',
+      'bitlocker-protectors',
+      'admin-accounts',
+      'firewall-inbound-rules',
+      'winrm-exposure',
     ];
     for (const id of NEW_CHECK_IDS) {
       const check = report.checks.find((entry) => entry.id === id);

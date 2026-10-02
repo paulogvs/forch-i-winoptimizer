@@ -46,6 +46,28 @@ describe('security-scan contract', () => {
     expect(autoFixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
   });
 
+  it('v0.9.0 admin-gated controls are present, read-only and flagged requiresAdmin', () => {
+    const ids = [
+      'lsass-protection',
+      'credential-guard',
+      'bitlocker-protectors',
+      'admin-accounts',
+      'firewall-inbound-rules',
+      'winrm-exposure',
+    ];
+    for (const id of ids) {
+      const definition = SECURITY_CHECK_BY_ID.get(id);
+      expect(definition, id).toBeDefined();
+      expect(definition?.requiresAdmin, id).toBe(true);
+      expect(definition?.autoFixable, id).toBe(false);
+      expect(definition?.possibleStatuses, id).toContain('requires-admin');
+      expect((definition?.reads ?? '').length, id).toBeGreaterThan(0);
+    }
+    // No other check gained the admin flag by accident.
+    const adminGated = SECURITY_CHECK_CATALOG.filter((d) => d.requiresAdmin).map((d) => d.id);
+    expect(adminGated.sort()).toEqual([...ids].sort());
+  });
+
   describe('computeSecurityScore', () => {
     it('returns 100 when every scorable check passes', () => {
       const checks = SECURITY_CHECK_CATALOG.map((definition) => result(definition.id, 'pass'));

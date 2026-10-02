@@ -444,6 +444,14 @@ describe('security-scan engine', () => {
           'smb-signing': '{"kind":"smb","require":true,"enable":true}',
           'listening-ports': '{"kind":"ports","count":3,"ports":[135,445,3389]}',
           'windows-update-service': '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
+          'lsass-protection': '{"kind":"lsass","runAsPpl":2,"lsaCfgFlags":0}',
+          'credential-guard': '{"kind":"dg","configured":[1,2],"running":[1,2],"vbs":2}',
+          'bitlocker-protectors':
+            '{"kind":"blp","count":1,"types":["RecoveryPassword"],"edition":"Professional"}',
+          'admin-accounts': '{"kind":"admins","adminCount":1,"total":5,"neverExpire":0}',
+          'firewall-inbound-rules': '{"kind":"fwrules","count":120,"sample":["Core Networking"]}',
+          'winrm-exposure':
+            '{"kind":"winrm","service":"Stopped","startType":"Manual","listeners":0}',
         }),
         machine()
       );
@@ -547,6 +555,13 @@ describe('security-scan engine', () => {
         'smb-signing': '{"kind":"smb","require":true,"enable":true}',
         'listening-ports': '{"kind":"ports","count":3,"ports":[135,445,3389]}',
         'windows-update-service': '{"kind":"service","found":true,"status":"Running","startType":"Automatic"}',
+        'lsass-protection': '{"kind":"lsass","runAsPpl":2,"lsaCfgFlags":0}',
+        'credential-guard': '{"kind":"dg","configured":[1,2],"running":[1,2],"vbs":2}',
+        'bitlocker-protectors':
+          '{"kind":"blp","count":1,"types":["RecoveryPassword"],"edition":"Professional"}',
+        'admin-accounts': '{"kind":"admins","adminCount":1,"total":5,"neverExpire":0}',
+        'firewall-inbound-rules': '{"kind":"fwrules","count":120,"sample":["Core Networking"]}',
+        'winrm-exposure': '{"kind":"winrm","service":"Stopped","startType":"Manual","listeners":0}',
       });
       const stdout = [`@@FENV@@\n${env}`]
         .concat(blocks.map((block, index) => `@@FSEC_${index}@@\n${block}`))
@@ -719,6 +734,176 @@ describe('security-scan engine', () => {
       const { score, scoredChecks, excludedChecks } = computeSecurityScore(results);
       expect(scoredChecks + excludedChecks).toBe(SECURITY_CHECK_CATALOG.length);
       expect(score).not.toBeNull();
+    });
+  });
+
+  // ===== v0.9.0: admin-gated, read-only controls =====
+
+  describe('v0.9.0 admin-gated catalog', () => {
+    const ADMIN_IDS = [
+      'lsass-protection',
+      'credential-guard',
+      'bitlocker-protectors',
+      'admin-accounts',
+      'firewall-inbound-rules',
+      'winrm-exposure',
+    ] as const;
+
+    it('registers the new checks as read-only, non-auto-fixable and admin-gated', () => {
+      for (const id of ADMIN_IDS) {
+        const def = SECURITY_CHECK_CATALOG.find((d) => d.id === id);
+        expect(def, `missing catalog entry: ${id}`).toBeDefined();
+        expect(def?.autoFixable).toBe(false);
+        expect(def?.requiresAdmin).toBe(true);
+        expect((def?.reads ?? '').length).toBeGreaterThan(0);
+        expect(def?.possibleStatuses).toContain('requires-admin');
+      }
+      // The three reversible auto-fixes are still the only ones.
+      const fixable = SECURITY_CHECK_CATALOG.filter((d) => d.autoFixable).map((d) => d.id);
+      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
+    });
+
+    it('has a live query wired for every new id', () => {
+      const script = buildSecurityScript();
+      const markers = script.match(/@@FSEC_\d+@@/g) ?? [];
+      expect(markers).toHaveLength(SECURITY_CHECK_CATALOG.length);
+      for (const id of ADMIN_IDS) {
+        expect(SECURITY_CHECK_CATALOG.some((d) => d.id === id), id).toBe(true);
+      }
+    });
+
+    it('lsass-protection: RunAsPPL>=1 passes, absent/0 fails', () => {
+      expect(
+        statusOf('lsass-protection', {
+          'lsass-protection': JSON.stringify({ kind: 'lsass', runAsPpl: 2, lsaCfgFlags: 0 }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('lsass-protection', {
+          'lsass-protection': JSON.stringify({ kind: 'lsass', runAsPpl: 1, lsaCfgFlags: 0 }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('lsass-protection', {
+          'lsass-protection': JSON.stringify({ kind: 'lsass', runAsPpl: 0, lsaCfgFlags: 0 }),
+        })
+      ).toBe('fail');
+      expect(
+        statusOf('lsass-protection', { 'lsass-protection': JSON.stringify({ kind: 'lsass' }) })
+      ).toBe('fail');
+    });
+
+    it('credential-guard: running passes, configured/VBS warns, otherwise fails', () => {
+      expect(
+        statusOf('credential-guard', {
+          'credential-guard': JSON.stringify({ kind: 'dg', configured: [1, 2], running: [1, 2], vbs: 2 }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('credential-guard', {
+          'credential-guard': JSON.stringify({ kind: 'dg', configured: [1], running: [], vbs: 2 }),
+        })
+      ).toBe('warn');
+      expect(
+        statusOf('credential-guard', {
+          'credential-guard': JSON.stringify({ kind: 'dg', configured: [], running: [], vbs: 0 }),
+        })
+      ).toBe('fail');
+    });
+
+    it('bitlocker-protectors: >=1 protector passes, 0 fails, Home is not-applicable', () => {
+      expect(
+        statusOf('bitlocker-protectors', {
+          'bitlocker-protectors': JSON.stringify({
+            kind: 'blp',
+            count: 2,
+            types: ['Tpm', 'RecoveryPassword'],
+            edition: 'Professional',
+          }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('bitlocker-protectors', {
+          'bitlocker-protectors': JSON.stringify({ kind: 'blp', count: 0, types: [], edition: 'Professional' }),
+        })
+      ).toBe('fail');
+      expect(
+        statusOf('bitlocker-protectors', {
+          'bitlocker-protectors': JSON.stringify({
+            kind: 'unreadable',
+            message: "The term 'Get-BitLockerVolume' is not recognized",
+            edition: 'Core',
+          }),
+        })
+      ).toBe('not-applicable');
+    });
+
+    it('admin-accounts: small baseline passes, broader warns, too many fails', () => {
+      expect(
+        statusOf('admin-accounts', {
+          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 1, total: 5, neverExpire: 0 }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('admin-accounts', {
+          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 2, total: 5, neverExpire: 1 }),
+        })
+      ).toBe('warn');
+      expect(
+        statusOf('admin-accounts', {
+          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 5, total: 9, neverExpire: 3 }),
+        })
+      ).toBe('fail');
+    });
+
+    it('firewall-inbound-rules: normal surface passes, a very large surface warns', () => {
+      expect(
+        statusOf('firewall-inbound-rules', {
+          'firewall-inbound-rules': JSON.stringify({ kind: 'fwrules', count: 120, sample: ['Core Networking'] }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('firewall-inbound-rules', {
+          'firewall-inbound-rules': JSON.stringify({ kind: 'fwrules', count: 400, sample: ['x'] }),
+        })
+      ).toBe('warn');
+    });
+
+    it('winrm-exposure: stopped with no listeners passes, running with listeners fails', () => {
+      expect(
+        statusOf('winrm-exposure', {
+          'winrm-exposure': JSON.stringify({ kind: 'winrm', service: 'Stopped', startType: 'Manual', listeners: 0 }),
+        })
+      ).toBe('pass');
+      expect(
+        statusOf('winrm-exposure', {
+          'winrm-exposure': JSON.stringify({ kind: 'winrm', service: 'Running', startType: 'Automatic', listeners: 1 }),
+        })
+      ).toBe('fail');
+    });
+
+    it('without elevation every admin-gated check reports requires-admin with evidence', () => {
+      const results = buildSecurityCheckResults(
+        payloads({
+          'lsass-protection': JSON.stringify({ kind: 'lsass', runAsPpl: 2, lsaCfgFlags: 0 }),
+          'credential-guard': JSON.stringify({ kind: 'dg', configured: [1], running: [1], vbs: 2 }),
+          'bitlocker-protectors': JSON.stringify({ kind: 'blp', count: 1, types: ['Tpm'], edition: 'Professional' }),
+          'admin-accounts': JSON.stringify({ kind: 'admins', adminCount: 1, total: 5, neverExpire: 0 }),
+          'firewall-inbound-rules': JSON.stringify({ kind: 'fwrules', count: 120, sample: [] }),
+          'winrm-exposure': JSON.stringify({ kind: 'winrm', service: 'Stopped', startType: 'Manual', listeners: 0 }),
+        }),
+        machine({ isAdmin: false })
+      );
+      for (const id of ADMIN_IDS) {
+        const check = results.find((result) => result.id === id);
+        expect(check?.status, id).toBe('requires-admin');
+        expect(check?.evidence.length, id).toBeGreaterThan(0);
+        expect(check?.reason.toLowerCase(), id).toContain('administrator');
+      }
+      // Admin-gated checks stay out of the score denominator.
+      const { scoredChecks, excludedChecks } = computeSecurityScore(results);
+      expect(scoredChecks + excludedChecks).toBe(SECURITY_CHECK_CATALOG.length);
+      expect(excludedChecks).toBeGreaterThanOrEqual(ADMIN_IDS.length);
     });
   });
 });

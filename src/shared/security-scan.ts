@@ -55,6 +55,15 @@ export interface SecurityCheckDefinition {
    * is not reversible through a single value.
    */
   autoFixable: boolean;
+  /**
+   * Whether measuring this control requires the scanner to be elevated.
+   *
+   * v0.9.0: these are machine-wide hardening controls whose live assessment is
+   * admin-gated. When the app is NOT running as administrator they must report
+   * `requires-admin` (with the real reason and the value observed so far) — never
+   * `fail` or `unknown` — and are excluded from the score denominator.
+   */
+  requiresAdmin?: boolean;
   /** Concrete guidance shown when the check is not passing. */
   guidance: string;
 }
@@ -252,6 +261,88 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     autoFixable: false,
     guidance:
       'Keep the Windows Update service (wuauserv) available so security patches can install.',
+  },
+  // ============ v0.9.0 additions (admin-gated, read-only, dynamic) ============
+  // Each of these measures a machine-wide hardening control that is assessed and
+  // remediated with administrator rights. Without elevation they report
+  // `requires-admin` (with the observed value) instead of guessing.
+  {
+    id: 'lsass-protection',
+    title: 'LSASS protection (RunAsPPL)',
+    category: 'platform',
+    severity: 'high',
+    reads:
+      'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa => RunAsPPL and LsaCfgFlags (RunAsPPL >= 1 means LSA runs as a protected process)',
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'Enable LSA protection (RunAsPPL=1 or 2) via the registry or Windows Security => Device security => Core isolation => Local Security Authority protection, then reboot.',
+  },
+  {
+    id: 'credential-guard',
+    title: 'Credential Guard / Device Guard',
+    category: 'platform',
+    severity: 'high',
+    reads:
+      'root\\Microsoft\\Windows\\DeviceGuard => Win32_DeviceGuard (SecurityServicesConfigured, SecurityServicesRunning, VirtualizationBasedSecurityStatus)',
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'Enable Virtualization-Based Security and Credential Guard (Windows Security => Device security => Core isolation, or Group Policy Device Guard), then reboot.',
+  },
+  {
+    id: 'bitlocker-protectors',
+    title: 'BitLocker key protectors',
+    category: 'encryption',
+    severity: 'high',
+    reads:
+      'Get-BitLockerVolume -MountPoint %SystemDrive% => KeyProtector (types + count); a volume with 0 protectors cannot be unlocked and is not truly protected',
+    possibleStatuses: ['pass', 'fail', 'not-applicable', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'Turn on BitLocker / device encryption so the system drive has at least one key protector (TPM, recovery password or smart card).',
+  },
+  {
+    id: 'admin-accounts',
+    title: 'Local administrator accounts',
+    category: 'access',
+    severity: 'high',
+    reads:
+      'Win32_UserAccount (LocalAccount=True, PasswordExpires) + administrators group membership (SID S-1-5-32-544) counted live by SID, never by name',
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'Keep the number of local administrators small and avoid accounts whose passwords never expire. Use a standard account for daily work.',
+  },
+  {
+    id: 'firewall-inbound-rules',
+    title: 'Enabled inbound firewall rules',
+    category: 'firewall',
+    severity: 'medium',
+    reads:
+      'Get-NetFirewallRule -Enabled True -Direction Inbound => count + sample of non-block allow rules (a large inbound surface is flagged)',
+    possibleStatuses: ['pass', 'warn', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'Review enabled inbound rules and disable or remove the ones you do not need; a very broad inbound surface increases the attack surface.',
+  },
+  {
+    id: 'winrm-exposure',
+    title: 'WinRM remote management exposure',
+    category: 'network',
+    severity: 'medium',
+    reads:
+      "Get-Service WinRM (Status + StartType) + WSMan:\\localhost\\Listener count (a running service with active listeners exposes remote management)",
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'If you do not use remote management, stop the WinRM service and remove its listeners (or restrict them with the firewall).',
   },
 ];
 

@@ -256,6 +256,85 @@ export const SECURITY_SCRIPTS: Readonly<Record<string, string>> = {
     } catch { $found = $false }
     @{ kind = $kind; found = $found; status = $status; startType = $startType } | ConvertTo-Json -Compress
   `,
+
+  // ---- v0.9.0 additions (admin-gated, read-only; no product-name lists) ----
+  'lsass-protection': `
+    $kind = 'lsass';
+    $path = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa';
+    $runAsPpl = (Get-ItemProperty -Path $path -Name 'RunAsPPL' -ErrorAction SilentlyContinue).RunAsPPL;
+    $cfg = (Get-ItemProperty -Path $path -Name 'LsaCfgFlags' -ErrorAction SilentlyContinue).LsaCfgFlags;
+    @{ kind = $kind; runAsPpl = $runAsPpl; lsaCfgFlags = $cfg } | ConvertTo-Json -Compress
+  `,
+
+  'credential-guard': `
+    $kind = 'dg';
+    $configured = @(); $running = @(); $vbs = $null; $message = '';
+    try {
+      $dg = Get-CimInstance -Namespace 'root\\Microsoft\\Windows\\DeviceGuard' -ClassName Win32_DeviceGuard -ErrorAction Stop;
+      if ($dg -ne $null) {
+        $configured = @($dg.SecurityServicesConfigured);
+        $running = @($dg.SecurityServicesRunning);
+        $vbs = $dg.VirtualizationBasedSecurityStatus
+      }
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    @{ kind = $kind; configured = $configured; running = $running; vbs = $vbs; message = $message } | ConvertTo-Json -Compress -Depth 4
+  `,
+
+  'bitlocker-protectors': `
+    $edition = [string](Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' -Name 'EditionID' -ErrorAction SilentlyContinue).EditionID;
+    $kind = 'blp'; $count = $null; $types = @(); $message = '';
+    try {
+      $v = Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop;
+      $prot = @($v.KeyProtector);
+      $count = $prot.Count;
+      foreach ($p in $prot) { if ($p -ne $null) { $types += [string]$p.KeyProtectorType } }
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    @{ kind = $kind; count = $count; types = @($types); edition = $edition; message = $message } | ConvertTo-Json -Compress -Depth 4
+  `,
+
+  'admin-accounts': `
+    $kind = 'admins';
+    $total = $null; $neverExpire = $null; $adminCount = $null; $message = '';
+    try {
+      $users = @(Get-CimInstance -ClassName Win32_UserAccount -Filter "LocalAccount=True" -ErrorAction Stop);
+      $total = $users.Count;
+      $neverExpire = @($users | Where-Object { $_.PasswordExpires -eq $false }).Count;
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    try {
+      $grp = Get-LocalGroup -SID 'S-1-5-32-544' -ErrorAction Stop;
+      $adminCount = @(Get-LocalGroupMember -Group $grp -ErrorAction Stop).Count;
+    } catch {
+      try {
+        $g = Get-CimInstance -ClassName Win32_Group -Filter "LocalAccount=True AND SID='S-1-5-32-544'" -ErrorAction Stop | Select-Object -First 1;
+        if ($g -ne $null) {
+          $adminCount = @(Get-CimInstance -ClassName Win32_GroupUser -ErrorAction Stop | Where-Object { [string]$_.GroupComponent -like ('*Name="' + $g.Name + '"*') }).Count
+        }
+      } catch {}
+    }
+    @{ kind = $kind; adminCount = $adminCount; total = $total; neverExpire = $neverExpire; message = $message } | ConvertTo-Json -Compress
+  `,
+
+  'firewall-inbound-rules': `
+    $kind = 'fwrules'; $count = $null; $sample = @(); $message = '';
+    try {
+      $rules = @(Get-NetFirewallRule -Enabled True -Direction Inbound -ErrorAction Stop);
+      $count = $rules.Count;
+      $sample = @($rules | Where-Object { [string]$_.Action -ne 'Block' } | Select-Object -First 10 -ExpandProperty DisplayName);
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    @{ kind = $kind; count = $count; sample = @($sample); message = $message } | ConvertTo-Json -Compress -Depth 4
+  `,
+
+  'winrm-exposure': `
+    $kind = 'winrm'; $service = ''; $startType = ''; $listeners = $null; $message = '';
+    try {
+      $s = Get-Service -Name 'WinRM' -ErrorAction Stop;
+      $service = [string]$s.Status; $startType = [string]$s.StartType;
+    } catch { $service = '' }
+    try {
+      $listeners = @(Get-ChildItem -Path 'WSMan:\\localhost\\Listener' -ErrorAction Stop).Count;
+    } catch { $listeners = $null }
+    @{ kind = $kind; service = $service; startType = $startType; listeners = $listeners; message = $message } | ConvertTo-Json -Compress
+  `,
 };
 
 /** Build the single batched script (env + every catalog check, in order). */
@@ -871,6 +950,266 @@ function windowsUpdateService(p: Obj | null): SecurityCheckResult {
   return { id: 'windows-update-service', status: 'pass', evidence, reason: 'The Windows Update service is available.' };
 }
 
+// ---- v0.9.0 builders (admin-gated controls) ----
+
+function lsassProtection(p: Obj | null): SecurityCheckResult {
+  if (!p || asString(p.kind) === 'exception') {
+    return {
+      id: 'lsass-protection',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'LSASS protection state could not be read.',
+    };
+  }
+  const runAsPpl = asNumber(p.runAsPpl);
+  const cfg = asNumber(p.lsaCfgFlags);
+  const evidence = `RunAsPPL=${runAsPpl === null ? 'not set' : runAsPpl}, LsaCfgFlags=${cfg === null ? 'not set' : cfg}`;
+  // RunAsPPL: 0 = disabled, 1 = enabled with UEFI lock, 2 = enabled without lock.
+  if (runAsPpl !== null && runAsPpl >= 1) {
+    return {
+      id: 'lsass-protection',
+      status: 'pass',
+      evidence,
+      reason: 'LSASS runs as a protected process (RunAsPPL enabled).',
+    };
+  }
+  return {
+    id: 'lsass-protection',
+    status: 'fail',
+    evidence,
+    reason: 'LSASS protection (RunAsPPL) is not enabled.',
+  };
+}
+
+function credentialGuard(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'unreadable' || kind === 'exception') {
+    return {
+      id: 'credential-guard',
+      status: readFailureStatus(asString(p?.message)),
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Credential Guard state could not be read.',
+    };
+  }
+  const configured = toArray(p.configured)
+    .map((v) => asNumber(v))
+    .filter((v): v is number => v !== null);
+  const running = toArray(p.running)
+    .map((v) => asNumber(v))
+    .filter((v): v is number => v !== null);
+  const vbs = asNumber(p.vbs);
+  const evidence =
+    `SecurityServicesConfigured=[${configured.join(', ')}], ` +
+    `SecurityServicesRunning=[${running.join(', ')}], VBS=${vbs === null ? 'unknown' : vbs}`;
+  // Security service id 1 = Credential Guard.
+  const CREDENTIAL_GUARD = 1;
+  if (running.includes(CREDENTIAL_GUARD)) {
+    return { id: 'credential-guard', status: 'pass', evidence, reason: 'Credential Guard is running.' };
+  }
+  if (configured.includes(CREDENTIAL_GUARD) || vbs === 2) {
+    return {
+      id: 'credential-guard',
+      status: 'warn',
+      evidence,
+      reason: 'Credential Guard is configured or VBS is enabled, but Credential Guard is not running.',
+    };
+  }
+  return { id: 'credential-guard', status: 'fail', evidence, reason: 'Credential Guard is not enabled.' };
+}
+
+function bitlockerProtectors(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  const edition = asString(p?.edition);
+  const message = asString(p?.message);
+  if (!p || kind === 'exception') {
+    return {
+      id: 'bitlocker-protectors',
+      status: 'unknown',
+      evidence: readFailureEvidence(message),
+      reason: 'BitLocker key protectors could not be read.',
+    };
+  }
+  if (kind === 'unreadable') {
+    if (/CommandNotFound|not recognized|no se reconoce/i.test(message)) {
+      const homeEdition = /home|core/i.test(edition);
+      return {
+        id: 'bitlocker-protectors',
+        status: homeEdition ? 'not-applicable' : 'unknown',
+        evidence: `Get-BitLockerVolume unavailable (Edition: ${edition || 'unknown'}).`,
+        reason: homeEdition
+          ? 'BitLocker is not available on this Windows edition.'
+          : 'The BitLocker module is not available on this system.',
+      };
+    }
+    return {
+      id: 'bitlocker-protectors',
+      status: readFailureStatus(message),
+      evidence: readFailureEvidence(message),
+      reason: 'BitLocker key protectors could not be read.',
+    };
+  }
+  const count = asNumber(p.count);
+  const types = toArray(p.types)
+    .map((v) => asString(v))
+    .filter((v) => v.length > 0);
+  const evidence = `KeyProtector count=${count === null ? 'unknown' : count}${
+    types.length ? ` [${types.join(', ')}]` : ''
+  } (Edition: ${edition || 'unknown'})`;
+  if (count === null) {
+    return {
+      id: 'bitlocker-protectors',
+      status: 'unknown',
+      evidence,
+      reason: 'The key protector count could not be determined.',
+    };
+  }
+  if (count >= 1) {
+    return {
+      id: 'bitlocker-protectors',
+      status: 'pass',
+      evidence,
+      reason: `The system drive has ${count} key protector(s).`,
+    };
+  }
+  return {
+    id: 'bitlocker-protectors',
+    status: 'fail',
+    evidence,
+    reason: 'The system drive has no BitLocker key protectors, so it is not truly protected.',
+  };
+}
+
+function adminAccounts(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'unreadable' || kind === 'exception') {
+    return {
+      id: 'admin-accounts',
+      status: readFailureStatus(asString(p?.message)),
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Local administrator accounts could not be read.',
+    };
+  }
+  const adminCount = asNumber(p.adminCount);
+  const total = asNumber(p.total);
+  const neverExpire = asNumber(p.neverExpire);
+  const evidence =
+    `Local administrators=${adminCount === null ? 'unknown' : adminCount} of ` +
+    `${total === null ? 'unknown' : total} local accounts; ` +
+    `passwords never expire=${neverExpire === null ? 'unknown' : neverExpire}`;
+  if (adminCount === null) {
+    return {
+      id: 'admin-accounts',
+      status: 'unknown',
+      evidence,
+      reason: 'Administrator group membership could not be determined.',
+    };
+  }
+  if (adminCount > 3) {
+    return {
+      id: 'admin-accounts',
+      status: 'fail',
+      evidence,
+      reason: 'There are too many local administrator accounts.',
+    };
+  }
+  if (adminCount > 2 || (neverExpire !== null && neverExpire > 0)) {
+    return {
+      id: 'admin-accounts',
+      status: 'warn',
+      evidence,
+      reason: 'The local administrator setup is broader than the recommended baseline.',
+    };
+  }
+  return {
+    id: 'admin-accounts',
+    status: 'pass',
+    evidence,
+    reason: 'The number of local administrators is within the recommended baseline.',
+  };
+}
+
+function firewallInboundRules(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'unreadable' || kind === 'exception') {
+    return {
+      id: 'firewall-inbound-rules',
+      status: readFailureStatus(asString(p?.message)),
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'Inbound firewall rules could not be read.',
+    };
+  }
+  const count = asNumber(p.count);
+  const sample = toArray(p.sample)
+    .map((v) => asString(v))
+    .filter((v) => v.length > 0);
+  const evidence = `${count === null ? 'unknown' : count} enabled inbound rule(s)${
+    sample.length ? `; e.g. ${sample.slice(0, 5).join(', ')}` : ''
+  }`;
+  if (count === null) {
+    return {
+      id: 'firewall-inbound-rules',
+      status: 'unknown',
+      evidence,
+      reason: 'The enabled inbound rule count could not be determined.',
+    };
+  }
+  if (count > 250) {
+    return {
+      id: 'firewall-inbound-rules',
+      status: 'warn',
+      evidence,
+      reason: 'A very large number of inbound rules are enabled; review the attack surface.',
+    };
+  }
+  return {
+    id: 'firewall-inbound-rules',
+    status: 'pass',
+    evidence,
+    reason: 'The enabled inbound rule surface is within a normal range.',
+  };
+}
+
+function winrmExposure(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  if (!p || kind === 'exception') {
+    return {
+      id: 'winrm-exposure',
+      status: 'unknown',
+      evidence: readFailureEvidence(asString(p?.message)),
+      reason: 'WinRM state could not be read.',
+    };
+  }
+  const service = asString(p.service);
+  const startType = asString(p.startType);
+  const listeners = asNumber(p.listeners);
+  const running = /running/i.test(service);
+  const evidence = `WinRM service=${service || 'not found'} (${
+    startType || 'unknown'
+  }), listeners=${listeners === null ? 'unknown' : listeners}`;
+  if (running && (listeners === null || listeners > 0)) {
+    return {
+      id: 'winrm-exposure',
+      status: 'fail',
+      evidence,
+      reason: 'WinRM is running with active listeners, exposing remote management.',
+    };
+  }
+  if (running || (listeners !== null && listeners > 0)) {
+    return {
+      id: 'winrm-exposure',
+      status: 'warn',
+      evidence,
+      reason: 'WinRM is partially exposed; review whether remote management is needed.',
+    };
+  }
+  return {
+    id: 'winrm-exposure',
+    status: 'pass',
+    evidence,
+    reason: 'WinRM is not exposing remote management.',
+  };
+}
+
 const BUILDERS: Readonly<Record<string, (payload: Obj | null) => SecurityCheckResult>> = {
   antivirus,
   firewall,
@@ -888,6 +1227,12 @@ const BUILDERS: Readonly<Record<string, (payload: Obj | null) => SecurityCheckRe
   'smb-signing': smbSigning,
   'listening-ports': listeningPorts,
   'windows-update-service': windowsUpdateService,
+  'lsass-protection': lsassProtection,
+  'credential-guard': credentialGuard,
+  'bitlocker-protectors': bitlockerProtectors,
+  'admin-accounts': adminAccounts,
+  'firewall-inbound-rules': firewallInboundRules,
+  'winrm-exposure': winrmExposure,
 };
 
 /**
@@ -898,7 +1243,6 @@ export function buildSecurityCheckResults(
   payloads: readonly string[],
   machine: SecurityMachineInfo
 ): SecurityCheckResult[] {
-  void machine;
   return SECURITY_CHECK_CATALOG.map((definition, index) => {
     const payload = parseObject(payloads[index] ?? '');
     const builder = BUILDERS[definition.id];
@@ -910,7 +1254,21 @@ export function buildSecurityCheckResults(
         reason: 'Scanner misconfiguration.',
       };
     }
-    return builder(payload);
+    const observed = builder(payload);
+    // Admin-gated controls: without elevation we report `requires-admin` (with
+    // the value observed so far) — never `fail` or `unknown`. Scoring excludes
+    // this status from the denominator, so it never penalises the user.
+    if (definition.requiresAdmin && !machine.isAdmin) {
+      return {
+        id: definition.id,
+        status: 'requires-admin' as const,
+        evidence: observed.evidence,
+        reason:
+          'Administrator rights are required to assess this control. ' +
+          'Restart the app as administrator to measure it.',
+      };
+    }
+    return observed;
   });
 }
 
