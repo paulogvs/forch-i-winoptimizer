@@ -255,7 +255,8 @@ Toda la instrumentación vive **en el script de medición, no en `src/`** (verif
 `git diff`).
 
 Aclaración de la premisa: la vista de **500 filas** es la lista **virtualizada de Drivers**, no
-Tweaks — el catálogo real de Tweaks tiene 8 entradas. Las 500 filas se inyectan en el
+Tweaks — el catálogo real de Tweaks tiene **19 entradas** (array `TWEAKS` en
+`src/main/services/tweaks.ts`, servido por `tweaks:get`). Las 500 filas se inyectan en el
 `ipcMain` del binario real en tiempo de medición (`drivers:scan` → payload sintético), sin tocar
 código de producción. Apps y Bundles usan sus datos reales.
 
@@ -264,13 +265,13 @@ código de producción. Apps y Bundles usan sus datos reales.
 | **Drivers (500, virtualizada)** | 100 | **59,9** | 59,5 | 59,2 | **0** | 16,9 ms | 250 |
 | **Tools → Apps (instaladas, 14471 px)** | 100 | **59,9** | 58,1 | **19,9** | **2** | 50,2 ms | 1 866 |
 | **Bundles (48 apps)** | 99 | **59,9** | 59,5 | 58,5 | **0** | 17,1 ms | 495 |
-| **Tweaks (8)** | 99 | **59,9** | 58,8 | 58,1 | **0** | 17,2 ms | 413 |
+| **Tweaks (19)** | 99 | **59,9** | 58,8 | 58,1 | **0** | 17,2 ms | 413 |
 
 **Lectura:** todas las vistas se mantienen a **~60 FPS (vsync)** durante el scroll. La
 virtualización hace su trabajo donde importa: la lista de **500 filas** renderiza 250 nodos y
 **no pierde ni un frame**. El único caso con *jank* es **Tools → Apps** (lista no virtualizada,
 1 866 nodos): 2 frames perdidos y un peor frame de 50,2 ms — un tirón puntual, no un problema
-sostenido. Tweaks entra como referencia (8 filas): fluido. Es decir, el scroll **no** es el
+sostenido. Tweaks entra como referencia (19 filas): fluido. Es decir, el scroll **no** es el
 cuello de botella que percibía la queja; lo eran los canales IPC (ya corregidos, § arriba).
 
 Reproducir:
