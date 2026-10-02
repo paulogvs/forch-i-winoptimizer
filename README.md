@@ -22,9 +22,12 @@ A modern, fast, and beautiful Windows optimizer built with the FORCH.iA ecosyste
 - **Network** — Network Fixer: TCP/IP + Winsock + firewall reset, SMBv1 / `0x00000709` fix, connectivity test
 - **Audit** — System Audit: 33 checks across 6 categories with a health score
 - **Benchmark** — Performance metrics with before/after comparison and Markdown export
-- **Bundles** — Bulk app installation by category via `winget`
+- **Bundles** — Bulk app installation by category via `winget`: 8 bundles, 48 apps
 - **Cleaning** — Scheduled cleaning (daily/weekly/monthly) with history
-- **Tools** — Registry cleaner, disk defragmenter, privacy eraser, and more
+- **Tools** — App Manager + Startup Manager + **Debloat** (30 preinstalled UWP packages, 19 safe / 7 caution / 4 protected — protected is never removed) + Utilities
+- **Tweaks** — 19 safe tweaks (Performance, Privacy, Explorer, Accessibility) with preview and one-click restore
+- **Free RAM** — Header ⚡ button trims the app's own working set (~253 MB freed in ~3 s, measured)
+- **Global operation mutex** — System-mutating actions run one at a time (FIFO) with a header status badge and queued counter
 - **Statistics** — Historical charts and trends with CSV export
 - **Security** — Security & Privacy scan, privacy hardening, and DNS benchmark
 - **Settings** — Full customization with dark/light mode

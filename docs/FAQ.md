@@ -63,6 +63,34 @@ tal cual estaba (o usa los valores por defecto de Windows si no pudo capturarlo)
 Los que tocan servicios, tareas programadas o `HKLM` sí (SysMain, Prefetch, Telemetry/DiagTrack).
 Los de `HKCU` (Background Apps, Suggested Content, Explorer) no.
 
+**¿Qué hace el botón Free RAM (⚡)?**
+Libera al instante la RAM que ocupa **la propia aplicación** (no la de otros programas):
+recorta el *working set* de sus procesos y muestra cuánto liberó (`Freed N MB`, se resetea
+a los 3 s). Medido en pruebas: de **266 MB a 13 MB (~253 MB liberados)** en ~3 s.
+
+**¿Por qué varios botones aparecen deshabilitados / qué es el badge del header?**
+Es el **mutex global**: las operaciones que modifican el sistema (tweaks, instalaciones,
+limpiezas, debloat, Free RAM) se ejecutan **una a la vez, en orden** para que no se pisen.
+Mientras corre una, los botones de acción se deshabilitan solos y el header muestra un badge
+("Applying tweak…", "Installing apps…", "+N queued" si hay otras en cola). Al terminar —
+con éxito o con error — se reactivan automáticamente.
+
+**¿Qué es Debloat?**
+La pestaña **Tools → Debloat** lista **30 paquetes UWP preinstalados** de Windows con tres
+niveles: **safe (19)**, **caution (7)** y **protected (4)** — los *protected* (ej. Microsoft
+Store) **nunca se remueven**, y las apps no instaladas quedan deshabilitadas. Remover no
+requiere confirmaciones de Windows pero sí la app **como administrador**.
+
+**¿Puedo restaurar lo que quité en Debloat?**
+Sí, en la mayoría de los casos: `Remove-AppxPackage` quita el paquete **para tu usuario**,
+así que se reinstala desde la **Microsoft Store** o con `winget install <id>`. Los paquetes
+*protected* no se tocaron nunca.
+
+**¿Cuántos Tweaks y apps incluye?**
+**19 tweaks** (Performance, Privacy, Explorer, Accessibility), todos con Preview y Restore,
+y **8 bundles con 48 apps** instalables en bloque vía `winget` (Browsers, Media, Dev Tools,
+Utilities, Gaming, Productivity, Communication, Security & Privacy).
+
 **¿Puedo mover, maximizar o cerrar la ventana?**
 Sí. La ventana es frameless con controles propios arriba a la derecha (Minimizar,
 Maximizar/Restaurar, Cerrar). Arrastrás la ventana desde la barra superior o el encabezado del

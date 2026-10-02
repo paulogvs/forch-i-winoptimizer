@@ -3,11 +3,13 @@
 ## Tabla de Contenidos
 
 1. [Introducción](#introducción)
+   - [Mutex global de operaciones](#mutex-global-de-operaciones)
 2. [Instalación](#instalación)
 3. [Módulos](#módulos)
    - [Dashboard](#dashboard)
    - [Cleaner](#cleaner)
    - [Boost](#boost)
+   - [Bundles](#bundles)
    - [Tools](#tools)
    - [Tweaks](#tweaks)
    - [Security](#security)
@@ -31,8 +33,11 @@
 - **Monitoreo del sistema** — CPU, RAM, disco y GPU en tiempo real
 - **Gestión de apps** — Desinstalar aplicaciones fácilmente
 - **Seguridad** — Auditoría de seguridad del sistema
-- **Tweaks seguros** — Ajustes de rendimiento/privacidad/Explorer, reversibles y con vista previa
-- **Free RAM** — Botón en el header que libera la memoria ocupada por la app al instante (muestra "Freed N MB")
+- **Tweaks seguros** — 19 ajustes de rendimiento/privacidad/Explorer/accesibilidad, reversibles y con vista previa
+- **Debloat** — 30 paquetes UWP preinstalados con niveles safe/caution/protected (los protected nunca se remueven)
+- **Bundles** — 8 bundles y 48 apps instalables en bloque vía `winget`
+- **Free RAM** — Botón ⚡ en el header: libera al instante la RAM que ocupa **la propia app** (recorta el *working set* de sus procesos, main + renderizadores, sin tocar la de otros programas) y muestra cuánto liberó (`Freed N MB`, se resetea a los 3 s). **Medido:** RSS **266 → 13 MB (~253 MB liberados)** en ~3 s
+- **Mutex global de operaciones** — Una operación del sistema a la vez (ver [Mutex global de operaciones](#mutex-global-de-operaciones))
 - **Multi-idioma** — Español e Inglés
 - **Temas** — Oscuro, claro y más
 
@@ -48,6 +53,24 @@ La ventana es *frameless* con controles propios en la esquina superior derecha
 Podés **arrastrar la ventana** desde la barra superior o desde el encabezado del menú
 lateral. Los botones de control y los campos de búsqueda no arrastran. Todos los botones
 son accesibles por teclado (`Tab` + `Enter`/`Espacio`, con anillo de foco visible).
+
+### Mutex global de operaciones
+
+Las acciones que modifican el sistema (aplicar tweaks, instalar/desinstalar apps, limpiar,
+remover bloatware, Free RAM…) pasan por una **cola única**: **una operación a la vez, en
+orden FIFO**. Así nunca corren dos procesos conflictivos juntos (por ejemplo, un tweak y
+una limpieza escribiendo a la vez).
+
+- Mientras una operación corre, los botones de acción se **deshabilitan automáticamente**
+  en los módulos implicados. **Eso es normal**, no es un error: se reactivan solos.
+- En el header aparece un **badge con punto pulsante** que identifica la operación en
+  curso: **"Applying tweak…"**, **"Installing apps…"**, **"Removing apps…"**,
+  **"Freeing RAM…"**, etc. (`data-testid="op-status"`).
+- Si otras operaciones están esperando, el badge muestra **"+N queued"**; se ejecutan en
+  orden cuando se libera la cola.
+- El badge desaparece al terminar, **incluso si la operación falla** (el error se muestra
+  en el módulo que lo disparó). Si el badge siguiera visible con la app responsiva
+  durante mucho tiempo, cerrá y volvé a abrir la app.
 
 ---
 
@@ -130,15 +153,68 @@ El módulo Boost optimiza el rendimiento del sistema:
 2. Revisa la lista de servicios
 3. Click en **"Optimize"** para aplicar cambios recomendados
 
+### Bundles
+
+Instalación **masiva de apps por categoría** vía `winget`: **8 bundles y 48 apps**, con
+todos los IDs validados en vivo contra winget.
+
+Categorías: **Web Browsers**, **Media Players**, **Development Tools**, **System
+Utilities**, **Gaming**, **Productivity** (PowerToys, Obsidian, Notion, Flow Launcher),
+**Communication** (Zoom, Telegram, WhatsApp, Slack, Signal) y **Security & Privacy**
+(Bitwarden, KeePassXC, Malwarebytes, Wireshark).
+
+**Uso:**
+1. Ve a **Bundles** en el menú lateral
+2. Explorá una categoría e instalá una app con **Install**, o marcá varias y usá
+   **Install Selected**
+3. Mientras instala, los botones quedan deshabilitados y el badge del header muestra
+   "Installing apps…" (ver [Mutex global](#mutex-global-de-operaciones))
+
+> Los IDs inválidos se rechazan antes de tocar PowerShell; winget reporta éxito/error
+> real por app (tolerancia a "already installed").
+
 ### Tools
 
-Herramientas del sistema:
+Cuatro pestañas:
 
-- **Abrir carpeta Temp** — Abre la carpeta de archivos temporales
-- **Abrir msconfig** — Configuración del sistema
-- **Abrir Task Manager** — Administrador de tareas
-- **Abrir Registry Editor** — Editor del registro
-- **Abrir Services** — Administrador de servicios
+**App Manager** — las apps instaladas (Win32 y UWP) con versión, editor, tamaño, fecha y
+protección. **Uninstall** elimina la app seleccionada. El string de desinstalación se
+**valida antes de tocar PowerShell**: sólo se aceptan rutas absolutas terminadas en `.exe`
+sin metacaracteres de shell, o `MsiExec /x {GUID}` con GUID bien formado; los argumentos
+extra se descartan y cualquier otra cosa se rechaza sin ejecutar nada.
+
+**Startup Manager** — apps que arrancan con Windows: impacto (high/medium/low) y botón
+**Disable/Enable** por app.
+
+**Debloat** — remoción de **30 paquetes UWP preinstalados** (curados, fuente winutil) con
+tres niveles de protección:
+
+| Nivel | Cantidad | Comportamiento |
+|-------|:---:|----------------|
+| **safe** | 19 | Seleccionable; remoción sin riesgo conocido |
+| **caution** | 7 | Seleccionable, pero la confirmación te avisa para revisar |
+| **protected** | 4 | **Nunca se remueven** — casilla deshabilitada y rechazo server-side aunque la UI se eluda |
+
+Las apps **no instaladas** también quedan deshabilitadas ("not installed"). Flujo:
+
+1. Ve a **Tools → Debloat**
+2. Marcá las casillas (sólo las seleccionables)
+3. **Remove selected (N)** → confirmás → ves el resultado por app
+   (removed / skipped / failed) y el catálogo se refresca
+
+> **Cómo restaurar:** la remoción usa `Remove-AppxPackage`, que quita el paquete **para tu
+> usuario**. Para volver a tenerlo, reinstalalo desde la **Microsoft Store** o con
+> `winget install <id>`. Los paquetes *protected* jamás se tocan, así que apps clave del
+> sistema (como Microsoft Store) están a salvo. Requiere ejecutar la app **como
+> administrador**.
+>
+> **Garantías del backend:** el renderer sólo puede enviar **ids del catálogo** (nunca
+> nombres de paquete arbitrarios); los ids se validan con gramática estricta, las entradas
+> *protected* se rechazan en Main y los ids desconocidos/duplicados se descartan **sin
+> llegar a PowerShell**.
+
+**Utilities** — accesos a Registry Cleaner, Disk Defragmenter, Privacy Eraser, File
+Shredder, Network Optimizer y System Info.
 
 ### Tweaks
 

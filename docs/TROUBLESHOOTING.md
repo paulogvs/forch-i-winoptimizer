@@ -164,6 +164,9 @@ Muchas funciones leen o modifican el sistema y requieren **ejecutar la app como 
 | Cleaner (limpiar `C:\Windows\*`, caché de Windows Update) | Sí |
 | Boost / Servicios (cambiar tipo de inicio, detener) | Sí |
 | App Manager (desinstalar apps UWP/Win32) | Sí |
+| Debloat (remover paquetes UWP) | Sí |
+| Free RAM (liberar memoria de la app) | No |
+| Bundles (instalar vía `winget`) | No |
 | Drivers (punto de restauración, `pnputil`) | Sí |
 | Network Fixer (reset TCP/IP, Winsock, firewall) | Sí |
 | Scheduled Cleaning (crear tareas programadas) | Sí |
@@ -213,6 +216,48 @@ un gestor de ventanas que evita eventos `maximize`/`unmaximize` de Electron, rei
 
 **La caché me muestra datos viejos (≤ TTL):** System Info 60 s, Drivers 5 min, Junk 30 s. Usá
 **Refresh** en el Dashboard (invalida la caché) o volvé a ejecutar el scan del módulo.
+
+---
+
+### 15. Un botón está deshabilitado o el header muestra un badge ("Applying tweak…")
+
+**Síntomas:** los botones de acción no responden y/o el badge del header marca una
+operación en curso, a veces con **"+N queued"**.
+
+**Causa:** el **mutex global** — las operaciones que mutan el sistema corren **una a la
+vez, en FIFO** (26 canales: tweaks, apps, bundles, limpiezas, debloat, Free RAM…). Esto es
+**comportamiento normal**, no un bug.
+
+**Soluciones:**
+1. **Esperá a que termine** — el badge se apaga y los botones se reactivan solos
+2. Mirá el módulo implicado: si la operación falló, el error aparece ahí y el lock se
+   libera igual (el badge no queda pegado por errores)
+3. "+N queued" significa que hay operaciones esperando en orden — no hacen falta acciones
+4. Si el badge siguiera visible con la app **responsiva** durante mucho tiempo, cerrá y
+   volvé a abrir la app (el lock vive en el proceso main y muere con él)
+
+---
+
+### 16. Debloat: una app no se remueve o quiero restaurarla
+
+**Síntomas:** una casilla está deshabilitada, el resultado dice `skipped`/`failed`, o ya
+removiste algo y lo querés de vuelta.
+
+**Por qué ocurre:**
+- **`protected` (4 paquetes)** — nunca se remueven; la casilla queda deshabilitada y el
+  backend los rechaza aunque la UI se eluda. A salvo: Microsoft Store y apps clave.
+- **"not installed"** — el paquete no está en tu sistema; la casilla está deshabilitada.
+- **`skipped`** — al ejecutar, el paquete ya no existía (nada que hacer).
+- **`failed`** — falta permiso de administrador o Windows devolvió el error real (se muestra
+  por app en el resultado).
+- **Falta admin** — reabrí la app con clic derecho → **Ejecutar como administrador**.
+
+**Restaurar lo removido:** `Remove-AppxPackage` sólo quita el paquete **para tu usuario**;
+reinstalalo desde la **Microsoft Store** o con `winget install <id>`.
+
+**Garantía anti-inyección:** el renderer sólo puede enviar ids del catálogo (no nombres de
+paquete arbitrarios); ids desconocidos, duplicados o con caracteres inválidos se descartan
+**sin ejecutar PowerShell**.
 
 ---
 
