@@ -4,9 +4,9 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import { formatBytes } from '../utils/format';
-import type { InstalledApp, StartupApp } from '@shared/electron-api';
+import type { DebloatCandidate, DebloatResult, InstalledApp, StartupApp } from '@shared/electron-api';
 
-type ToolTab = 'apps' | 'startup' | 'utilities';
+type ToolTab = 'apps' | 'startup' | 'debloat' | 'utilities';
 
 export const Tools: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ToolTab>('apps');
@@ -15,12 +15,20 @@ export const Tools: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uninstalling, setUninstalling] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [debloatCatalog, setDebloatCatalog] = useState<DebloatCandidate[]>([]);
+  const [selectedBloatware, setSelectedBloatware] = useState<string[]>([]);
+  const [removing, setRemoving] = useState(false);
+  const [debloatResult, setDebloatResult] = useState<DebloatResult | null>(null);
 
   useEffect(() => {
     if (activeTab === 'apps') {
       loadInstalledApps();
     } else if (activeTab === 'startup') {
       loadStartupApps();
+    } else if (activeTab === 'debloat') {
+      setDebloatResult(null);
+      setSelectedBloatware([]);
+      void loadDebloatCatalog();
     }
   }, [activeTab]);
 
@@ -95,6 +103,48 @@ export const Tools: React.FC = () => {
     }
   };
 
+  const loadDebloatCatalog = async () => {
+    try {
+      const catalog = await window.electronAPI.getBloatwareCatalog();
+      setDebloatCatalog(catalog);
+    } catch (error) {
+      console.error('Failed to load bloatware catalog:', error);
+    }
+  };
+
+  const toggleBloatware = (id: string, checked: boolean) => {
+    setSelectedBloatware((prev) =>
+      checked ? [...prev, id] : prev.filter((x) => x !== id)
+    );
+  };
+
+  const handleDebloat = async () => {
+    if (selectedBloatware.length === 0) return;
+
+    const cautionCount = debloatCatalog.filter(
+      (a) => selectedBloatware.includes(a.id) && a.protection === 'caution'
+    ).length;
+    const cautionNote =
+      cautionCount > 0 ? ` ${cautionCount} of them are marked "caution".` : '';
+    const confirmed = window.confirm(
+      `Remove ${selectedBloatware.length} app(s)?${cautionNote} Protected apps are never removed.`
+    );
+    if (!confirmed) return;
+
+    setRemoving(true);
+    setDebloatResult(null);
+    try {
+      const result = await window.electronAPI.removeBloatware(selectedBloatware);
+      setDebloatResult(result);
+      setSelectedBloatware([]);
+      await loadDebloatCatalog();
+    } catch (error) {
+      console.error('Debloat failed:', error);
+    } finally {
+      setRemoving(false);
+    }
+  };
+
   const safeApps = installedApps.filter((a) => a.protection === 'safe');
   const cautionApps = installedApps.filter((a) => a.protection === 'caution');
   const protectedApps = installedApps.filter((a) => a.protection === 'protected');
@@ -115,6 +165,12 @@ export const Tools: React.FC = () => {
           onClick={() => setActiveTab('startup')}
         >
           Startup Manager
+        </Button>
+        <Button
+          variant={activeTab === 'debloat' ? 'primary' : 'secondary'}
+          onClick={() => setActiveTab('debloat')}
+        >
+          Debloat
         </Button>
         <Button
           variant={activeTab === 'utilities' ? 'primary' : 'secondary'}
@@ -229,6 +285,99 @@ export const Tools: React.FC = () => {
             ))}
           </div>
         </Card>
+      )}
+
+      {activeTab === 'debloat' && (
+        <div className="flex flex-col gap-4">
+          {debloatResult && (
+            <div
+              data-testid="debloat-result"
+              role="status"
+              className={`p-3 rounded-lg text-sm ${
+                debloatResult.success ? 'text-success' : 'text-error'
+              }`}
+            >
+              {debloatResult.message}
+            </div>
+          )}
+
+          <Card
+            title="Bloatware Removal"
+            footer={
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex gap-2">
+                  <Badge variant="success">
+                    {debloatCatalog.filter((a) => a.protection === 'safe').length} safe
+                  </Badge>
+                  <Badge variant="warning">
+                    {debloatCatalog.filter((a) => a.protection === 'caution').length} caution
+                  </Badge>
+                  <Badge variant="error">
+                    {debloatCatalog.filter((a) => a.protection === 'protected').length} protected
+                  </Badge>
+                </div>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleDebloat}
+                  disabled={selectedBloatware.length === 0 || removing}
+                >
+                  {removing ? 'Removing...' : `Remove selected (${selectedBloatware.length})`}
+                </Button>
+              </div>
+            }
+          >
+            <p className="text-xs text-fg-tertiary mb-3">
+              Curated removable UWP packages. Protection is enforced server-side:
+              protected apps can never be removed, even from here.
+            </p>
+            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+              {debloatCatalog.map((app) => {
+                const selectable = app.installed && app.protection !== 'protected';
+                return (
+                  <label
+                    key={app.id}
+                    className={`flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-bg-hover ${
+                      selectable ? 'cursor-pointer' : 'opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="checkbox"
+                        className="accent-primary"
+                        data-testid={`debloat-check-${app.id}`}
+                        disabled={!selectable}
+                        checked={selectedBloatware.includes(app.id)}
+                        onChange={(e) => toggleBloatware(app.id, e.target.checked)}
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-fg-primary">{app.name}</span>
+                          <Badge
+                            variant={
+                              app.protection === 'protected'
+                                ? 'error'
+                                : app.protection === 'caution'
+                                  ? 'warning'
+                                  : 'success'
+                            }
+                          >
+                            {app.protection}
+                          </Badge>
+                          {!app.installed && <Badge variant="neutral">not installed</Badge>}
+                        </div>
+                        <div className="text-xs text-fg-tertiary truncate">{app.description}</div>
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+              {debloatCatalog.length === 0 && (
+                <div className="text-sm text-fg-tertiary">Catalog unavailable.</div>
+              )}
+            </div>
+          </Card>
+        </div>
       )}
 
       {activeTab === 'utilities' && (

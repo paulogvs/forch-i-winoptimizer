@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "lastUpdated": "2026-09-30",
+  "version": "0.2.0",
+  "lastUpdated": "2026-10-01",
   "apps": [
     {
       "id": "3dbuilder",
@@ -165,6 +165,171 @@
       "description": "App para conectar el teléfono. Remover puede afectar integración móvil.",
       "uninstallString": "Microsoft.YourPhone",
       "size": "~120 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingnews",
+      "name": "MSN News",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de noticias preinstalada.",
+      "uninstallString": "Microsoft.BingNews",
+      "size": "~70 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingfinance",
+      "name": "MSN Money",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de finanzas preinstalada.",
+      "uninstallString": "Microsoft.BingFinance",
+      "size": "~70 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingsports",
+      "name": "MSN Sports",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de deportes preinstalada.",
+      "uninstallString": "Microsoft.BingSports",
+      "size": "~70 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingfoodanddrink",
+      "name": "Food and Drink",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de recetas preinstalada.",
+      "uninstallString": "Microsoft.BingFoodAndDrink",
+      "size": "~60 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "binghealthandfitness",
+      "name": "Health and Fitness",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de salud y fitness preinstalada.",
+      "uninstallString": "Microsoft.BingHealthAndFitness",
+      "size": "~60 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingtravel",
+      "name": "Travel",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de viajes preinstalada.",
+      "uninstallString": "Microsoft.BingTravel",
+      "size": "~60 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "gethelp",
+      "name": "Get Help",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "App de soporte de Windows.",
+      "uninstallString": "Microsoft.GetHelp",
+      "size": "~40 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "bingtranslator",
+      "name": "Microsoft Translator",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "safe",
+      "description": "Traductor preinstalado.",
+      "uninstallString": "Microsoft.BingTranslator",
+      "size": "~50 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "powerautomate",
+      "name": "Power Automate Desktop",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "Automatización de flujos de trabajo preinstalada. Útil si automatizas tareas.",
+      "uninstallString": "Microsoft.PowerAutomateDesktop",
+      "size": "~300 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "screensketch",
+      "name": "Snipping Tool",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "Herramienta de captura moderna (Win+Shift+S). Remover afecta capturas programadas.",
+      "uninstallString": "Microsoft.ScreenSketch",
+      "size": "~60 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "mspaint",
+      "name": "Paint",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "caution",
+      "description": "Editor de imágenes clásico.",
+      "uninstallString": "Microsoft.MSPaint",
+      "size": "~80 MB",
+      "source": "winutil"
+    },
+    {
+      "id": "windowsstore",
+      "name": "Microsoft Store",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "protected",
+      "description": "Tienda de apps de Windows. Necesaria para instalar/actualizar apps (incl. winget).",
+      "uninstallString": "Microsoft.WindowsStore",
+      "size": "—",
+      "source": "winutil"
+    },
+    {
+      "id": "windowsterminal",
+      "name": "Windows Terminal",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "protected",
+      "description": "Terminal moderna de Windows (PowerShell, CMD, WSL).",
+      "uninstallString": "Microsoft.WindowsTerminal",
+      "size": "—",
+      "source": "winutil"
+    },
+    {
+      "id": "copilot",
+      "name": "Windows Copilot",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "protected",
+      "description": "Copilot integrado de Windows. Se gestiona desde Tweaks, no removiendo el paquete.",
+      "uninstallString": "Microsoft.Windows.Copilot",
+      "size": "—",
+      "source": "winutil"
+    },
+    {
+      "id": "winget",
+      "name": "winget (Desktop App Installer)",
+      "publisher": "Microsoft",
+      "category": "bloatware",
+      "protection": "protected",
+      "description": "Gestor de paquetes winget. Sin él, los Bundles dejan de funcionar.",
+      "uninstallString": "Microsoft.DesktopAppInstaller",
+      "size": "—",
       "source": "winutil"
     }
   ]

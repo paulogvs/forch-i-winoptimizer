@@ -22,6 +22,10 @@ const api: ElectronAPI = {
   uninstallApp: (appId: string, uninstallString: string) =>
     ipcRenderer.invoke('apps:uninstall', appId, uninstallString),
 
+  // Bloatware removal (P1.4)
+  getBloatwareCatalog: () => ipcRenderer.invoke('debloat:get-catalog'),
+  removeBloatware: (ids: string[]) => ipcRenderer.invoke('debloat:remove', ids),
+
   // System services
   getSystemServices: (options) => ipcRenderer.invoke('services:get-all', options),
   toggleService: (serviceId: string, enabled: boolean) =>

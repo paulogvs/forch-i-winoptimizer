@@ -37,6 +37,7 @@ const OPERATION_LABELS: Record<string, string> = {
   'drift:reapply': 'Reapplying tweak',
   'drift:reapply-all': 'Reapplying tweaks',
   'memory:free': 'Freeing RAM',
+  'debloat:remove': 'Removing apps',
 };
 
 function operationLabel(channel: string | null): string {

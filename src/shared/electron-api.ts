@@ -75,6 +75,39 @@ export interface InstalledApp {
   category: string;
 }
 
+// ===== Bloatware removal (P1.4) =====
+export interface DebloatCandidate {
+  id: string;
+  name: string;
+  publisher: string;
+  category: string;
+  protection: 'safe' | 'caution' | 'protected';
+  description: string;
+  /** UWP package base name from the curated catalog. */
+  uninstallString: string;
+  size: string;
+  source: string;
+  installed: boolean;
+}
+
+export interface DebloatItemResult {
+  id: string;
+  name: string;
+  status: 'removed' | 'skipped' | 'failed' | 'protected';
+  error?: string;
+}
+
+export interface DebloatResult {
+  success: boolean;
+  removed: number;
+  skipped: number;
+  failed: number;
+  /** Protected entries refused by the server-side guard. */
+  refused: number;
+  message: string;
+  results: DebloatItemResult[];
+}
+
 export interface SystemService {
   id: string;
   name: string;
@@ -329,6 +362,9 @@ export interface ElectronAPI {
   toggleStartupApp: (appId: string, enabled: boolean) => Promise<{ success: boolean; message: string }>;
   getInstalledApps: (options?: CacheOptions) => Promise<InstalledApp[]>;
   uninstallApp: (appId: string, uninstallString: string) => Promise<{ success: boolean; message: string }>;
+  // Bloatware removal (P1.4)
+  getBloatwareCatalog: () => Promise<DebloatCandidate[]>;
+  removeBloatware: (ids: string[]) => Promise<DebloatResult>;
   getSystemServices: (options?: CacheOptions) => Promise<SystemService[]>;
   toggleService: (serviceId: string, enabled: boolean) => Promise<{ success: boolean; message: string }>;
   setServiceStartType: (serviceId: string, startType: 'automatic' | 'manual' | 'disabled') => Promise<{ success: boolean; message: string }>;

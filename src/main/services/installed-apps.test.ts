@@ -159,4 +159,92 @@ describe('installed-apps', () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe('uninstallApp hardening (P1.4)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+      });
+    });
+
+    it('rejects uninstall strings with PowerShell metacharacters', async () => {
+      const result = await uninstallApp('app-1', 'C:\\App\\u.exe"; Start-Process calc; "');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects command substitution in the uninstall string', async () => {
+      const result = await uninstallApp('app-1', 'C:\\App\\u$(calc).exe');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects backtick escapes in the uninstall string', async () => {
+      const result = await uninstallApp('app-1', 'C:\\App\\u`u.exe');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects bare executable names (must be an absolute path)', async () => {
+      const result = await uninstallApp('app-1', 'uninstall.exe');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-exe targets such as cmd.exe command lines', async () => {
+      const result = await uninstallApp('app-1', 'cmd /c del /q C:\\*');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects msiexec strings without a well-formed product GUID', async () => {
+      const result = await uninstallApp('app-1', 'MsiExec.exe /x {not-a-guid}');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('runs msiexec with only the validated product GUID', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        'MsiExec.exe /x {12345678-1234-1234-1234-123456789012}'
+      );
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('{12345678-1234-1234-1234-123456789012}');
+      expect(command).toContain('/qn');
+    });
+
+    it('rejects msiexec strings with trailing junk after the GUID', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        'MsiExec.exe /x {12345678-1234-1234-1234-123456789012} extra-junk'
+      );
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('strips trailing arguments and runs only the validated exe path', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        'C:\\Program Files\\App\\uninstall.exe /uninstall /S'
+      );
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('C:\\Program Files\\App\\uninstall.exe');
+      expect(command).not.toContain('/uninstall');
+    });
+  });
 });

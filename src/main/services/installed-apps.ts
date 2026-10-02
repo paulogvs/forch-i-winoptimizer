@@ -234,20 +234,74 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
   }
 }
 
+/**
+ * Uninstall-string hardening (P1.4).
+ *
+ * The renderer controls `uninstallString`, so it must never reach a
+ * PowerShell command line unvalidated: paths are accepted only when they are
+ * absolute, end in `.exe` and contain no shell metacharacters (`" $ ` ; | &`
+ * etc.); MSI strings must be exactly `MsiExec /x {GUID}`. Anything else is
+ * refused without spawning PowerShell. Trailing arguments (e.g. `/S`) are
+ * dropped — removal runs the validated exe with the standard silent flag.
+ */
+const MSI_UNINSTALL = /^MsiExec(?:\.exe)?\s*\/[xX]\s*\{([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}\s*$/i;
+const EXE_UNINSTALL = /^([A-Za-z]:\\[^<>|*?"`$;()&]+?\.exe)(?:\s+.*)?$/i;
+
+/** True when the string contains C0 control characters (U+0000–U+001F). */
+function hasControlChars(value: string): boolean {
+  // Checked via char codes because `no-control-regex` forbids control
+  // characters inside patterns; the behaviour is identical.
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) < 0x20) return true;
+  }
+  return false;
+}
+
+interface UninstallTarget {
+  command: string;
+}
+
+/** Parse + validate an uninstall string. Returns null when it must be refused. */
+export function parseUninstallString(uninstallString: string): UninstallTarget | null {
+  const raw = uninstallString.trim();
+
+  // Control characters are refused before any regex sees the string: they
+  // could smuggle shell input past the pattern validators above.
+  if (hasControlChars(raw)) return null;
+
+  const msi = MSI_UNINSTALL.exec(raw);
+  if (msi) {
+    const guid = msi[1]!;
+    return {
+      command: `Start-Process -FilePath "msiexec.exe" -ArgumentList "/x {${guid}} /qn /norestart" -Wait -PassThru`,
+    };
+  }
+
+  const exe = EXE_UNINSTALL.exec(raw);
+  if (exe) {
+    const filePath = exe[1]!;
+    return {
+      command: `Start-Process -FilePath "${filePath}" -ArgumentList "/S" -Wait -PassThru`,
+    };
+  }
+
+  return null;
+}
+
 export async function uninstallApp(_appId: string, uninstallString: string): Promise<{
   success: boolean;
   message: string;
 }> {
   try {
-    if (uninstallString.startsWith('MsiExec.exe') || uninstallString.startsWith('msiexec')) {
-      const result = await runPowerShell(`Start-Process -FilePath "msiexec.exe" -ArgumentList "/x ${uninstallString.replace(/.*\{/, '{').replace(/\}.*/, '')} /qn /norestart" -Wait -PassThru`);
+    const target = parseUninstallString(uninstallString);
+    if (!target) {
       return {
-        success: result.success,
-        message: result.success ? 'App uninstalled successfully' : 'Failed to uninstall app',
+        success: false,
+        message: 'Unsupported uninstall string',
       };
     }
 
-    const result = await runPowerShell(`Start-Process -FilePath "${uninstallString.replace(/"/g, '\\"')}" -ArgumentList "/S" -Wait -PassThru`);
+    const result = await runPowerShell(target.command);
     return {
       success: result.success,
       message: result.success ? 'App uninstalled successfully' : 'Failed to uninstall app',

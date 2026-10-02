@@ -11,6 +11,7 @@ import type { StartupApp } from '../services/startup-apps';
 import { getStartupApps, toggleStartupApp } from '../services/startup-apps';
 import type { InstalledApp } from '../services/installed-apps';
 import { getInstalledApps, uninstallApp as uninstallInstalledApp } from '../services/installed-apps';
+import { getDebloatCandidates, removeBloatware } from '../services/debloat';
 import type { SystemService } from '../services/system-services';
 import { getSystemServices, toggleService, setServiceStartType } from '../services/system-services';
 import type { UpdateInfo } from '../services/updater';
@@ -57,6 +58,7 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'bundles:uninstall',
   'cleaning:run-now',
   'memory:free',
+  'debloat:remove',
   'tweaks:apply',
   'tweaks:restore',
   'tweaks:apply-many',
@@ -132,6 +134,13 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     cache.invalidateModule('apps');
     return result;
   });
+
+  // Bloatware removal (P1.4). Reads are uncached on purpose: the catalog is
+  // small and `installed` flags must stay fresh while the user decides.
+  handle('debloat:get-catalog', () => getDebloatCandidates());
+  handle('debloat:remove', (_event: IpcMainInvokeEvent, ids: string[]) =>
+    removeBloatware(Array.isArray(ids) ? ids : [])
+  );
 
   // System services (TTL 60s)
   handle('services:get-all', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
