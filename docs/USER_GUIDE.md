@@ -647,9 +647,21 @@ Corre el **mismo** escáner que la app (los 22 checks, con evidencia), ejecuta
 el ciclo si hay una RDP en uso), deja el sistema **endurecido** (`fDenyTSConnections=1`)
 y reporta el estado final (SMBv1, RDP, DNS por adaptador).
 
+Con `-ApplyFixes` además **aplica** los tres fixes reversibles pendientes (`smb1`,
+`guest-account`, `smb-signing`): captura el valor original, escribe el endurecido y lo
+**relee** para confirmarlo; el JSON incluye `before`/`after` y el **comando exacto para
+revertir**. Si la relectura no confirma el cambio, se reporta como fallo (código `1`).
+Con `-DryRun` sólo **planifica** (no pide UAC, no escribe nada):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -ApplyFixes
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -ApplyFixes -DryRun
+```
+
 El resultado queda en
 `artifacts/elevated-verification/elevated-verification-latest.json`. Detalle completo,
-códigos de salida y variante `-SkipRdpCycle` en
+códigos de salida, variantes `-SkipRdpCycle`/`-DryRun`, **cómo revertir** y **riesgos**
+(deshabilitar SMBv1 o requerir firma SMB puede afectar NAS/dispositivos antiguos) en
 `docs/TROUBLESHOOTING.md` → _Verificación elevada (kit para el usuario)_.
 
 > Es una herramienta de desarrollo: **no forma parte del binario** distribuido.

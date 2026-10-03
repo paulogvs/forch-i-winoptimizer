@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    FORCH.iA WinOptimizer — elevated verification kit (repo tool; never shipped).
+    FORCH.iA WinOptimizer - elevated verification kit (repo tool; never shipped).
 
 .DESCRIPTION
     Runs the checks that need administrator rights and cannot be driven from a
@@ -10,11 +10,20 @@
       1. Runs the REAL security scanner (the same 22 checks the app uses, via
          scripts/security-scan-report.cjs against the compiled dist/) and stores
          every check's status + evidence.
-      2. Exercises the remote-desktop auto-fix cycle revert -> apply -> revert
+      2. Optionally (-ApplyFixes) APPLIES the three pending reversible security
+         fixes -- smb1, guest-account and smb-signing -- capturing each original
+         value, writing the hardened value, RE-READING it and reporting
+         before/after plus the exact command to revert. A fix whose read-back does
+         not confirm the target is reported as a REAL failure, never as success.
+      3. Exercises the remote-desktop auto-fix cycle revert -> apply -> revert
          (plus a final hardening apply), verifying each step by RE-READING
          fDenyTSConnections. It refuses to touch the registry while an RDP logon
          session exists (fail-closed).
-      3. Reports the final state of the system: SMBv1, RDP and DNS.
+      4. Reports the final state of the system: SMBv1, RDP and DNS.
+
+    In -DryRun mode it never elevates and never writes: it runs the reads and the
+    fix PLANNING so the report can be produced (and the mode verified) without
+    administrator rights.
 
     Output JSON is written next to the log so the result can be reviewed after
     the elevated window closes.
@@ -27,9 +36,19 @@
     # Only the scan + final state, without touching the RDP registry value:
     powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -SkipRdpCycle
 
+.EXAMPLE
+    # Apply the three pending reversible security fixes (smb1, guest-account,
+    # smb-signing) and verify each one by read-back:
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -ApplyFixes
+
+.EXAMPLE
+    # Plan + report only, no elevation and no changes (safe preview):
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -ApplyFixes -DryRun
+
 .NOTES
-    Exit codes: 0 success · 1 a step failed · 2 the RDP cycle was skipped because
-    an active RDP session was detected.
+    Exit codes: 0 success | 1 a step failed (including a fix whose read-back did
+    not confirm the target) | 2 the RDP cycle was skipped because an active RDP
+    session was detected.
 #>
 [CmdletBinding()]
 param(
@@ -41,7 +60,16 @@ param(
     [string]$OutDir,
 
     # Skip the RDP revert -> apply -> revert cycle (scan only).
-    [switch]$SkipRdpCycle
+    [switch]$SkipRdpCycle,
+
+    # Apply the three pending reversible security fixes (smb1, guest-account and
+    # smb-signing): capture the original, write the hardened value and confirm it
+    # by read-back. Requires elevation.
+    [switch]$ApplyFixes,
+
+    # Plan + report only: read the machine, compute the fix plan and the exact
+    # revert commands, but never write and never self-elevate.
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,16 +88,17 @@ function Test-IsAdmin {
 # ---------------------------------------------------------------------------
 # Self-elevation (one UAC prompt)
 # ---------------------------------------------------------------------------
-if (-not (Test-IsAdmin)) {
+if (-not (Test-IsAdmin) -and -not $DryRun) {
     if ($Elevated) {
         Write-Error 'Elevation was requested but the process is still not elevated.'
         exit 1
     }
-    Write-Host 'FORCH.iA WinOptimizer — elevated verification kit'
+    Write-Host 'FORCH.iA WinOptimizer - elevated verification kit'
     Write-Host 'Requesting administrator rights (one UAC prompt)...'
     $arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}" -Elevated -OutDir "{1}"' -f `
         $PSCommandPath, $OutDir
     if ($SkipRdpCycle) { $arguments += ' -SkipRdpCycle' }
+    if ($ApplyFixes) { $arguments += ' -ApplyFixes' }
     try {
         Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $arguments | Out-Null
     } catch {
@@ -95,7 +124,9 @@ $result = [ordered]@{
     appVersion       = $null
     startedAt        = (Get-Date).ToString('o')
     finishedAt       = $null
-    elevated         = $true
+    elevated         = (Test-IsAdmin)
+    dryRun           = [bool]$DryRun
+    applyFixes       = [bool]$ApplyFixes
     machine          = $env:COMPUTERNAME
     user             = "$env:USERDOMAIN\$env:USERNAME"
     aborted          = $false
@@ -103,6 +134,10 @@ $result = [ordered]@{
     rdpGuard         = [ordered]@{ sessionCount = 0; sessions = @(); reason = $null; skippedCycle = $false }
     security         = $null
     securityCheckCount = 0
+    fixes            = New-Object System.Collections.ArrayList
+    fixesPlanned     = 0
+    fixesApplied     = 0
+    fixesFailed      = 0
     rdpCycleExecuted = $false
     rdpCycle         = New-Object System.Collections.ArrayList
     finalState       = $null
@@ -149,6 +184,277 @@ function Invoke-RdpStep {
     return $confirmed
 }
 
+# ---------------------------------------------------------------------------
+# Reversible security fixes (smb1 / guest-account / smb-signing)
+# ---------------------------------------------------------------------------
+# Each fix: READ the original -> APPLY the hardened value -> READ BACK to confirm.
+# The captured original is mapped to a human-readable revert command so the
+# operator can undo the change by hand. In -DryRun nothing is written.
+
+function Read-Smb1State {
+    $available = $false; $enabled = $null
+    try {
+        $c = Get-SmbServerConfiguration -ErrorAction Stop
+        $enabled = [bool]$c.EnableSMB1Protocol; $available = $true
+    } catch {
+        try {
+            $v = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'SMB1' -ErrorAction Stop).SMB1
+            $enabled = ([int]$v -eq 1); $available = $true
+        } catch { $available = $false }
+    }
+    return [ordered]@{ available = $available; enabled = $enabled }
+}
+
+function Read-GuestState {
+    $available = $false; $name = $null; $enabled = $null
+    try {
+        $u = Get-LocalUser -ErrorAction Stop | Where-Object { $_.SID.Value -like '*-501' } | Select-Object -First 1
+        if ($u) { $available = $true; $name = [string]$u.Name; $enabled = [bool]$u.Enabled }
+    } catch {
+        try {
+            $u = Get-CimInstance -ClassName Win32_UserAccount -Filter "LocalAccount=True" -ErrorAction Stop | Where-Object { $_.SID -like '*-501' } | Select-Object -First 1
+            if ($u) { $available = $true; $name = [string]$u.Name; $enabled = (-not [bool]$u.Disabled) }
+        } catch { $available = $false }
+    }
+    return [ordered]@{ available = $available; name = $name; enabled = $enabled }
+}
+
+function Read-SmbSigningState {
+    $available = $false; $require = $null; $enable = $null
+    try {
+        $c = Get-SmbServerConfiguration -ErrorAction Stop
+        $require = [bool]$c.RequireSecuritySignature
+        $enable = [bool]$c.EnableSecuritySignature
+        $available = $true
+    } catch {
+        try {
+            $base = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
+            $r = (Get-ItemProperty -Path $base -Name 'RequireSecuritySignature' -ErrorAction Stop).RequireSecuritySignature
+            $require = ([int]$r -eq 1)
+            $e = (Get-ItemProperty -Path $base -Name 'EnableSecuritySignature' -ErrorAction SilentlyContinue).EnableSecuritySignature
+            if ($null -ne $e) { $enable = ([int]$e -eq 1) }
+            $available = $true
+        } catch { $available = $false }
+    }
+    return [ordered]@{ available = $available; require = $require; enable = $enable }
+}
+
+function Format-Smb1State {
+    param($State)
+    if (-not $State.available -or $null -eq $State.enabled) { return 'unknown' }
+    if ($State.enabled) { return 'SMBv1 enabled' } else { return 'SMBv1 disabled' }
+}
+
+function Format-GuestState {
+    param($State)
+    if (-not $State.available -or $null -eq $State.enabled) { return 'unknown' }
+    $n = ''
+    if ($State.name) { $n = " ($($State.name))" }
+    if ($State.enabled) { return "Guest account$n enabled" } else { return "Guest account$n disabled" }
+}
+
+function Format-SmbSigningState {
+    param($State)
+    if (-not $State.available -or $null -eq $State.require) { return 'unknown' }
+    $r = if ($State.require) { 'True' } else { 'False' }
+    $e = if ($null -eq $State.enable) { 'unknown' } elseif ($State.enable) { 'True' } else { 'False' }
+    return "RequireSecuritySignature=$r, EnableSecuritySignature=$e"
+}
+
+function Test-Smb1Target { param($State) return ($State.available -and $State.enabled -eq $false) }
+function Test-GuestTarget { param($State) return ($State.available -and $State.enabled -eq $false) }
+function Test-SmbSigningTarget { param($State) return ($State.available -and $State.require -eq $true) }
+
+function Get-FixTargetText {
+    param([string]$CheckId)
+    switch ($CheckId) {
+        'smb1' { return 'SMBv1 disabled' }
+        'guest-account' { return 'Guest account disabled' }
+        'smb-signing' { return 'RequireSecuritySignature=True, EnableSecuritySignature=True' }
+    }
+    return 'unknown'
+}
+
+function Get-RevertText {
+    param([string]$CheckId, [string]$Original, $State)
+    $reg = 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
+    switch ($CheckId) {
+        'smb1' {
+            if ($Original -eq 'enabled') {
+                return "Set-SmbServerConfiguration -EnableSMB1Protocol `$true -Force  (fallback: Set-ItemProperty -Path '$reg' -Name 'SMB1' -Value 1 -Type DWord -Force)"
+            }
+            return "Set-SmbServerConfiguration -EnableSMB1Protocol `$false -Force  (fallback: Set-ItemProperty -Path '$reg' -Name 'SMB1' -Value 0 -Type DWord -Force)"
+        }
+        'guest-account' {
+            if ($Original -eq 'enabled') {
+                $n = if ($State.name) { $State.name } else { 'Guest' }
+                return "Enable-LocalUser -Name '$n'  (fallback: net.exe user '$n' /active:yes)"
+            }
+            return 'No revert needed: the Guest account was already disabled before this run.'
+        }
+        'smb-signing' {
+            $m = [regex]::Match($Original, '^require=(absent|0|1);enable=(absent|0|1)$')
+            if (-not $m.Success) { return $Original }
+            $r = $m.Groups[1].Value; $e = $m.Groups[2].Value
+            $rb = if ($r -eq '1') { '$true' } else { '$false' }
+            $eb = if ($e -eq '1') { '$true' } else { '$false' }
+            $parts = @()
+            if ($r -ne 'absent' -and $e -ne 'absent') {
+                $parts += "Set-SmbServerConfiguration -RequireSecuritySignature $rb -EnableSecuritySignature $eb -Force"
+            }
+            if ($r -eq 'absent') {
+                $parts += "Remove-ItemProperty -Path '$reg' -Name 'RequireSecuritySignature'"
+            } elseif ($r -eq '0') {
+                $parts += "Set-ItemProperty -Path '$reg' -Name 'RequireSecuritySignature' -Value 0 -Type DWord -Force"
+            }
+            if ($e -eq 'absent') {
+                $parts += "Remove-ItemProperty -Path '$reg' -Name 'EnableSecuritySignature'"
+            } elseif ($e -eq '0') {
+                $parts += "Set-ItemProperty -Path '$reg' -Name 'EnableSecuritySignature' -Value 0 -Type DWord -Force"
+            }
+            return ($parts -join '  |  ')
+        }
+    }
+    return 'unknown'
+}
+
+function Invoke-SecurityFixApply {
+    param([string]$CheckId)
+    switch ($CheckId) {
+        'smb1' {
+            $ok = $false
+            try { Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force -ErrorAction Stop; $ok = $true } catch {
+                try { Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'SMB1' -Value 0 -Type DWord -Force -ErrorAction Stop; $ok = $true } catch { }
+            }
+            return $ok
+        }
+        'guest-account' {
+            $ok = $false
+            try {
+                $u = Get-LocalUser -ErrorAction Stop | Where-Object { $_.SID.Value -like '*-501' } | Select-Object -First 1
+                if ($u) { Disable-LocalUser -Name $u.Name -ErrorAction Stop; $ok = $true }
+            } catch {
+                try {
+                    $u = Get-CimInstance -ClassName Win32_UserAccount -Filter "LocalAccount=True" -ErrorAction Stop | Where-Object { $_.SID -like '*-501' } | Select-Object -First 1
+                    if ($u) { & net.exe user $u.Name /active:no 2>&1 | Out-Null; if ($LASTEXITCODE -eq 0) { $ok = $true } }
+                } catch { }
+            }
+            return $ok
+        }
+        'smb-signing' {
+            $ok = $false
+            try {
+                Set-SmbServerConfiguration -RequireSecuritySignature $true -EnableSecuritySignature $true -Force -ErrorAction Stop
+                $ok = $true
+            } catch {
+                try {
+                    Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'RequireSecuritySignature' -Value 1 -Type DWord -Force -ErrorAction Stop
+                    Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'EnableSecuritySignature' -Value 1 -Type DWord -Force -ErrorAction Stop
+                    $ok = $true
+                } catch { $ok = $false }
+            }
+            return $ok
+        }
+    }
+    return $false
+}
+
+function Invoke-SecurityFixes {
+    param([System.Collections.ArrayList]$Fixes)
+    $fixIds = @('smb1', 'guest-account', 'smb-signing')
+    foreach ($id in $fixIds) {
+        $title = switch ($id) {
+            'smb1' { 'Disable SMBv1' }
+            'guest-account' { 'Disable the built-in Guest account' }
+            'smb-signing' { 'Require SMB signing' }
+        }
+        $beforeState = switch ($id) {
+            'smb1' { Read-Smb1State }
+            'guest-account' { Read-GuestState }
+            'smb-signing' { Read-SmbSigningState }
+        }
+        $beforeText = switch ($id) {
+            'smb1' { Format-Smb1State $beforeState }
+            'guest-account' { Format-GuestState $beforeState }
+            'smb-signing' { Format-SmbSigningState $beforeState }
+        }
+        $original = switch ($id) {
+            'smb1' { if ($beforeState.enabled) { 'enabled' } else { 'disabled' } }
+            'guest-account' { if ($beforeState.enabled) { 'enabled' } else { 'disabled' } }
+            'smb-signing' {
+                $tri = { param($v) if ($null -eq $v) { 'absent' } elseif ($v) { '1' } else { '0' } }
+                'require={0};enable={1}' -f (& $tri $beforeState.require), (& $tri $beforeState.enable)
+            }
+        }
+        $already = switch ($id) {
+            'smb1' { Test-Smb1Target $beforeState }
+            'guest-account' { Test-GuestTarget $beforeState }
+            'smb-signing' { Test-SmbSigningTarget $beforeState }
+        }
+
+        $entry = [ordered]@{
+            checkId       = $id
+            title         = $title
+            before        = $beforeText
+            target        = (Get-FixTargetText $id)
+            after         = $null
+            original      = $original
+            revert        = (Get-RevertText -CheckId $id -Original $original -State $beforeState)
+            planned       = $false
+            applied       = $false
+            confirmed     = $false
+            skipped       = $false
+            skippedReason = $null
+        }
+
+        if (-not $beforeState.available) {
+            $entry.skipped = $true; $entry.skippedReason = 'state unavailable'; $entry.after = $beforeText
+            [void]$Fixes.Add($entry)
+            Write-Host ("  [SKIP] {0}: state could not be read" -f $id)
+            continue
+        }
+        if ($already) {
+            $entry.skipped = $true; $entry.skippedReason = 'already at target'; $entry.after = $beforeText
+            [void]$Fixes.Add($entry)
+            Write-Host ("  [OK]   {0}: already hardened ({1})" -f $id, $beforeText)
+            continue
+        }
+
+        $entry.planned = $true
+        if ($DryRun) {
+            [void]$Fixes.Add($entry)
+            Write-Host ("  [PLAN] {0}: {1} -> {2}" -f $id, $beforeText, $entry.target)
+            Write-Host ("         revert: {0}" -f $entry.revert)
+            continue
+        }
+
+        $writeOk = Invoke-SecurityFixApply -CheckId $id
+        $afterState = switch ($id) {
+            'smb1' { Read-Smb1State }
+            'guest-account' { Read-GuestState }
+            'smb-signing' { Read-SmbSigningState }
+        }
+        $afterText = switch ($id) {
+            'smb1' { Format-Smb1State $afterState }
+            'guest-account' { Format-GuestState $afterState }
+            'smb-signing' { Format-SmbSigningState $afterState }
+        }
+        $confirmed = switch ($id) {
+            'smb1' { Test-Smb1Target $afterState }
+            'guest-account' { Test-GuestTarget $afterState }
+            'smb-signing' { Test-SmbSigningTarget $afterState }
+        }
+
+        $entry.applied = $true
+        $entry.confirmed = $confirmed
+        $entry.after = $afterText
+        if (-not $confirmed) { $entry.skippedReason = 'read-back did not confirm the target' }
+        [void]$Fixes.Add($entry)
+        $tag = if ($confirmed) { 'OK' } else { 'FAIL' }
+        Write-Host ("  [{0}] {1}: {2} -> {3} (write reported {4})" -f $tag, $id, $beforeText, $afterText, $(if ($writeOk) { 'OK' } else { 'FAILED' }))
+    }
+}
+
 try {
     try {
         Start-Transcript -Path $logPath -Force | Out-Null
@@ -157,7 +463,7 @@ try {
         Write-Warning "Could not start the transcript: $($_.Exception.Message)"
     }
 
-    Write-Host '=== FORCH.iA WinOptimizer — elevated verification ==='
+    Write-Host '=== FORCH.iA WinOptimizer - elevated verification ==='
     Write-Host "Repo root : $RepoRoot"
     Write-Host "Output dir: $OutDir"
     Write-Host ''
@@ -199,7 +505,7 @@ try {
     $runner = Join-Path $RepoRoot 'scripts\security-scan-report.cjs'
     $distScanner = Join-Path $RepoRoot 'dist\main\services\security-scan.js'
     if (-not (Test-Path $distScanner)) {
-        Write-Host '  dist/ not built — running "npm run build" (this may take a minute)...'
+        Write-Host '  dist/ not built - running "npm run build" (this may take a minute)...'
         Push-Location $RepoRoot
         try {
             & npm run build *>&1 | Out-Null
@@ -219,10 +525,30 @@ try {
     $result.securityCheckCount = @($result.security.checks).Count
     Write-Host "  Collected $($result.securityCheckCount) checks (score $($result.security.score))."
 
+    # --- Optional reversible security fixes ----------------------------------
+    if ($ApplyFixes) {
+        Write-Host ''
+        Write-Host '[fix] Reversible security fixes (smb1, guest-account, smb-signing)...'
+        if ($DryRun) {
+            Write-Host '  DRY RUN: computing the plan only; nothing will be written.'
+        } elseif (-not $result.elevated) {
+            Write-Warning '  Not elevated: the writes will be attempted but are expected to be refused.'
+        }
+        Invoke-SecurityFixes -Fixes $result.fixes
+        $result.fixesPlanned = @($result.fixes | Where-Object { $_.planned }).Count
+        $result.fixesApplied = @($result.fixes | Where-Object { $_.confirmed }).Count
+        $result.fixesFailed = @($result.fixes | Where-Object { $_.applied -and -not $_.confirmed }).Count
+        Write-Host ("  Fixes planned: {0}; confirmed: {1}; real failures: {2}" -f `
+                $result.fixesPlanned, $result.fixesApplied, $result.fixesFailed)
+        if (-not $DryRun -and $result.fixesFailed -gt 0 -and $exitCode -eq 0) { $exitCode = 1 }
+    }
+
     # --- RDP revert -> apply -> revert (+ final harden) ----------------------
     Write-Host ''
     if ($SkipRdpCycle) {
         Write-Host '[3/4] RDP cycle skipped (-SkipRdpCycle).'
+    } elseif ($DryRun) {
+        Write-Host '[3/4] RDP cycle skipped (-DryRun: no writes).'
     } elseif ($rdpSessions.Count -gt 0) {
         Write-Host '[3/4] RDP cycle SKIPPED: an active RDP session is present.'
         $exitCode = 2
@@ -290,7 +616,11 @@ try {
     }
 
     # --- Verdict -------------------------------------------------------------
-    if ($exitCode -eq 2) {
+    if ($DryRun) {
+        # A dry run only needs the read + the plan to be produced honestly.
+        $result.success = (($null -ne $result.security) -and ($result.fixesFailed -eq 0))
+        if (-not $result.success -and $exitCode -eq 0) { $exitCode = 1 }
+    } elseif ($exitCode -eq 2) {
         $result.success = $false
     } elseif ($result.rdpCycleExecuted) {
         $result.success = ($cycleOk -and $result.finalState.rdpDisabled -and ($null -ne $result.security))

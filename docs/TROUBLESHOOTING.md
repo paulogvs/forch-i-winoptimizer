@@ -482,17 +482,69 @@ Variante solo-scan (no toca el registro de RDP):
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -SkipRdpCycle
 ```
 
+### Aplicar los fixes pendientes (`-ApplyFixes`)
+
+La variante `-ApplyFixes` **aplica de verdad** los tres auto-fixes reversibles que suelen
+quedar pendientes y verifica cada uno **releyendo** el valor tras escribirlo:
+
+| Fix             | Qué toca                                                                            | Valor endurecido                     |
+| --------------- | ----------------------------------------------------------------------------------- | ------------------------------------ |
+| `smb1`          | `Set-SmbServerConfiguration` (fallback registro `LanmanServer\Parameters` → `SMB1`) | SMBv1 **deshabilitado**              |
+| `guest-account` | Cuenta local con SID `*-501` (`Disable-LocalUser`, fallback `net user /active:no`)  | cuenta Guest **deshabilitada**       |
+| `smb-signing`   | `RequireSecuritySignature` + `EnableSecuritySignature` del servidor SMB             | firma **requerida** y **habilitada** |
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -ApplyFixes
+```
+
+Por cada fix el JSON guarda `before`, `target`, `after`, `original`, `confirmed`,
+`applied` y **`revert`** (el comando exacto para volver atrás). Si la relectura no
+confirma el valor objetivo, el fix se reporta como **fallo real** (`confirmed=false`) y la
+corrida sale con código `1`; nunca se declara éxito por la salida del comando.
+
+> ¿Querés **planificar sin tocar nada**? Agregá `-DryRun`: no pide UAC, no escribe, y deja
+> en el JSON el plan completo con los comandos de revert.
+
+### Cómo revertir lo aplicado por `-ApplyFixes`
+
+El campo `revert` del JSON trae el comando exacto por fix. Como referencia:
+
+- **SMBv1** (si antes estaba habilitado):
+  `Set-SmbServerConfiguration -EnableSMB1Protocol $true -Force`
+  (fallback: `Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'SMB1' -Value 1 -Type DWord -Force`).
+- **Cuenta Guest** (si antes estaba habilitada):
+  `Enable-LocalUser -Name '<nombre>'` (fallback: `net.exe user '<nombre>' /active:yes`).
+- **Firma SMB** (si antes estaba deshabilitada o ausente): se restaura el valor capturado
+  (`RequireSecuritySignature`/`EnableSecuritySignature` a `0`, o `Remove-ItemProperty` si
+  el valor **no existía**). El original se guarda como `require=<absent|0|1>;enable=<absent|0|1>`,
+  así que el revert **nunca inventa un default**.
+
+Para una reversión **desde la app**, el auto-fix guarda el valor previo y ofrece **Revert**
+en el mismo diálogo (ver _Cómo revertir un auto-fix de seguridad_).
+
+### Riesgos antes de aplicar
+
+- **Deshabilitar SMBv1** puede romper **shares/copias antiguas** que todavía usen SMBv1
+  (NAS viejos, equipos legacy, algunos escáneres). Los sistemas modernos usan SMB2/3.
+- **Requerir firma SMB** puede afectar **NAS/dispositivos antiguos** que no firmen: con la
+  firma exigida esos peers quedan sin acceso.
+- **Deshabilitar la cuenta Guest** es de bajo riesgo: sólo afecta el acceso invitado
+  anónimo, que ya no debería estar en uso.
+
 ### Qué verifica, en orden
 
 1. **Scan de seguridad real (22 checks)** — ejecuta el **mismo** escáner que la app
    (`scripts/security-scan-report.cjs` sobre el `dist/` compilado) y guarda cada check
    con su `status` y su `evidence`. Si falta `dist/`, el kit corre `npm run build` solo.
-2. **Ciclo RDP revert → apply → revert** sobre `fDenyTSConnections`, **releyendo** el
+2. **Fixes reversibles (opcional, `-ApplyFixes`)** — captura el valor original, aplica y
+   **relee** `smb1`, `guest-account` y `smb-signing`; reporta `before`/`after` y el comando
+   de revert. Con `-DryRun` sólo planifica (no escribe, no eleva).
+3. **Ciclo RDP revert → apply → revert** sobre `fDenyTSConnections`, **releyendo** el
    valor después de cada escritura para confirmarla. Si detecta una **sesión RDP activa**
    (`Win32_LogonSession` tipo 10), **no toca el registro** (falla en cerrado), lo reporta
    y sale con código `2`. Al terminar el ciclo deja el sistema **endurecido**
    (`fDenyTSConnections=1`).
-3. **Estado final** — reporta SMBv1 (`Get-SmbServerConfiguration` con fallback a
+4. **Estado final** — reporta SMBv1 (`Get-SmbServerConfiguration` con fallback a
    registro), RDP (`fDenyTSConnections`) y el DNS IPv4 de cada adaptador.
 
 ### Dónde queda el JSON
