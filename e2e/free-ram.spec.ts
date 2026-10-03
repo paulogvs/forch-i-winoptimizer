@@ -49,15 +49,22 @@ test.describe('Free RAM quick action (P1.1)', () => {
   });
 
   test('is disabled while another operation owns the lock', async ({ page }) => {
+    const freeRam = page.locator('[data-testid="free-ram"]');
+    await expect(freeRam).toBeVisible();
+
     await pushStatus(page, {
       busy: true,
       current: 'tweaks:apply',
       queued: 0,
       startedAt: Date.now(),
     });
-    await expect(page.locator('[data-testid="free-ram"]')).toBeDisabled();
+    // Wait for the busy badge first: it proves the pushed status reached the
+    // live subscriber (the bridge drops events emitted before mount).
+    await expect(page.locator('[data-testid="op-status"]')).toBeVisible();
+    await expect(freeRam).toBeDisabled();
 
     await pushStatus(page, { busy: false, current: null, queued: 0, startedAt: null });
-    await expect(page.locator('[data-testid="free-ram"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="op-status"]')).toHaveCount(0);
+    await expect(freeRam).toBeEnabled();
   });
 });

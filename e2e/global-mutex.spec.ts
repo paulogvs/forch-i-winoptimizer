@@ -67,6 +67,7 @@ test.describe('Global operation mutex (P0.3)', () => {
     await page.check('input[aria-label="Select Show file extensions"]');
 
     const applyButton = page.locator('button:has-text("Apply selected (1)")');
+    await expect(applyButton).toBeVisible();
     await expect(applyButton).toBeEnabled();
 
     await pushStatus(page, {
@@ -75,9 +76,12 @@ test.describe('Global operation mutex (P0.3)', () => {
       queued: 0,
       startedAt: Date.now(),
     });
+    // Confirm the status landed before asserting the disabled state.
+    await expect(page.locator('[data-testid="op-status"]')).toBeVisible();
     await expect(applyButton).toBeDisabled();
 
     await pushStatus(page, { busy: false, current: null, queued: 0, startedAt: null });
+    await expect(page.locator('[data-testid="op-status"]')).toHaveCount(0);
     await expect(applyButton).toBeEnabled();
   });
 });

@@ -29,30 +29,32 @@ A modern, fast, and beautiful Windows optimizer built with the FORCH.iA ecosyste
 - **Free RAM** — Header ⚡ button trims the app's own working set (~253 MB freed in ~3 s, measured)
 - **Global operation mutex** — System-mutating actions run one at a time (FIFO) with a header status badge and queued counter
 - **Statistics** — Historical charts and trends with CSV export
-- **Security** — Security & Privacy scan, privacy hardening, and DNS benchmark
+- **Security** — Real read-only scanner: **22 checks**, each with the observed **evidence**; the 6 admin-gated hardening controls (LSASS, Credential Guard, BitLocker key protectors, local admins, inbound firewall rules, WinRM) report `requires-admin` when not elevated and stay out of the score. Three checks also have a **reversible auto-fix** (SMBv1, Guest account, Remote Desktop): preview → confirm → apply → revert to the real captured value. Plus privacy hardening and a DNS benchmark
+- **Updates** — Background auto-updater (`electron-updater`) with in-app status and a manual "Check now"; releases ship with SHA-256 checksums. Binaries are **not code-signed** yet (see [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md))
+- **Catalogs as data** — tweaks, removable apps, services, cleaner rules and bundles live in `catalogs/` + `src/shared/catalogs/*.json`, never as hardcoded lists in code
 - **Settings** — Full customization with dark/light mode
 - **Source Monitor** — Pull new tweaks/apps/services from the 4 base repositories (`@forchi` → "vamos a buscar actualizaciones")
 
 ## Tech Stack
 
-| Layer           | Technology                     |
-| --------------- | ------------------------------ |
-| Runtime         | Electron 31                    |
-| Frontend        | React 18                       |
-| Language        | TypeScript 5.5 (strict)        |
-| Styling         | Tailwind CSS 4 + CSS Variables |
-| State           | Zustand                        |
-| Build           | Vite 5                         |
-| Package Manager | pnpm                           |
-| Testing         | Vitest + Testing Library       |
-| Linting         | ESLint + Prettier              |
+| Layer           | Technology                                  |
+| --------------- | ------------------------------------------- |
+| Runtime         | Electron 31                                 |
+| Frontend        | React 18                                    |
+| Language        | TypeScript 5.5 (strict)                     |
+| Styling         | Tailwind CSS 4 + CSS Variables              |
+| State           | Zustand                                     |
+| Build           | Vite 5                                      |
+| Package Manager | npm                                         |
+| Testing         | Vitest + Testing Library + Playwright (E2E) |
+| Linting         | ESLint + Prettier                           |
 
 ## Installation
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 18+
-- [pnpm](https://pnpm.io/) 8+
+- npm 9+ (bundled with Node.js; the committed lockfile is `package-lock.json`)
 
 ### Quick Start
 
@@ -62,10 +64,10 @@ git clone https://github.com/paulogvs/forch-i-winoptimizer.git
 cd forch-i-winoptimizer
 
 # Install dependencies
-pnpm install
+npm install
 
 # Start development server
-pnpm run electron:dev
+npm run electron:dev
 ```
 
 ## Distribution (Windows)
@@ -79,7 +81,7 @@ The app ships in **two formats**, both produced by `electron-builder`:
 
 ```bash
 # Build the renderer + main process, then package installer + portable
-pnpm run electron:build
+npm run electron:build
 ```
 
 Artifacts are written to `release/`.
@@ -92,7 +94,7 @@ Prebuilt artifacts are published on the [Releases page](https://github.com/paulo
 
 ```bash
 # Build the app
-pnpm run electron:build
+npm run electron:build
 
 # Output will be in release/
 ```
@@ -101,17 +103,17 @@ pnpm run electron:build
 
 ### Available Scripts
 
-| Command               | Description                |
-| --------------------- | -------------------------- |
-| `pnpm dev`            | Start Vite dev server      |
-| `pnpm build`          | Build for production       |
-| `pnpm lint`           | Run ESLint                 |
-| `pnpm format`         | Format with Prettier       |
-| `pnpm typecheck`      | Run TypeScript type check  |
-| `pnpm test`           | Run tests                  |
-| `pnpm test:coverage`  | Run tests with coverage    |
-| `pnpm electron:dev`   | Start Electron in dev mode |
-| `pnpm electron:build` | Build Electron app         |
+| Command              | Description                |
+| -------------------- | -------------------------- |
+| `npm dev`            | Start Vite dev server      |
+| `npm build`          | Build for production       |
+| `npm lint`           | Run ESLint                 |
+| `npm format`         | Format with Prettier       |
+| `npm typecheck`      | Run TypeScript type check  |
+| `npm test`           | Run tests                  |
+| `npm test:coverage`  | Run tests with coverage    |
+| `npm electron:dev`   | Start Electron in dev mode |
+| `npm electron:build` | Build Electron app         |
 
 ### Project Structure
 

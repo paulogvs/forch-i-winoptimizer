@@ -433,3 +433,65 @@ ruta del sistema, CPU/RAM medida en vivo, patrones genéricos del nombre), **no*
 listas de productos. Es esperable que una app firmada en reposo sea _low_ y suba a _high_
 cuando su proceso está consumiendo CPU/RAM. El criterio completo está en
 `docs/STARTUP_APP_IMPACT.md`.
+
+---
+
+## Verificación elevada (kit para el usuario)
+
+Los 6 controles admin-gated del Security Scan y las operaciones de registro del
+auto-fix **necesitan una sesión elevada**, que la app no puede concederse sola (Windows
+muestra UAC y la app no puede aceptarlo por vos). Para esos casos el repo incluye un kit
+que **se autoeleva una sola vez** y deja la evidencia en disco.
+
+### Qué comando correr
+
+Desde una PowerShell normal, en la raíz del repo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1
+```
+
+Aparece **un** prompt de UAC. Aceptalo y la ventana elevada hace el trabajo; al terminar
+imprime las rutas exactas del JSON y del `.log`.
+
+Variante solo-scan (no toca el registro de RDP):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -SkipRdpCycle
+```
+
+### Qué verifica, en orden
+
+1. **Scan de seguridad real (22 checks)** — ejecuta el **mismo** escáner que la app
+   (`scripts/security-scan-report.cjs` sobre el `dist/` compilado) y guarda cada check
+   con su `status` y su `evidence`. Si falta `dist/`, el kit corre `npm run build` solo.
+2. **Ciclo RDP revert → apply → revert** sobre `fDenyTSConnections`, **releyendo** el
+   valor después de cada escritura para confirmarla. Si detecta una **sesión RDP activa**
+   (`Win32_LogonSession` tipo 10), **no toca el registro** (falla en cerrado), lo reporta
+   y sale con código `2`. Al terminar el ciclo deja el sistema **endurecido**
+   (`fDenyTSConnections=1`).
+3. **Estado final** — reporta SMBv1 (`Get-SmbServerConfiguration` con fallback a
+   registro), RDP (`fDenyTSConnections`) y el DNS IPv4 de cada adaptador.
+
+### Dónde queda el JSON
+
+```
+artifacts/elevated-verification/elevated-verification-latest.json   <- el más reciente
+artifacts/elevated-verification/elevated-verification-<fecha>.json  <- copia con timestamp
+artifacts/elevated-verification/elevated-verification-<fecha>.log   <- transcripción
+artifacts/elevated-verification/security-scan-<fecha>.json          <- el scan crudo
+```
+
+Ese directorio está en `.gitignore` (es salida de máquina, nunca se commitea).
+
+### Códigos de salida
+
+| Código | Significado                                                           |
+| ------ | --------------------------------------------------------------------- |
+| `0`    | Todo confirmado (scan completo + ciclo RDP + estado final endurecido) |
+| `1`    | Algún paso no quedó confirmado por el read-back                       |
+| `2`    | Ciclo RDP **omitido**: había una sesión RDP activa (no se tocó nada)  |
+
+> **Nota:** el kit es una **herramienta del repositorio**. Los binarios solo empaquetan
+> `dist/`, `assets/`, `catalogs/` y `sources/`, así que este script **no viaja al
+> producto**.

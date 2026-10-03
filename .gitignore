@@ -44,6 +44,9 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
+# Elevated verification kit output (machine state, never committed)
+artifacts/
+
 # Logs
 logs/
 *.log

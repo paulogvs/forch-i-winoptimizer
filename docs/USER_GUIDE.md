@@ -533,3 +533,24 @@ aparece **deshabilitada con el motivo** y podés **reiniciar como administrador*
 mismo diálogo. Tras aplicar, el check **se vuelve a medir** (no se asume "pass"). El
 revert restaura el **valor previo real** capturado antes del cambio (nunca un default).
 El resto de los checks sigue siendo solo lectura + guía.
+
+### Verificación elevada (kit del repo)
+
+Para medir los 6 controles **admin-gated** y validar el ciclo del auto-fix de RDP fuera
+de la UI, el repo incluye un kit que **se autoeleva una vez** (un solo UAC):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1
+```
+
+Corre el **mismo** escáner que la app (los 22 checks, con evidencia), ejecuta
+**revert → apply → revert** sobre Remote Desktop con guarda de sesiones activas (aborta
+el ciclo si hay una RDP en uso), deja el sistema **endurecido** (`fDenyTSConnections=1`)
+y reporta el estado final (SMBv1, RDP, DNS por adaptador).
+
+El resultado queda en
+`artifacts/elevated-verification/elevated-verification-latest.json`. Detalle completo,
+códigos de salida y variante `-SkipRdpCycle` en
+`docs/TROUBLESHOOTING.md` → _Verificación elevada (kit para el usuario)_.
+
+> Es una herramienta de desarrollo: **no forma parte del binario** distribuido.

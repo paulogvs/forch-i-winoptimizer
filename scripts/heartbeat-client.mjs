@@ -62,18 +62,22 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`
+  console.log(
+    `
 heartbeat-client — portable FORCH.iA liveness beat for any app.
 
 Usage: node scripts/heartbeat-client.mjs --app <name> [--step "<msg>"] [--json] [--strict]
 Exit:  0 (beat written, or best-effort warning) | 1 only with --strict on failure.
-`.trim());
+`.trim()
+  );
 }
 
 function isEcosystemRoot(dir) {
   try {
     return fs.existsSync(path.join(dir, PRODUCER_REL)) && fs.existsSync(path.join(dir, CONFIG_REL));
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function ancestors(start) {
@@ -105,7 +109,10 @@ function resolveRoot(explicit) {
     }
   }
   // last resort: explicit relative guesses from cwd
-  for (const rel of [path.join('..', 'FORCH-IA-ECOSYSTEM'), path.join('..', '..', 'FORCH-IA-ECOSYSTEM')]) {
+  for (const rel of [
+    path.join('..', 'FORCH-IA-ECOSYSTEM'),
+    path.join('..', '..', 'FORCH-IA-ECOSYSTEM'),
+  ]) {
     const guess = path.resolve(process.cwd(), rel);
     if (isEcosystemRoot(guess)) return guess;
   }
@@ -115,28 +122,43 @@ function resolveRoot(explicit) {
 function inferApp() {
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-    if (pkg && typeof pkg.name === 'string' && pkg.name.trim()) return pkg.name.trim().toLowerCase();
-  } catch { /* ignore */ }
+    if (pkg && typeof pkg.name === 'string' && pkg.name.trim())
+      return pkg.name.trim().toLowerCase();
+  } catch {
+    /* ignore */
+  }
   return path.basename(process.cwd()).toLowerCase();
 }
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (args.help) { printHelp(); process.exit(0); }
+  if (args.help) {
+    printHelp();
+    process.exit(0);
+  }
 
   const app = args.app || inferApp();
-  const result = { client: 'heartbeat-client', app, step: args.step, root: null, ok: false, error: null };
+  const result = {
+    client: 'heartbeat-client',
+    app,
+    step: args.step,
+    root: null,
+    ok: false,
+    error: null,
+  };
 
   const root = resolveRoot(args.root);
   result.root = root;
   if (!root) {
-    result.error = 'ecosystem root not found (set FORCHI_PATH or run from inside/next to the ecosystem)';
+    result.error =
+      'ecosystem root not found (set FORCHI_PATH or run from inside/next to the ecosystem)';
     return finish(result, args);
   }
 
   const producer = path.join(root, PRODUCER_REL);
   const r = spawnSync(process.execPath, [producer, '--app', app, '--step', args.step], {
-    encoding: 'utf8', windowsHide: true,
+    encoding: 'utf8',
+    windowsHide: true,
   });
   if (r.status === 0) {
     result.ok = true;
@@ -149,10 +171,11 @@ function main() {
 
 function finish(result, args) {
   if (args.json) console.log(JSON.stringify(result, null, 2));
-  else if (result.ok) console.log(`✅ heartbeat-client: ${result.app} → ${result.stdout || 'beat written'}`);
+  else if (result.ok)
+    console.log(`✅ heartbeat-client: ${result.app} → ${result.stdout || 'beat written'}`);
   else console.log(`⚠ heartbeat-client: ${result.app} — ${result.error}`);
   // A heartbeat must never break the app start. --strict opts into failure.
-  process.exit(result.ok ? 0 : (args.strict ? 1 : 0));
+  process.exit(result.ok ? 0 : args.strict ? 1 : 0);
 }
 
 main();

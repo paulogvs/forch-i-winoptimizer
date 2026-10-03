@@ -32,10 +32,20 @@ test.describe('Tools', () => {
   test('should list the curated catalog with protection guards (P1.4)', async ({ page }) => {
     await page.click('button:has-text("Debloat")');
     await expect(page.locator('text=Bloatware Removal')).toBeVisible();
-    await expect(page.getByTestId('debloat-check-bingnews')).toBeEnabled();
+
+    // The catalog renders after its async load, so wait for each row to exist
+    // before asserting its enabled/disabled state.
+    const safeRow = page.getByTestId('debloat-check-bingnews');
+    const protectedRow = page.getByTestId('debloat-check-windowsstore');
+    const notInstalledRow = page.getByTestId('debloat-check-clipchamp');
+    await expect(safeRow).toBeVisible();
+    await expect(protectedRow).toBeVisible();
+    await expect(notInstalledRow).toBeVisible();
+
+    await expect(safeRow).toBeEnabled();
     // Protected and not-installed rows must never be selectable.
-    await expect(page.getByTestId('debloat-check-windowsstore')).toBeDisabled();
-    await expect(page.getByTestId('debloat-check-clipchamp')).toBeDisabled();
+    await expect(protectedRow).toBeDisabled();
+    await expect(notInstalledRow).toBeDisabled();
     await expect(page.getByText('protected', { exact: true })).toBeVisible();
     await expect(page.locator('text=not installed').first()).toBeVisible();
   });
@@ -51,11 +61,14 @@ test.describe('Tools', () => {
 
   test('should keep protected apps unselectable even after a removal (P1.4)', async ({ page }) => {
     await page.click('button:has-text("Debloat")');
+    await expect(page.locator('text=Bloatware Removal')).toBeVisible();
     page.on('dialog', (dialog) => dialog.accept());
     await page.getByTestId('debloat-check-bingnews').check();
     await page.click('button:has-text("Remove selected")');
     await expect(page.getByTestId('debloat-result')).toBeVisible();
-    await expect(page.getByTestId('debloat-check-windowsstore')).toBeDisabled();
+    const protectedRow = page.getByTestId('debloat-check-windowsstore');
+    await expect(protectedRow).toBeVisible();
+    await expect(protectedRow).toBeDisabled();
   });
 
   test('should switch to app manager tab', async ({ page }) => {

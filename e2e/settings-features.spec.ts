@@ -56,7 +56,9 @@ test.describe('Settings — live controls (v0.5.0)', () => {
     await page.click('.sidebar >> text=Dashboard');
     await page.click('.sidebar >> text=Settings');
 
-    await expect(page.getByRole('switch', { name: 'Start with Windows' })).toBeDisabled();
+    const startWithWindows = page.getByRole('switch', { name: 'Start with Windows' });
+    await expect(startWithWindows).toBeVisible();
+    await expect(startWithWindows).toBeDisabled();
     await expect(
       page.getByText(/Start with Windows is not available in the portable build/i)
     ).toBeVisible();
