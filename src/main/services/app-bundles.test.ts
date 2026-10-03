@@ -9,6 +9,7 @@ import {
 
 vi.mock('./powershell', () => ({
   runPowerShell: vi.fn(),
+  runPowerShellScript: vi.fn(),
   parsePowerShellJson: vi.fn((data: string) => {
     try {
       return JSON.parse(data);
@@ -18,7 +19,7 @@ vi.mock('./powershell', () => ({
   }),
 }));
 
-import { runPowerShell } from './powershell';
+import { runPowerShell, runPowerShellScript } from './powershell';
 
 describe('App Bundles', () => {
   beforeEach(() => {
@@ -179,7 +180,7 @@ describe('App Bundles', () => {
 
   describe('installApp', () => {
     it('should install app successfully', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS',
         stderr: '',
@@ -192,7 +193,7 @@ describe('App Bundles', () => {
     });
 
     it('should handle install failure', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: false,
         stdout: '',
         stderr: 'Package not found',
@@ -211,6 +212,7 @@ describe('App Bundles', () => {
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid package id');
       expect(runPowerShell).not.toHaveBeenCalled();
+      expect(runPowerShellScript).not.toHaveBeenCalled();
     });
 
     it('rejects an empty package id without invoking PowerShell', async () => {
@@ -218,11 +220,11 @@ describe('App Bundles', () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid package id');
-      expect(runPowerShell).not.toHaveBeenCalled();
+      expect(runPowerShellScript).not.toHaveBeenCalled();
     });
 
     it('generates a script that checks the winget exit code (never unconditional SUCCESS)', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS',
         stderr: '',
@@ -231,14 +233,14 @@ describe('App Bundles', () => {
 
       await installApp('Google.Chrome');
 
-      const script = String(vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '');
+      const script = String(vi.mocked(runPowerShellScript).mock.calls[0]?.[0] ?? '');
       expect(script).toContain('$LASTEXITCODE');
       // winget reports failures on stderr/exit code, not via exceptions
       expect(script).not.toMatch(/winget install[\s\S]*Write-Output "SUCCESS"\s*;?\s*catch/);
     });
 
     it('returns success=false when the script reports a winget failure', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'FAILED: winget exit 0x8A150014',
         stderr: '',
@@ -251,7 +253,7 @@ describe('App Bundles', () => {
     });
 
     it('treats "already installed" as success', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS\nGoogle Chrome is already installed',
         stderr: '',
@@ -261,11 +263,89 @@ describe('App Bundles', () => {
       const result = await installApp('Google.Chrome');
       expect(result.success).toBe(true);
     });
+
+    // ===== v0.10.1: honest, distinguishable timeout handling (BUG B) =====
+
+    it('runs winget install with the long runner (not the 60s one) so slow installs are not killed', async () => {
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      await installApp('Google.Chrome');
+
+      expect(runPowerShellScript).toHaveBeenCalledTimes(1);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('does not misreport a slow-but-successful install as a failure', async () => {
+      // Real measured case: 55 941 ms returned SUCCESS.
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await installApp('Google.Chrome');
+      expect(result.success).toBe(true);
+      expect(result.state).toBe('ok');
+    });
+
+    it('re-reads the real state after a timeout and reports success when the package did get installed', async () => {
+      // Install was killed at the long timeout...
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: false,
+        stdout: '',
+        stderr: 'Operation timed out',
+        exitCode: 124,
+      });
+      // ...but the re-read proves winget actually finished installing it.
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'INSTALLED',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await installApp('Google.Chrome');
+
+      expect(result.success).toBe(true);
+      expect(result.state).toBe('timeout');
+      expect(result.verified).toBe(true);
+      expect(result.message.toLowerCase()).toContain('timed out');
+      expect(result.message.toLowerCase()).toContain('installed');
+    });
+
+    it('does not claim success after a timeout when the package is not detected', async () => {
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: false,
+        stdout: '',
+        stderr: 'Operation timed out',
+        exitCode: 124,
+      });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'NOT_INSTALLED',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await installApp('Google.Chrome');
+
+      expect(result.success).toBe(false);
+      expect(result.state).toBe('timeout');
+      expect(result.verified).toBe(true);
+      expect(result.message.toLowerCase()).toContain('timed out');
+      expect(result.message.toLowerCase()).toContain('not detected');
+    });
   });
 
   describe('installApps', () => {
     it('should install multiple apps', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS',
         stderr: '',
@@ -280,7 +360,7 @@ describe('App Bundles', () => {
 
     it('should handle partial failures', async () => {
       let callCount = 0;
-      vi.mocked(runPowerShell).mockImplementation(() => {
+      vi.mocked(runPowerShellScript).mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
           return Promise.resolve({
@@ -304,7 +384,7 @@ describe('App Bundles', () => {
     });
 
     it('counts an injected package id as a failure without invoking PowerShell', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS',
         stderr: '',
@@ -315,13 +395,13 @@ describe('App Bundles', () => {
 
       expect(result.installed).toBe(1);
       expect(result.failed).toBe(1);
-      expect(runPowerShell).toHaveBeenCalledTimes(1);
+      expect(runPowerShellScript).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('uninstallApp', () => {
     it('should uninstall app successfully', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS',
         stderr: '',
@@ -334,7 +414,7 @@ describe('App Bundles', () => {
     });
 
     it('should handle uninstall failure', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: false,
         stdout: '',
         stderr: 'Package not found',
@@ -352,11 +432,11 @@ describe('App Bundles', () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid package id');
-      expect(runPowerShell).not.toHaveBeenCalled();
+      expect(runPowerShellScript).not.toHaveBeenCalled();
     });
 
     it('generates a script that checks the winget exit code', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+      vi.mocked(runPowerShellScript).mockResolvedValue({
         success: true,
         stdout: 'SUCCESS',
         stderr: '',
@@ -365,8 +445,64 @@ describe('App Bundles', () => {
 
       await uninstallApp('Google.Chrome');
 
-      const script = String(vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '');
+      const script = String(vi.mocked(runPowerShellScript).mock.calls[0]?.[0] ?? '');
       expect(script).toContain('$LASTEXITCODE');
+    });
+
+    it('runs winget uninstall with the long runner so slow uninstalls are not killed', async () => {
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: true,
+        stdout: 'SUCCESS',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      await uninstallApp('Google.Chrome');
+
+      expect(runPowerShellScript).toHaveBeenCalledTimes(1);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('treats a timed-out uninstall whose package is gone as success', async () => {
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: false,
+        stdout: '',
+        stderr: 'Operation timed out',
+        exitCode: 124,
+      });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'NOT_INSTALLED',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await uninstallApp('Google.Chrome');
+
+      expect(result.success).toBe(true);
+      expect(result.state).toBe('timeout');
+      expect(result.verified).toBe(true);
+    });
+
+    it('does not claim a timed-out uninstall succeeded while the package is still present', async () => {
+      vi.mocked(runPowerShellScript).mockResolvedValue({
+        success: false,
+        stdout: '',
+        stderr: 'Operation timed out',
+        exitCode: 124,
+      });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'INSTALLED',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await uninstallApp('Google.Chrome');
+
+      expect(result.success).toBe(false);
+      expect(result.state).toBe('timeout');
+      expect(result.message.toLowerCase()).toContain('timed out');
     });
   });
 });

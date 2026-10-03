@@ -237,18 +237,54 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
 }
 
 /**
- * Uninstall-string hardening (P1.4).
+ * Uninstall-string hardening (P1.4, extended in v0.10.1).
  *
  * The renderer controls `uninstallString`, so it must never reach a
- * PowerShell command line unvalidated: paths are accepted only when they are
- * absolute, end in `.exe` and contain no shell metacharacters (`" $ ` ; | &`
- * etc.); MSI strings must be exactly `MsiExec /x {GUID}`. Anything else is
- * refused without spawning PowerShell. Trailing arguments (e.g. `/S`) are
- * dropped — removal runs the validated exe with the standard silent flag.
+ * PowerShell command line unvalidated. Two accepted shapes:
+ *
+ *   - MSI: `MsiExec.exe /x {GUID}` (optionally `/X{GUID}`).
+ *   - EXE: an absolute `X:\...\name.exe` path, optionally double-quoted and
+ *     optionally followed by arguments, e.g.
+ *     `"C:\Program Files (x86)\App\Uninstall.exe" /currentuser /D="C:\Data"`.
+ *
+ * Windows registers roughly one in five UninstallStrings in the quoted form,
+ * so the previous "must start with `X:\`" pattern rejected ~20% of real
+ * apps with "Unsupported uninstall string". Quotes are now accepted, but only
+ * the executable path is extracted and validated; trailing arguments are
+ * parsed off and discarded — removal always runs the exe with the standard
+ * silent flag. The path is interpolated into a double-quoted PowerShell
+ * argument, so it must contain no `"`, backtick, `$` (PowerShell string
+ * escapes) nor shell separators (`; | & > < * ?`). Parentheses are allowed:
+ * they are literal inside a quoted string and ubiquitous in
+ * `Program Files (x86)`.
  */
 const MSI_UNINSTALL =
   /^MsiExec(?:\.exe)?\s*\/[xX]\s*\{([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}\s*$/i;
-const EXE_UNINSTALL = /^([A-Za-z]:\\[^<>|*?"`$;()&]+?\.exe)(?:\s+.*)?$/i;
+
+/** An absolute, quote-free `.exe` path with no forbidden shell characters. */
+const EXE_PATH = /^[A-Za-z]:\\[^"`$;|&<>*?]+?\.exe$/i;
+
+/** An unquoted `.exe` path optionally followed by (discarded) arguments. */
+const EXE_UNINSTALL = /^([A-Za-z]:\\[^"`$;|&<>*?]+?\.exe)(?:\s+[\s\S]*)?$/i;
+
+/**
+ * Extract the validated executable path from an uninstall string, or `null`
+ * when it cannot be trusted. Accepts both the quoted and unquoted forms and
+ * separates the path from its arguments.
+ */
+function extractExePath(raw: string): string | null {
+  if (raw.startsWith('"')) {
+    const end = raw.indexOf('"', 1);
+    if (end < 0) return null; // unclosed quote
+    const candidate = raw.slice(1, end);
+    const rest = raw.slice(end + 1);
+    // Anything after the closing quote must be whitespace-separated arguments.
+    if (rest !== '' && !/^\s/.test(rest)) return null;
+    return EXE_PATH.test(candidate) ? candidate : null;
+  }
+  const match = EXE_UNINSTALL.exec(raw);
+  return match ? match[1]! : null;
+}
 
 /** True when the string contains C0 control characters (U+0000–U+001F). */
 function hasControlChars(value: string): boolean {
@@ -280,9 +316,8 @@ export function parseUninstallString(uninstallString: string): UninstallTarget |
     };
   }
 
-  const exe = EXE_UNINSTALL.exec(raw);
-  if (exe) {
-    const filePath = exe[1]!;
+  const filePath = extractExePath(raw);
+  if (filePath) {
     return {
       command: `Start-Process -FilePath "${filePath}" -ArgumentList "/S" -Wait -PassThru`,
     };

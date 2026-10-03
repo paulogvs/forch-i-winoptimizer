@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-03
+
+Corrección de dos bugs reales confirmados al validar los canales de
+`install`/`uninstall`: el parseo de `UninstallString` ahora acepta rutas entre
+comillas (afectaba a ~1 de cada 5 apps reales) y las instalaciones de winget ya
+no se matan a los 60 s reportando un fallo falso.
+
+### Fixed
+
+- **`bundles:install` / `bundles:uninstall` ya no se matan a los 60 s ni mienten
+  en timeout** (`src/main/services/app-bundles.ts`): ambos canales pasan del
+  runner corto (`runPowerShell`, 60 s) al largo (`runPowerShellScript`, 120 s).
+  Si el proceso se mata por timeout, el resultado **relee el estado real** con
+  `winget list --id <id> --exact` antes de concluir y devuelve
+  `state: 'timeout'` + `verified: true`: un install que quedó instalado es
+  éxito; un uninstall que ya no está es éxito; en caso contrario se informa el
+  timeout en lugar de un fallo genérico que oculte el estado.
+- **`apps:uninstall` acepta `UninstallString` entre comillas**
+  (`src/main/services/installed-apps.ts`): el patrón exigía empezar por `X:\`,
+  por lo que rechazaba con "Unsupported uninstall string" todos los registros
+  con la ruta entre comillas (medido: 33/159 = 20,75% en esta máquina). El
+  parser separa la ruta de los argumentos, admite `"C:\Program Files
+(x86)\..."` (paréntesis) y rutas con espacios, y sigue rechazando comillas
+  internas, backtick, `$`, sustitución y separadores de shell (`; | & > < * ?`).
+  La ruta se interpola siempre entre comillas dobles en `Start-Process`; los
+  argumentos se descartan (se ejecuta el `.exe` validado con `/S`).
+
+### Tests
+
+- `installed-apps.test.ts`: 12 casos nuevos de rutas entre comillas (sin
+  argumentos, con argumentos, argumentos con comillas propias, `(x86)`,
+  metacharacters y sustitución en la ruta, ruta no absoluta, comilla sin
+  cerrar, no-`.exe`, caracteres pegados tras la comilla, MSI).
+- `app-bundles.test.ts`: casos nuevos de runner largo, instalación lenta que no
+  debe reportarse como fallo, y timeout honesto para install/uninstall
+  (relectura que confirma instalado / ausente y paquete que sigue presente).
+
 ## [0.10.0] - 2026-10-03
 
 Cuarto **auto-fix reversible** del catálogo de seguridad: `smb-signing`. Requiere

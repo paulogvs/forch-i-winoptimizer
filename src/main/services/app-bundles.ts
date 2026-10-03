@@ -1,4 +1,4 @@
-import { runPowerShell } from './powershell';
+import { runPowerShell, runPowerShellScript } from './powershell';
 import type { AppBundle, BundleApp } from '@shared/types';
 import { readBundledCatalog } from './catalog-data';
 
@@ -109,8 +109,30 @@ export function getAppBundles(): AppBundle[] {
 
 // ===== P0.2: winget exit-code handling + package id validation =====
 
-function invalidIdResult(action: 'install' | 'uninstall'): { success: false; message: string } {
-  return { success: false, message: `Invalid package id: refusing to ${action}` };
+/**
+ * Result of a single winget action.
+ *
+ * `state` and `verified` make a timeout honest and distinguishable from a
+ * plain failure (v0.10.1, BUG B): when winget is killed by the runner's
+ * timeout we re-read the real package state and say so, instead of returning
+ * a generic failure that hides the fact the package may already be installed.
+ */
+export interface BundleActionResult {
+  success: boolean;
+  message: string;
+  state?: 'ok' | 'failed' | 'timeout';
+  /** True when a post-timeout `winget list` re-read confirmed the state. */
+  verified?: boolean;
+}
+
+/**
+ * `execFile` is killed by Node on timeout (`killed: true`), which
+ * `powershell.ts` maps to exit code 124.
+ */
+const TIMEOUT_EXIT_CODE = 124;
+
+function invalidIdResult(action: 'install' | 'uninstall'): BundleActionResult {
+  return { success: false, state: 'failed', message: `Invalid package id: refusing to ${action}` };
 }
 
 /**
@@ -142,6 +164,61 @@ function failureMessage(
   const marker = combined.indexOf('FAILED:');
   const detail = (marker >= 0 ? combined.slice(marker) : combined).trim();
   return `Failed to ${action} ${wingetId}${detail ? `: ${detail}` : ''}`;
+}
+
+/**
+ * Authoritative post-hoc check, used only after a timeout. `winget list`
+ * exits 0 when the (already validated) package id is present.
+ */
+async function isPackageInstalled(wingetId: string): Promise<boolean> {
+  const result = await runPowerShell(`
+    $id = '${wingetId}';
+    $out = winget list --id $id --exact 2>&1 | Out-String;
+    if ($LASTEXITCODE -eq 0 -and $out -match [regex]::Escape($id)) { Write-Output 'INSTALLED' }
+    else { Write-Output 'NOT_INSTALLED' }
+  `);
+  return result.success && result.stdout.trim() === 'INSTALLED';
+}
+
+/**
+ * Build an honest timeout result once the real state has been re-read.
+ * A timed-out install that is present is a success; a timed-out uninstall
+ * that is gone is a success. Everything else is reported as `timeout` (not a
+ * generic `failed`) so callers can distinguish "may still be running".
+ */
+function timeoutResult(
+  action: 'install' | 'uninstall',
+  wingetId: string,
+  installed: boolean
+): BundleActionResult {
+  if (action === 'install') {
+    return installed
+      ? {
+          success: true,
+          state: 'timeout',
+          verified: true,
+          message: `Installing ${wingetId} timed out after 120s, but it was verified as installed`,
+        }
+      : {
+          success: false,
+          state: 'timeout',
+          verified: true,
+          message: `Installing ${wingetId} timed out after 120s and it was not detected as installed; it may still be finishing, re-check before retrying`,
+        };
+  }
+  return installed
+    ? {
+        success: false,
+        state: 'timeout',
+        verified: true,
+        message: `Uninstalling ${wingetId} timed out after 120s and the package is still present`,
+      }
+    : {
+        success: true,
+        state: 'timeout',
+        verified: true,
+        message: `Uninstalling ${wingetId} timed out after 120s, but the package is no longer present`,
+      };
 }
 
 export async function checkInstalledApps(): Promise<Map<string, boolean>> {
@@ -178,22 +255,29 @@ export async function checkInstalledApps(): Promise<Map<string, boolean>> {
   return installed;
 }
 
-export async function installApp(wingetId: string): Promise<{
-  success: boolean;
-  message: string;
-}> {
+export async function installApp(wingetId: string): Promise<BundleActionResult> {
   if (!WINGET_ID_PATTERN.test(wingetId)) {
     return invalidIdResult('install');
   }
 
-  const result = await runPowerShell(wingetScript('install', wingetId));
-  const success = result.success && result.stdout.includes('SUCCESS');
+  // BUG B fix: winget installs routinely exceed 60s. The long runner gives
+  // them 120s instead of killing the process mid-install.
+  const result = await runPowerShellScript(wingetScript('install', wingetId));
+
+  if (result.success && result.stdout.includes('SUCCESS')) {
+    return { success: true, state: 'ok', message: `Successfully installed ${wingetId}` };
+  }
+
+  // A killed process can still have finished the install — never report a
+  // plain failure without re-reading the real state.
+  if (result.exitCode === TIMEOUT_EXIT_CODE) {
+    return timeoutResult('install', wingetId, await isPackageInstalled(wingetId));
+  }
 
   return {
-    success,
-    message: success
-      ? `Successfully installed ${wingetId}`
-      : failureMessage('install', wingetId, result),
+    success: false,
+    state: 'failed',
+    message: failureMessage('install', wingetId, result),
   };
 }
 
@@ -220,21 +304,25 @@ export async function installApps(wingetIds: string[]): Promise<{
   };
 }
 
-export async function uninstallApp(wingetId: string): Promise<{
-  success: boolean;
-  message: string;
-}> {
+export async function uninstallApp(wingetId: string): Promise<BundleActionResult> {
   if (!WINGET_ID_PATTERN.test(wingetId)) {
     return invalidIdResult('uninstall');
   }
 
-  const result = await runPowerShell(wingetScript('uninstall', wingetId));
-  const success = result.success && result.stdout.includes('SUCCESS');
+  // Same long-runner rationale as installApp.
+  const result = await runPowerShellScript(wingetScript('uninstall', wingetId));
+
+  if (result.success && result.stdout.includes('SUCCESS')) {
+    return { success: true, state: 'ok', message: `Successfully uninstalled ${wingetId}` };
+  }
+
+  if (result.exitCode === TIMEOUT_EXIT_CODE) {
+    return timeoutResult('uninstall', wingetId, await isPackageInstalled(wingetId));
+  }
 
   return {
-    success,
-    message: success
-      ? `Successfully uninstalled ${wingetId}`
-      : failureMessage('uninstall', wingetId, result),
+    success: false,
+    state: 'failed',
+    message: failureMessage('uninstall', wingetId, result),
   };
 }

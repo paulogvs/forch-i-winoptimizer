@@ -295,4 +295,118 @@ describe('installed-apps', () => {
       expect(command).not.toContain('/uninstall');
     });
   });
+
+  // Regression: Windows registers ~20% of UninstallStrings with the path in
+  // double quotes (e.g. `"C:\Program Files\App\Uninstall.exe" /currentuser`).
+  // The old pattern only accepted an unquoted `X:\...` prefix, so every quoted
+  // string was rejected with "Unsupported uninstall string".
+  describe('quoted uninstall strings (v0.10.1)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.mocked(runPowerShell).mockResolvedValue(uninstallOk());
+    });
+
+    it('accepts a double-quoted exe path with spaces and no arguments', async () => {
+      const result = await uninstallApp('app-1', '"C:\\Program Files\\App\\Uninstall.exe"');
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('C:\\Program Files\\App\\Uninstall.exe');
+    });
+
+    it('accepts a quoted exe path followed by simple arguments', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        '"C:\\Program Files\\App\\Uninstall.exe" /currentuser'
+      );
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('C:\\Program Files\\App\\Uninstall.exe');
+      // Arguments are parsed off and never reach the command line.
+      expect(command).not.toContain('/currentuser');
+    });
+
+    it('accepts a quoted exe path whose arguments contain their own quotes', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        '"C:\\Program Files\\App\\Uninstall.exe" /S /D="C:\\Data"'
+      );
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('C:\\Program Files\\App\\Uninstall.exe');
+    });
+
+    it('accepts a quoted exe path containing "(x86)" plus a URI argument', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        '"C:\\Program Files (x86)\\Steam\\steam.exe" steam://uninstall/570'
+      );
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('C:\\Program Files (x86)\\Steam\\steam.exe');
+    });
+
+    it('accepts an unquoted exe path containing "(x86)"', async () => {
+      const result = await uninstallApp('app-1', 'C:\\Program Files (x86)\\App\\uninstall.exe');
+
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects shell metacharacters inside a quoted path', async () => {
+      const result = await uninstallApp('app-1', '"C:\\App&Data\\u.exe" /S');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects command substitution inside a quoted path', async () => {
+      const result = await uninstallApp('app-1', '"C:\\App\\u$(calc).exe"');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects a quoted path that is not absolute', async () => {
+      const result = await uninstallApp('app-1', '"uninstall.exe" /S');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unclosed quote', async () => {
+      const result = await uninstallApp('app-1', '"C:\\Program Files\\App\\uninstall.exe');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects a quoted non-exe target', async () => {
+      const result = await uninstallApp('app-1', '"C:\\Program Files\\App\\uninstall.bat"');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('rejects characters jammed after the closing quote without a space', async () => {
+      const result = await uninstallApp('app-1', '"C:\\App\\u.exe"calc');
+
+      expect(result.success).toBe(false);
+      expect(runPowerShell).not.toHaveBeenCalled();
+    });
+
+    it('still accepts MSI strings and runs msiexec with the validated GUID', async () => {
+      const result = await uninstallApp(
+        'app-1',
+        'MsiExec.exe /x {12345678-1234-1234-1234-123456789012}'
+      );
+
+      expect(result.success).toBe(true);
+      const command = vi.mocked(runPowerShell).mock.calls[0]![0];
+      expect(command).toContain('{12345678-1234-1234-1234-123456789012}');
+      expect(command).toContain('/qn');
+    });
+  });
 });
