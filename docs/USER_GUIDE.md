@@ -96,6 +96,36 @@ una limpieza escribiendo a la vez).
 2. Ejecuta el instalador
 3. Sigue las instrucciones en pantalla
 
+Por defecto la instalación es **por usuario** (`%LOCALAPPDATA%\Programs\FORCH.iA WinOptimizer`)
+y no requiere elevación. Para instalarla sin interfaz:
+
+```powershell
+# Per-user (recomendado, sin UAC)
+.\FORCH.iA-WinOptimizer-Setup-0.10.0.exe /S /currentuser
+
+# Desinstalación silenciosa
+& "$env:LOCALAPPDATA\Programs\FORCH.iA WinOptimizer\Uninstall FORCH.iA WinOptimizer.exe" /S
+```
+
+> **Limitación conocida:** `Setup.exe /S` a secas deja que el instalador NSIS elija el modo
+> "todos los usuarios" y **pida elevación (UAC)**; en un contexto sin escritorio interactivo
+> puede fallar. Pasá siempre `/currentuser` para forzar el modo por usuario.
+
+### Actualización automática (build instalable)
+
+La build **instalable (NSIS)** incluye `electron-updater` contra GitHub Releases; la build
+**portable** no puede auto-actualizarse (el toggle _Automatic updates_ se deshabilita).
+
+1. Activá _Settings → General → Automatic updates_ (se guarda en `settings.json` del userData).
+2. El updater revisa al iniciar y cada 4 horas, o al pulsar _Check now_ en _Settings → Updates_.
+3. Cuando hay versión nueva: _Download_ → _Restart & install_ (aparece también un diálogo
+   nativo "Restart Now / Later").
+4. La app se cierra, el instalador se aplica en silencio y la app se reabre ya actualizada.
+
+Flujo verificado end-to-end (2026-10-03): instalado **0.9.1** → detectó **0.10.0** → descargó el
+Setup publicado (sha256 idéntico al de `checksums.sha256`) → reinició → el `.exe` instalado quedó
+con `FileVersion` **0.10.0**.
+
 ### Instalación portable
 
 1. Descarga el archivo `FORCH.iA-WinOptimizer-Portable-X.X.X.exe`

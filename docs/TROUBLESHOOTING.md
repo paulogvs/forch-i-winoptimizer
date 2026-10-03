@@ -329,9 +329,18 @@ queda en error, o el chequeo nunca encuentra nada.
   electron-builder junto al Setup en la misma Release. Si falta, el chequeo falla con error.
   Se publica siempre junto a los binarios.
 - **Sin conexión / firewall** — el chequeo consulta GitHub Releases. Verificá tu red.
+- **Instalación silenciosa que pide UAC** — `Setup.exe /S` deja que NSIS elija el modo "todos
+  los usuarios" y pida elevación; en un contexto sin escritorio interactivo puede fallar con
+  `0xC0000005`. Usá `/S /currentuser` para instalar por usuario sin UAC.
 
 **Recordatorio:** el botón _Check for Updates_ de la tarjeta consulta la API de GitHub
 (informativo); _Check now_ dispara el chequeo del updater de fondo.
+
+**Verificado (v0.10.0, 2026-10-03):** instalación NSIS 0.9.1 (`/S /currentuser`) → auto-update
+en la UI (_Check now_ → _Download_ → _Restart & install_) → 0.10.0 aplicado. El `.exe`
+descargado por el updater es byte-idéntico al asset publicado (sha256
+`b6513ebc392bfcd4dfacfb008e395df774a38df9b148af892cf9a1aca2b81d33`), y el `FileVersion` del
+`.exe` instalado pasó de 0.9.1 a 0.10.0.
 
 ---
 
