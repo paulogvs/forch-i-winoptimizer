@@ -23,7 +23,9 @@
     "test:e2e:electron": "npm run build && playwright test --config=playwright.electron.config.ts",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder",
-    "electron:pack": "npm run build && electron-builder --dir"
+    "electron:pack": "npm run build && electron-builder --dir",
+    "heartbeat": "node scripts/heartbeat-client.mjs --app forch-i-winoptimizer --step \"npm run\"",
+    "predev": "npm run heartbeat"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.13",
