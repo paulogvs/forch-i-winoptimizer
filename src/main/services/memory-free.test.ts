@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { freeMemory, buildFreeMemoryScript } from './memory-free';
 import type * as PowerShell from './powershell';
 
@@ -13,33 +13,12 @@ import { runPowerShell } from './powershell';
 const ok = (stdout: string) => ({ success: true, stdout, stderr: '', exitCode: 0 });
 const fail = () => ({ success: false, stdout: '', stderr: 'Access denied', exitCode: 1 });
 
-const mb = (n: number) => n * 1024 * 1024;
-
-const mockRss = (beforeMb: number, afterMb: number) =>
-  vi
-    .spyOn(process, 'memoryUsage')
-    .mockReturnValueOnce({
-      rss: mb(beforeMb),
-      heapTotal: mb(10),
-      heapUsed: mb(5),
-      external: mb(1),
-      arrayBuffers: 0,
-    })
-    .mockReturnValueOnce({
-      rss: mb(afterMb),
-      heapTotal: mb(10),
-      heapUsed: mb(5),
-      external: mb(1),
-      arrayBuffers: 0,
-    });
+const payload = (trimmed: number, beforeMb: number, afterMb: number) =>
+  JSON.stringify({ trimmed, beforeMb, afterMb });
 
 describe('memory-free (P1.1 Liberar RAM)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('builds a psapi EmptyWorkingSet script for self + child processes', () => {
@@ -55,9 +34,8 @@ describe('memory-free (P1.1 Liberar RAM)', () => {
     expect(buildFreeMemoryScript(NaN)).toBe('');
   });
 
-  it('trims the app working set and reports the RSS delta', async () => {
-    mockRss(200, 130);
-    vi.mocked(runPowerShell).mockResolvedValue(ok('OK'));
+  it('trims the app working set and reports the MEASURED delta', async () => {
+    vi.mocked(runPowerShell).mockResolvedValue(ok(payload(2, 200, 130)));
 
     const result = await freeMemory();
 
@@ -72,18 +50,19 @@ describe('memory-free (P1.1 Liberar RAM)', () => {
     expect(result.error).toBeUndefined();
   });
 
-  it('accepts the GC fallback path', async () => {
-    mockRss(150, 150);
-    vi.mocked(runPowerShell).mockResolvedValue(ok('FALLBACK'));
+  // Regression guard: the old code accepted the GC "FALLBACK" branch as a
+  // success even though nothing was actually trimmed.
+  it('reports failure when nothing was trimmed (fallback/no-op)', async () => {
+    vi.mocked(runPowerShell).mockResolvedValue(ok(payload(0, 150, 150)));
 
     const result = await freeMemory();
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
     expect(result.freedMb).toBe(0);
+    expect(result.error).toBeTruthy();
   });
 
   it('reports failure when PowerShell fails', async () => {
-    mockRss(200, 200);
     vi.mocked(runPowerShell).mockResolvedValue(fail());
 
     const result = await freeMemory();
@@ -93,9 +72,8 @@ describe('memory-free (P1.1 Liberar RAM)', () => {
     expect(result.error).toBeTruthy();
   });
 
-  it('never reports negative freed memory (RSS can grow)', async () => {
-    mockRss(100, 180);
-    vi.mocked(runPowerShell).mockResolvedValue(ok('OK'));
+  it('never reports negative freed memory (working set can grow)', async () => {
+    vi.mocked(runPowerShell).mockResolvedValue(ok(payload(1, 100, 180)));
 
     const result = await freeMemory();
 

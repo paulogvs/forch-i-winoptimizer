@@ -1,4 +1,14 @@
 import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
+import { resolveActiveAdapter } from './network-adapter';
+
+/** Strict IPv4 validation — the address is interpolated into a PowerShell script. */
+const IPV4_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+export function isValidIPv4(value: string): boolean {
+  const match = IPV4_PATTERN.exec(value.trim());
+  if (!match) return false;
+  return match.slice(1).every((part) => Number(part) <= 255);
+}
 
 export interface PrivacySetting {
   id: string;
@@ -435,30 +445,55 @@ ${lookups}
 export async function applyPrivacySetting(settingId: string): Promise<{
   success: boolean;
   message: string;
+  before?: number | null;
+  after?: number | null;
 }> {
   const setting = PRIVACY_SETTINGS.find((s) => s.id === settingId);
   if (!setting) {
     return { success: false, message: `Setting ${settingId} not found` };
   }
 
+  // Capture -> apply (errors TERMINATE) -> RE-READ -> compare. A write that does
+  // not change the observed value is reported as a real failure, never as
+  // SUCCESS. (Previously a non-terminating error printed SUCCESS regardless.)
   const result = await runPowerShell(`
+    $ErrorActionPreference = 'Stop';
+    $path = '${setting.registryPath}';
+    $name = '${setting.valueName}';
+    $target = ${setting.recommendedValue};
+    function Read-Value {
+      try { return (Get-ItemProperty -LiteralPath $path -Name $name -ErrorAction Stop).$name } catch { return $null }
+    }
+    $before = Read-Value;
     try {
-      if (!(Test-Path "${setting.registryPath}")) {
-        New-Item -Path "${setting.registryPath}" -Force | Out-Null;
-      }
-      Set-ItemProperty -Path "${setting.registryPath}" -Name "${setting.valueName}" -Value ${setting.recommendedValue} -Type DWord -Force;
-      Write-Output "SUCCESS"
+      if (-not (Test-Path -LiteralPath $path)) { New-Item -Path $path -Force | Out-Null }
+      Set-ItemProperty -LiteralPath $path -Name $name -Value $target -Type DWord -Force -ErrorAction Stop;
+      $after = Read-Value;
+      $ok = ($null -ne $after) -and ([int]$after -eq [int]$target);
+      @{ status = if ($ok) { 'SUCCESS' } else { 'VERIFY_FAILED' }; before = $before; after = $after } | ConvertTo-Json -Compress
     } catch {
-      Write-Output "FAILED: $_"
+      @{ status = 'FAILED'; error = $_.Exception.Message; before = $before; after = (Read-Value) } | ConvertTo-Json -Compress
     }
   `);
 
+  const payload = result.success
+    ? parsePowerShellJson<{
+        status?: string;
+        error?: string;
+        before?: number | null;
+        after?: number | null;
+      }>(result.stdout)
+    : null;
+  const status = payload?.status ?? 'FAILED';
+  const ok = status === 'SUCCESS';
+
   return {
-    success: result.success && result.stdout.includes('SUCCESS'),
-    message:
-      result.success && result.stdout.includes('SUCCESS')
-        ? `Successfully applied: ${setting.name}`
-        : `Failed to apply setting: ${result.stderr}`,
+    success: ok,
+    message: ok
+      ? `Applied: ${setting.name} = ${setting.recommendedValue}`
+      : `Failed to apply setting: ${payload?.error ?? result.stderr ?? 'value did not change'}`,
+    before: payload?.before ?? null,
+    after: payload?.after ?? null,
   };
 }
 
@@ -494,14 +529,24 @@ export async function runSecurityAction(actionId: string): Promise<{
     return { success: false, message: `Action ${actionId} not found` };
   }
 
-  const result = await runPowerShell(action.command);
+  // Wrap so non-terminating errors become terminating and can never be
+  // swallowed into a success-shaped result. The action's own marker proves it
+  // reached the end of the command; a caught error prints FAILED.
+  const result = await runPowerShell(`
+    $ErrorActionPreference = 'Stop';
+    try {
+      ${action.command}
+    } catch {
+      Write-Output ("FAILED: " + $_.Exception.Message)
+    }
+  `);
 
+  const failed = !result.success || /FAILED/i.test(result.stdout);
   return {
-    success: result.success && !result.stdout.includes('FAILED'),
-    message:
-      result.success && !result.stdout.includes('FAILED')
-        ? `Successfully executed: ${action.name}`
-        : `Failed to execute action: ${result.stderr}`,
+    success: !failed,
+    message: failed
+      ? `Failed to execute action: ${result.stdout.trim() || result.stderr || 'unknown error'}`
+      : `Successfully executed: ${action.name}`,
   };
 }
 
@@ -547,26 +592,83 @@ export async function setDNS(
 ): Promise<{
   success: boolean;
   message: string;
+  adapter?: string;
+  before?: string[];
+  after?: string[];
 }> {
+  if (!isValidIPv4(primaryDNS) || !isValidIPv4(secondaryDNS)) {
+    return { success: false, message: 'Invalid DNS server address' };
+  }
+
+  // Resolve the adapter that actually carries traffic (default route, physical
+  // preferred). Selecting the first `Status -eq 'Up'` NIC used to pick a tunnel
+  // such as Tailscale on this machine.
+  const adapter = await resolveActiveAdapter();
+  if (!adapter) {
+    return { success: false, message: 'No active network adapter found' };
+  }
+
   const result = await runPowerShell(`
+    $ErrorActionPreference = 'Stop';
+    $ifIndex = ${adapter.interfaceIndex};
+    $primary = '${primaryDNS.trim()}';
+    $secondary = '${secondaryDNS.trim()}';
+    $desired = @($primary, $secondary);
+    function Read-Servers {
+      try { return @((Get-DnsClientServerAddress -InterfaceIndex $ifIndex -AddressFamily IPv4 -ErrorAction Stop).ServerAddresses | Where-Object { $_ }) } catch { return @() }
+    }
+    $before = @(Read-Servers);
+    $applied = $false;
     try {
-      $adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1;
-      if ($adapter) {
-        Set-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -ServerAddresses ("${primaryDNS}", "${secondaryDNS}");
-        Write-Output "SUCCESS"
+      Set-DnsClientServerAddress -InterfaceIndex $ifIndex -ServerAddresses $desired -ErrorAction Stop;
+      $applied = $true;
+      $after = @(Read-Servers);
+      $match = $true;
+      foreach ($d in $desired) { if ($after -notcontains $d) { $match = $false } }
+      if ($match) {
+        @{ status = 'SUCCESS'; before = $before; after = $after } | ConvertTo-Json -Compress
       } else {
-        Write-Output "NO_ADAPTER"
+        # Read-back did not confirm the change: undo it before reporting failure.
+        if ($before.Count -gt 0) { Set-DnsClientServerAddress -InterfaceIndex $ifIndex -ServerAddresses $before -ErrorAction SilentlyContinue }
+        else { Set-DnsClientServerAddress -InterfaceIndex $ifIndex -ResetServerAddresses -ErrorAction SilentlyContinue }
+        @{ status = 'VERIFY_FAILED'; before = $before; after = $after } | ConvertTo-Json -Compress
       }
     } catch {
-      Write-Output "FAILED: $_"
+      if ($applied -and $before.Count -gt 0) {
+        try { Set-DnsClientServerAddress -InterfaceIndex $ifIndex -ServerAddresses $before -ErrorAction SilentlyContinue } catch {}
+      }
+      @{ status = 'FAILED'; error = $_.Exception.Message; before = $before; after = @(Read-Servers) } | ConvertTo-Json -Compress
     }
   `);
 
+  const payload = result.success
+    ? parsePowerShellJson<{
+        status?: string;
+        error?: string;
+        before?: string[];
+        after?: string[];
+      }>(result.stdout)
+    : null;
+  const status = payload?.status ?? 'FAILED';
+
+  if (status === 'SUCCESS') {
+    return {
+      success: true,
+      message: `DNS on ${adapter.name} set to ${primaryDNS} / ${secondaryDNS}`,
+      adapter: adapter.name,
+      before: payload?.before ?? [],
+      after: payload?.after ?? [],
+    };
+  }
+
   return {
-    success: result.success && result.stdout.includes('SUCCESS'),
+    success: false,
     message:
-      result.success && result.stdout.includes('SUCCESS')
-        ? `DNS set to ${primaryDNS} / ${secondaryDNS}`
-        : `Failed to set DNS: ${result.stderr}`,
+      status === 'VERIFY_FAILED'
+        ? `DNS change was not confirmed on ${adapter.name} (reverted)`
+        : `Failed to set DNS on ${adapter.name}: ${payload?.error ?? result.stderr ?? 'unknown error'}`,
+    adapter: adapter.name,
+    before: payload?.before ?? [],
+    after: payload?.after ?? [],
   };
 }

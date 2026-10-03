@@ -1,4 +1,5 @@
 import { runPowerShell } from './powershell';
+import { resolveActiveAdapter } from './network-adapter';
 import type { BenchmarkResult, BenchmarkReport } from '@shared/types';
 
 export async function runBenchmark(): Promise<BenchmarkReport> {
@@ -358,17 +359,18 @@ async function benchmarkNetwork(): Promise<BenchmarkResult[]> {
     timestamp: new Date(),
   });
 
-  // Network Speed (simulated)
-  const speedResult = await runPowerShell(`
-    $adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1;
-    if ($adapter) {
-      $speed = $adapter.LinkSpeed;
-      Write-Output $speed
-    } else {
-      Write-Output "0"
-    }
-  `);
-  const linkSpeed = speedResult.stdout.trim();
+  // Network Speed — measured on the REAL active adapter via the shared
+  // resolver. Previously it took the first `Status -eq 'Up'` NIC, which on a
+  // machine with a tunnel (Tailscale/VPN) is not the adapter carrying traffic.
+  const activeAdapter = await resolveActiveAdapter();
+  let linkSpeed = '0';
+  if (activeAdapter) {
+    const speedResult = await runPowerShell(`
+      $a = Get-NetAdapter -InterfaceIndex ${activeAdapter.interfaceIndex} -ErrorAction SilentlyContinue;
+      if ($a) { Write-Output $a.LinkSpeed } else { Write-Output "0" }
+    `);
+    linkSpeed = speedResult.stdout.trim() || '0';
+  }
   const speedMbps = linkSpeed.includes('Gbps')
     ? 1000
     : linkSpeed.includes('Mbps')

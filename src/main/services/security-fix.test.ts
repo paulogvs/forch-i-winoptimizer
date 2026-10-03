@@ -7,6 +7,8 @@ import {
   encodeOriginal,
   formatObservation,
   formatOriginal,
+  isOriginalObservation,
+  isTargetObservation,
   type FixObservation,
 } from './security-fix';
 
@@ -166,5 +168,33 @@ describe('formatting helpers', () => {
     expect(formatOriginal('guest-account', 'enabled')).toBe('Guest account enabled');
     expect(formatOriginal('remote-desktop', '0')).toBe('fDenyTSConnections=0');
     expect(formatOriginal('smb1', null)).toBeNull();
+  });
+});
+
+// The verdict must come from the RE-READ value, not from a stdout marker.
+describe('success predicates', () => {
+  it('recognises the hardened target for each fix', () => {
+    expect(isTargetObservation('smb1', smbDisabled)).toBe(true);
+    expect(isTargetObservation('smb1', smbEnabled)).toBe(false);
+    expect(isTargetObservation('remote-desktop', rdpDenied)).toBe(true);
+    expect(isTargetObservation('remote-desktop', rdpAllowed)).toBe(false);
+    expect(
+      isTargetObservation('guest-account', {
+        checkId: 'guest-account',
+        available: true,
+        name: 'Guest',
+        enabled: false,
+      })
+    ).toBe(true);
+    expect(isTargetObservation('smb1', { checkId: 'smb1', available: false, enabled: null })).toBe(
+      false
+    );
+  });
+
+  it('recognises a return to the captured original', () => {
+    expect(isOriginalObservation('smb1', smbEnabled, 'enabled')).toBe(true);
+    expect(isOriginalObservation('smb1', smbDisabled, 'enabled')).toBe(false);
+    expect(isOriginalObservation('remote-desktop', rdpAllowed, '0')).toBe(true);
+    expect(isOriginalObservation('remote-desktop', rdpDenied, '0')).toBe(false);
   });
 });

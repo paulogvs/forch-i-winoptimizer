@@ -255,6 +255,57 @@ export function decodeFixObservation(
   }
 }
 
+/**
+ * True when the live observation already matches the hardened target. This is
+ * the ground-truth success signal: a stdout marker alone is not trusted.
+ */
+export function isTargetObservation(checkId: SecurityFixId, observation: FixObservation): boolean {
+  switch (checkId) {
+    case 'smb1':
+      return (
+        observation.checkId === 'smb1' && observation.available && observation.enabled === false
+      );
+    case 'guest-account':
+      return (
+        observation.checkId === 'guest-account' &&
+        observation.available &&
+        observation.enabled === false
+      );
+    case 'remote-desktop':
+      return (
+        observation.checkId === 'remote-desktop' && observation.available && observation.deny === 1
+      );
+  }
+}
+
+/** True when the live observation matches the previously captured original. */
+export function isOriginalObservation(
+  checkId: SecurityFixId,
+  observation: FixObservation,
+  token: string
+): boolean {
+  switch (checkId) {
+    case 'smb1':
+      return (
+        observation.checkId === 'smb1' &&
+        observation.available &&
+        (observation.enabled === true) === (token === 'enabled')
+      );
+    case 'guest-account':
+      return (
+        observation.checkId === 'guest-account' &&
+        observation.available &&
+        (observation.enabled === true) === (token === 'enabled')
+      );
+    case 'remote-desktop':
+      return (
+        observation.checkId === 'remote-desktop' &&
+        observation.available &&
+        String(observation.deny) === token
+      );
+  }
+}
+
 function blockMessage(reason: SecurityFixBlockedReason): string {
   switch (reason) {
     case 'requires-admin':
@@ -491,10 +542,18 @@ export async function applySecurityFix(checkId: string): Promise<SecurityFixOutc
   await writeStore(store);
 
   const result = await runPowerShell(buildApplyCommand(checkId));
-  const ok = result.success && result.stdout.includes('OK');
 
   // Re-measure honestly; never claim success without reading the result back.
   const after = await readObservation(checkId);
+  const ok = isTargetObservation(checkId, after);
+
+  // The captured original is only meaningful while the change is actually in
+  // place; drop it if the re-read did not confirm the target.
+  if (!ok) {
+    const store = await readStore();
+    delete store[checkId];
+    await writeStore(store);
+  }
 
   return {
     checkId,
@@ -503,7 +562,10 @@ export async function applySecurityFix(checkId: string): Promise<SecurityFixOutc
     status: ok ? 'applied' : 'failed',
     message: ok
       ? `Applied: ${preview.title}.`
-      : `The change was not confirmed: ${result.stderr || 'the command did not report OK.'}`,
+      : `The change was not confirmed: ${
+          result.stderr ||
+          (result.success ? 'the re-read value had not changed.' : 'the command did not report OK.')
+        }`,
     before: formatObservation(before),
     after: formatObservation(after),
   };
@@ -551,8 +613,8 @@ export async function revertSecurityFix(checkId: string): Promise<SecurityFixOut
   }
 
   const result = await runPowerShell(buildRevertCommand(checkId, storedOriginal));
-  const ok = result.success && result.stdout.includes('OK');
   const after = await readObservation(checkId);
+  const ok = isOriginalObservation(checkId, after, storedOriginal);
 
   if (ok) {
     const store = await readStore();
@@ -567,7 +629,10 @@ export async function revertSecurityFix(checkId: string): Promise<SecurityFixOut
     status: ok ? 'reverted' : 'failed',
     message: ok
       ? `Reverted to the previous value: ${formatOriginal(checkId, storedOriginal) ?? storedOriginal}.`
-      : `The revert was not confirmed: ${result.stderr || 'the command did not report OK.'}`,
+      : `The revert was not confirmed: ${
+          result.stderr ||
+          (result.success ? 'the re-read value had not changed.' : 'the command did not report OK.')
+        }`,
     before: formatObservation(before),
     after: formatObservation(after),
   };

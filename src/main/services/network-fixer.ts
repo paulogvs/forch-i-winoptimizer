@@ -1,4 +1,4 @@
-import { runPowerShell } from './powershell';
+import { parsePowerShellJson, runPowerShell } from './powershell';
 import type { NetworkFixResult, NetworkFixReport } from '@shared/types';
 
 interface FixStep {
@@ -6,6 +6,36 @@ interface FixStep {
   name: string;
   description: string;
   command: string;
+  /** Optional post-condition: proves the step's effect really happened. */
+  verify?: () => Promise<boolean>;
+}
+
+const LANMAN_PARAMS = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters';
+
+/** True when SMBv1 is enabled AND the workstation service is running. */
+async function verifySmb1Enabled(): Promise<boolean> {
+  const result = await runPowerShell(`
+    $enabled = $false;
+    try {
+      $c = Get-SmbServerConfiguration -ErrorAction Stop;
+      $enabled = [bool]$c.EnableSMB1Protocol;
+    } catch {
+      $v = (Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters' -Name 'SMB1' -ErrorAction SilentlyContinue).SMB1;
+      $enabled = ($null -ne $v) -and ([int]$v -eq 1);
+    }
+    $svc = Get-Service -Name LanmanWorkstation -ErrorAction SilentlyContinue;
+    if ($enabled -and $svc -and $svc.Status.ToString() -eq 'Running') { Write-Output 'OK' } else { Write-Output 'FAILED' }
+  `);
+  return result.success && result.stdout.includes('OK');
+}
+
+/** True when at least one network adapter is up after a reset. */
+async function verifyAdapterUp(): Promise<boolean> {
+  const result = await runPowerShell(`
+    $up = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' });
+    if ($up.Count -gt 0) { Write-Output 'OK' } else { Write-Output 'FAILED' }
+  `);
+  return result.success && result.stdout.includes('OK');
 }
 
 const FIX_STEPS: FixStep[] = [
@@ -50,25 +80,37 @@ const FIX_STEPS: FixStep[] = [
     name: 'Fix SMBv1 / Error 0x00000709',
     description: 'Enables SMBv1 and fixes LanmanWorkstation for printer sharing',
     command: `
-      Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction SilentlyContinue;
-      Set-Service -Name LanmanWorkstation -StartupType Automatic -ErrorAction SilentlyContinue;
-      Start-Service -Name LanmanWorkstation -ErrorAction SilentlyContinue;
-      Write-Output "SMB1_FIX_COMPLETE"
+      $ErrorActionPreference = 'Stop';
+      try {
+        Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction Stop | Out-Null;
+        Set-Service -Name LanmanWorkstation -StartupType Automatic -ErrorAction Stop;
+        Start-Service -Name LanmanWorkstation -ErrorAction Stop;
+        Write-Output "SMB1_FIX_COMPLETE"
+      } catch {
+        Write-Output ("FAILED: " + $_.Exception.Message)
+      }
     `,
+    verify: verifySmb1Enabled,
   },
   {
     id: 'reset-network-adapters',
     name: 'Reset Network Adapters',
     description: 'Disables and re-enables all network adapters',
     command: `
-      $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' };
-      foreach ($adapter in $adapters) {
-        Disable-NetAdapter -Name $adapter.Name -Confirm:$false -ErrorAction SilentlyContinue;
-        Start-Sleep -Seconds 2;
-        Enable-NetAdapter -Name $adapter.Name -Confirm:$false -ErrorAction SilentlyContinue;
-      };
-      Write-Output "ADAPTERS_RESET"
+      $ErrorActionPreference = 'Stop';
+      try {
+        $adapters = @(Get-NetAdapter -ErrorAction Stop | Where-Object { $_.Status -eq 'Up' });
+        foreach ($adapter in $adapters) {
+          Disable-NetAdapter -Name $adapter.Name -Confirm:$false -ErrorAction Stop;
+          Start-Sleep -Seconds 2;
+          Enable-NetAdapter -Name $adapter.Name -Confirm:$false -ErrorAction Stop;
+        };
+        Write-Output "ADAPTERS_RESET"
+      } catch {
+        Write-Output ("FAILED: " + $_.Exception.Message)
+      }
     `,
+    verify: verifyAdapterUp,
   },
 ];
 
@@ -78,14 +120,22 @@ export async function runNetworkFix(): Promise<NetworkFixReport> {
   for (const step of FIX_STEPS) {
     const startTime = Date.now();
     const result = await runPowerShell(step.command);
+    const commandFailed = !result.success || /FAILED/i.test(result.stdout);
+
+    // A clean exit is not enough: when the step declares a post-condition we
+    // re-read the machine to prove the effect really happened.
+    const verified = commandFailed ? false : step.verify ? await step.verify() : true;
     const duration = Date.now() - startTime;
 
     fixes.push({
       id: step.id,
       name: step.name,
       description: step.description,
-      status: result.success ? 'success' : 'failed',
-      output: result.stdout || result.stderr,
+      status: verified ? 'success' : 'failed',
+      output:
+        result.stdout.trim() ||
+        result.stderr.trim() ||
+        (verified ? '' : 'post-condition was not met'),
       duration,
     });
   }
@@ -141,34 +191,39 @@ export async function fixError0x00000709(): Promise<{
   success: boolean;
   message: string;
 }> {
+  // Every write uses -ErrorAction Stop, and the verdict is derived from the
+  // state READ BACK — a non-terminating failure can no longer print SUCCESS.
   const result = await runPowerShell(`
+    $ErrorActionPreference = 'Stop';
+    $regPath = '${LANMAN_PARAMS}';
+    $err = '';
     try {
-      # Enable SMB1
-      Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction SilentlyContinue;
-
-      # Fix LanmanWorkstation service
-      Set-Service -Name LanmanWorkstation -StartupType Automatic -ErrorAction SilentlyContinue;
-      Start-Service -Name LanmanWorkstation -ErrorAction SilentlyContinue;
-
-      # Fix registry for printer sharing
-      $regPath = "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters";
-      if (!(Test-Path $regPath)) {
-        New-Item -Path $regPath -Force | Out-Null;
-      }
-      Set-ItemProperty -Path $regPath -Name "AllowInsecureGuestAuth" -Value 1 -Type DWord -ErrorAction SilentlyContinue;
-      Set-ItemProperty -Path $regPath -Name "RequireSecuritySignature" -Value 0 -Type DWord -ErrorAction SilentlyContinue;
-
-      Write-Output "SUCCESS"
-    } catch {
-      Write-Output "FAILED: $_"
-    }
+      Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction Stop | Out-Null;
+      Set-Service -Name LanmanWorkstation -StartupType Automatic -ErrorAction Stop;
+      Start-Service -Name LanmanWorkstation -ErrorAction Stop;
+      if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+      Set-ItemProperty -Path $regPath -Name 'AllowInsecureGuestAuth' -Value 1 -Type DWord -ErrorAction Stop;
+      Set-ItemProperty -Path $regPath -Name 'RequireSecuritySignature' -Value 0 -Type DWord -ErrorAction Stop;
+    } catch { $err = $_.Exception.Message }
+    $svc = Get-Service -Name LanmanWorkstation -ErrorAction SilentlyContinue;
+    $guest = (Get-ItemProperty -Path $regPath -Name 'AllowInsecureGuestAuth' -ErrorAction SilentlyContinue).AllowInsecureGuestAuth;
+    $sig = (Get-ItemProperty -Path $regPath -Name 'RequireSecuritySignature' -ErrorAction SilentlyContinue).RequireSecuritySignature;
+    $serviceOk = ($svc -and $svc.Status.ToString() -eq 'Running');
+    $verified = ($err -eq '') -and $serviceOk -and ([int]$guest -eq 1) -and ([int]$sig -eq 0);
+    @{ verified = $verified; error = $err; serviceRunning = $serviceOk } | ConvertTo-Json -Compress
   `);
 
+  const payload = result.success
+    ? parsePowerShellJson<{ verified?: boolean; error?: string }>(result.stdout)
+    : null;
+  const verified = payload?.verified === true;
+
   return {
-    success: result.success && result.stdout.includes('SUCCESS'),
-    message:
-      result.success && result.stdout.includes('SUCCESS')
-        ? 'Error 0x00000709 fixed. SMB1 enabled and LanmanWorkstation configured.'
-        : `Failed to fix error 0x00000709: ${result.stderr}`,
+    success: verified,
+    message: verified
+      ? 'Error 0x00000709 fixed. SMB1 enabled and LanmanWorkstation configured.'
+      : `Failed to fix error 0x00000709: ${
+          payload?.error || result.stderr || 'the change was not confirmed'
+        }`,
   };
 }

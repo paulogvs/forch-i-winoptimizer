@@ -48,6 +48,11 @@ function toNumber(value: number | string | null | undefined): number | null {
   return null;
 }
 
+/** Escape a value for a PowerShell single-quoted string literal. */
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 /**
  * Enumerate real startup entries and classify their impact from observable
  * signals only (see `startup-impact.ts`). There is NO product/vendor/AV list:
@@ -242,37 +247,50 @@ export async function toggleStartupApp(
       return { success: false, message: 'Startup app not found' };
     }
 
-    if (enabled) {
-      // Re-enable by adding back to registry
-      const result = await runPowerShell(`
-        $regPath = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run';
-        Set-ItemProperty -Path $regPath -Name "${app.name}" -Value "${app.path.replace(/"/g, '\\"')}" -ErrorAction Stop;
-        Write-Output "OK"
-      `);
-      return {
-        success: result.success,
-        message: result.success
-          ? `Startup app ${app.name} enabled`
-          : 'Failed to enable startup app',
-      };
-    } else {
-      // Disable by removing from registry
-      const result = await runPowerShell(`
-        $regPath = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run';
-        Remove-ItemProperty -Path $regPath -Name "${app.name}" -ErrorAction Stop;
-        Write-Output "OK"
-      `);
-      return {
-        success: result.success,
-        message: result.success
-          ? `Startup app ${app.name} disabled`
-          : 'Failed to disable startup app',
-      };
-    }
-  } catch {
+    const name = psQuote(app.name);
+    const command = psQuote(app.path);
+    const runKey = `'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run'`;
+
+    // Apply AND re-read; the verdict comes from the registry, not from a bare
+    // command exit code. Disabling a machine-wide (HKLM) entry is reported as a
+    // failure instead of a silent no-op.
+    const script = enabled
+      ? `
+        $ErrorActionPreference = 'Stop';
+        $key = ${runKey};
+        if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+        Set-ItemProperty -Path $key -Name ${name} -Value ${command} -Force -ErrorAction Stop;
+        $v = (Get-ItemProperty -Path $key -Name ${name} -ErrorAction Stop).${name};
+        if ("$v" -eq "$(${command})") { Write-Output 'OK' } else { Write-Output 'FAILED: value mismatch' }
+      `
+      : `
+        $ErrorActionPreference = 'Stop';
+        $hkcu = ${runKey};
+        $hklm = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run';
+        Remove-ItemProperty -Path $hkcu -Name ${name} -ErrorAction SilentlyContinue;
+        $stillHkcu = $null -ne (Get-ItemProperty -Path $hkcu -Name ${name} -ErrorAction SilentlyContinue);
+        $stillHklm = $null -ne (Get-ItemProperty -Path $hklm -Name ${name} -ErrorAction SilentlyContinue);
+        if ($stillHkcu) { Write-Output 'FAILED: HKCU value still present' }
+        elseif ($stillHklm) { Write-Output 'FAILED: entry is machine-wide (HKLM)' }
+        else { Write-Output 'OK' }
+      `;
+
+    const result = await runPowerShell(script);
+    const output = result.stdout.trim();
+    const success = result.success && output === 'OK';
+
+    return {
+      success,
+      message: success
+        ? `Startup app ${app.name} ${enabled ? 'enabled' : 'disabled'}`
+        : `Failed to ${enabled ? 'enable' : 'disable'} startup app: ${
+            output || result.stderr || 'unknown error'
+          }`,
+    };
+  } catch (error) {
     return {
       success: false,
-      message: 'Failed to toggle startup app',
+      message: `Failed to toggle startup app: ${String(error)}`,
     };
   }
 }

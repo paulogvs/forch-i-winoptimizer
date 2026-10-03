@@ -1,6 +1,7 @@
 import { shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import { runPowerShell } from './powershell';
 import { getWindowsTool, type WindowsTool } from '@shared/windows-tools';
 
 /** Absolute path to the tool inside `%SystemRoot%\System32`. */
@@ -36,7 +37,25 @@ export async function launchWindowsTool(id: string): Promise<ToolLaunchResult> {
   try {
     const error = await shell.openPath(exePath);
     if (error) return { success: false, message: error };
-    return { success: true, message: `Opened ${tool.name}.` };
+
+    // openPath resolves with '' even when the request was only queued. Confirm a
+    // process for the tool is actually running before claiming success.
+    const processName = path.basename(exePath, '.exe');
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      const probe = await runPowerShell(
+        `if (Get-Process -Name '${processName}' -ErrorAction SilentlyContinue) { Write-Output 'RUNNING' } else { Write-Output 'NO' }`
+      );
+      if (probe.success && probe.stdout.includes('RUNNING')) {
+        return { success: true, message: `Opened ${tool.name}.` };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    return {
+      success: false,
+      message: `The OS did not report an error, but ${tool.name} did not appear to start.`,
+    };
   } catch (error) {
     return { success: false, message: `Failed to open ${tool.name}: ${String(error)}` };
   }

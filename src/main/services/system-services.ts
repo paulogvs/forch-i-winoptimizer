@@ -1,5 +1,10 @@
 import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
 
+/** Escape a value for a PowerShell single-quoted string literal. */
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 export interface SystemService {
   id: string;
   name: string;
@@ -191,30 +196,41 @@ export async function toggleService(
   success: boolean;
   message: string;
 }> {
+  const name = psQuote(serviceName);
+  const desired = enabled ? 'Running' : 'Stopped';
   try {
-    if (enabled) {
-      const result = await runPowerShell(`Start-Service -Name "${serviceName}" -ErrorAction Stop`);
-      return {
-        success: result.success,
-        message: result.success
-          ? `Service ${serviceName} started`
-          : `Failed to start service: ${result.stderr}`,
-      };
-    } else {
-      const result = await runPowerShell(
-        `Stop-Service -Name "${serviceName}" -Force -ErrorAction Stop`
-      );
-      return {
-        success: result.success,
-        message: result.success
-          ? `Service ${serviceName} stopped`
-          : `Failed to stop service: ${result.stderr}`,
-      };
-    }
-  } catch {
+    // Apply, then RE-READ the service status. The command's exit code alone used
+    // to be treated as success even when the service did not change state.
+    const result = await runPowerShell(`
+      $ErrorActionPreference = 'Stop';
+      $name = ${name};
+      $err = '';
+      try {
+        if (${enabled ? '$true' : '$false'}) { Start-Service -Name $name -ErrorAction Stop }
+        else { Stop-Service -Name $name -Force -ErrorAction Stop }
+      } catch { $err = $_.Exception.Message }
+      if ($err -ne '') { Write-Output ("FAILED: " + $err) }
+      else {
+        $svc = Get-Service -Name $name -ErrorAction Stop;
+        if ($svc.Status.ToString() -eq '${desired}') { Write-Output 'OK' }
+        else { Write-Output ("FAILED: status is " + $svc.Status.ToString()) }
+      }
+    `);
+
+    const output = result.stdout.trim();
+    const success = result.success && output === 'OK';
+    return {
+      success,
+      message: success
+        ? `Service ${serviceName} ${enabled ? 'started' : 'stopped'}`
+        : `Failed to ${enabled ? 'start' : 'stop'} service ${serviceName}: ${
+            output || result.stderr || 'unknown error'
+          }`,
+    };
+  } catch (error) {
     return {
       success: false,
-      message: `Failed to toggle service ${serviceName}`,
+      message: `Failed to toggle service ${serviceName}: ${String(error)}`,
     };
   }
 }
@@ -226,20 +242,37 @@ export async function setServiceStartType(
   success: boolean;
   message: string;
 }> {
+  const name = psQuote(serviceName);
+  const desired = startType.charAt(0).toUpperCase() + startType.slice(1);
   try {
-    const result = await runPowerShell(
-      `Set-Service -Name "${serviceName}" -StartupType ${startType} -ErrorAction Stop`
-    );
+    // Apply, then RE-READ the configured start type.
+    const result = await runPowerShell(`
+      $ErrorActionPreference = 'Stop';
+      $name = ${name};
+      $err = '';
+      try { Set-Service -Name $name -StartupType ${desired} -ErrorAction Stop } catch { $err = $_.Exception.Message }
+      if ($err -ne '') { Write-Output ("FAILED: " + $err) }
+      else {
+        $svc = Get-Service -Name $name -ErrorAction Stop;
+        if ($svc.StartType.ToString() -eq '${desired}') { Write-Output 'OK' }
+        else { Write-Output ("FAILED: start type is " + $svc.StartType.ToString()) }
+      }
+    `);
+
+    const output = result.stdout.trim();
+    const success = result.success && output === 'OK';
     return {
-      success: result.success,
-      message: result.success
+      success,
+      message: success
         ? `Service ${serviceName} set to ${startType}`
-        : `Failed to set service start type: ${result.stderr}`,
+        : `Failed to set service start type for ${serviceName}: ${
+            output || result.stderr || 'unknown error'
+          }`,
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
-      message: `Failed to set service start type for ${serviceName}`,
+      message: `Failed to set service start type for ${serviceName}: ${String(error)}`,
     };
   }
 }

@@ -7,6 +7,7 @@ import {
   getSecurityActions,
   benchmarkDNS,
   setDNS,
+  isValidIPv4,
 } from './security-privacy';
 
 vi.mock('./powershell', () => ({
@@ -99,17 +100,33 @@ describe('Security & Privacy', () => {
   });
 
   describe('applyPrivacySetting', () => {
-    it('should apply privacy setting successfully', async () => {
+    it('should apply privacy setting when the value is read back', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: JSON.stringify({ status: 'SUCCESS', before: 1, after: 0 }),
         stderr: '',
         exitCode: 0,
       });
 
       const result = await applyPrivacySetting('telemetry-level');
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Successfully');
+      expect(result.message).toContain('Applied');
+      expect(result.after).toBe(0);
+    });
+
+    // Regression guard: the old script printed SUCCESS unconditionally because
+    // a non-terminating CimException was never caught.
+    it('reports a real failure when the read-back does not match the target', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify({ status: 'VERIFY_FAILED', before: 1, after: 1 }),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await applyPrivacySetting('telemetry-level');
+      expect(result.success).toBe(false);
+      expect(result.after).toBe(1);
     });
 
     it('should handle unknown setting', async () => {
@@ -120,10 +137,10 @@ describe('Security & Privacy', () => {
 
     it('should handle apply failure', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
-        success: false,
-        stdout: '',
-        stderr: 'Access denied',
-        exitCode: 1,
+        success: true,
+        stdout: JSON.stringify({ status: 'FAILED', error: 'Access denied' }),
+        stderr: '',
+        exitCode: 0,
       });
 
       const result = await applyPrivacySetting('telemetry-level');
@@ -135,7 +152,7 @@ describe('Security & Privacy', () => {
     it('should apply all privacy settings', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: JSON.stringify({ status: 'SUCCESS', before: 1, after: 0 }),
         stderr: '',
         exitCode: 0,
       });
@@ -231,29 +248,101 @@ describe('Security & Privacy', () => {
   });
 
   describe('setDNS', () => {
-    it('should set DNS successfully', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
+    const adapterPayload = JSON.stringify({
+      Name: 'Ethernet',
+      InterfaceDescription: 'Realtek PCIe GbE',
+      InterfaceIndex: 3,
+      Status: 'Up',
+      HasGateway: true,
+    });
+
+    it('resolves the correct adapter, applies DNS and confirms it by re-reading', async () => {
+      vi.mocked(runPowerShell)
+        .mockResolvedValueOnce({ success: true, stdout: adapterPayload, stderr: '', exitCode: 0 })
+        .mockResolvedValueOnce({
+          success: true,
+          stdout: JSON.stringify({
+            status: 'SUCCESS',
+            before: ['192.168.1.1'],
+            after: ['8.8.8.8', '8.8.4.4'],
+          }),
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const result = await setDNS('8.8.8.8', '8.8.4.4');
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Ethernet');
+      expect(result.after).toEqual(['8.8.8.8', '8.8.4.4']);
+
+      const applyScript = vi.mocked(runPowerShell).mock.calls[1]?.[0] ?? '';
+      expect(applyScript).toContain('$ifIndex = 3');
+      expect(applyScript).not.toContain('Select-Object -First 1');
+    });
+
+    // Regression guard: the old script printed SUCCESS unconditionally even
+    // when the non-terminating CimException changed nothing.
+    it('reports failure (after reverting) when the change cannot be confirmed', async () => {
+      vi.mocked(runPowerShell)
+        .mockResolvedValueOnce({ success: true, stdout: adapterPayload, stderr: '', exitCode: 0 })
+        .mockResolvedValueOnce({
+          success: true,
+          stdout: JSON.stringify({
+            status: 'VERIFY_FAILED',
+            before: ['192.168.1.1'],
+            after: ['192.168.1.1'],
+          }),
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const result = await setDNS('8.8.8.8', '8.8.4.4');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('not confirmed');
+    });
+
+    it('reports a real failure when the apply throws', async () => {
+      vi.mocked(runPowerShell)
+        .mockResolvedValueOnce({ success: true, stdout: adapterPayload, stderr: '', exitCode: 0 })
+        .mockResolvedValueOnce({
+          success: true,
+          stdout: JSON.stringify({ status: 'FAILED', error: 'Access is denied' }),
+          stderr: '',
+          exitCode: 0,
+        });
+
+      const result = await setDNS('8.8.8.8', '8.8.4.4');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Access is denied');
+    });
+
+    it('fails fast when no active adapter can be resolved', async () => {
+      vi.mocked(runPowerShell).mockResolvedValueOnce({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: '[]',
         stderr: '',
         exitCode: 0,
       });
 
       const result = await setDNS('8.8.8.8', '8.8.4.4');
-      expect(result.success).toBe(true);
-      expect(result.message).toContain('8.8.8.8');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('No active network adapter');
+      expect(vi.mocked(runPowerShell)).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle set DNS failure', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
-        success: false,
-        stdout: '',
-        stderr: 'No adapter found',
-        exitCode: 1,
-      });
-
-      const result = await setDNS('8.8.8.8', '8.8.4.4');
+    it('refuses invalid addresses before touching PowerShell', async () => {
+      const result = await setDNS('not-an-ip', '8.8.4.4');
       expect(result.success).toBe(false);
+      expect(vi.mocked(runPowerShell)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('isValidIPv4', () => {
+    it('accepts valid addresses and rejects injection attempts', () => {
+      expect(isValidIPv4('8.8.8.8')).toBe(true);
+      expect(isValidIPv4('255.255.255.255')).toBe(true);
+      expect(isValidIPv4('999.1.1.1')).toBe(false);
+      expect(isValidIPv4("1.1.1.1'; Remove-Item C:\\ -Recurse")).toBe(false);
     });
   });
 });

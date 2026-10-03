@@ -362,7 +362,9 @@ export interface FreeMemoryResult {
   success: boolean;
   /** MB trimmed from this app's working set (max(0, before - after)). */
   freedMb: number;
+  /** Working set of the app's processes BEFORE the trim, measured in the OS. */
   rssBeforeMb: number;
+  /** Working set of the app's processes AFTER the trim, re-read from the OS. */
   rssAfterMb: number;
   error?: string;
 }

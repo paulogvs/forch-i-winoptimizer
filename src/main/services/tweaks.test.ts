@@ -19,6 +19,9 @@ import type { TweakRunner } from './tweaks';
 let stateFile = '';
 
 function okOk(script: string) {
+  if (script.includes('# FORCHI_VERIFY')) {
+    return { success: true, stdout: '{"verified":true}', stderr: '', exitCode: 0 };
+  }
   if (script.includes('ConvertTo-Json')) {
     return { success: true, stdout: '{"r0":null}', stderr: '', exitCode: 0 };
   }
@@ -72,8 +75,8 @@ describe('safe tweaks', () => {
   it('applies, persists and restores a tweak', async () => {
     const applied = await applyTweak('show-file-extensions');
     expect(applied.success).toBe(true);
-    // capture read + apply write
-    expect(runner).toHaveBeenCalledTimes(2);
+    // capture read + apply write + verify read
+    expect(runner).toHaveBeenCalledTimes(3);
     expect(fs.existsSync(stateFile)).toBe(true);
 
     const afterApply = await getTweaks();
@@ -109,6 +112,32 @@ describe('safe tweaks', () => {
     const results = await applyTweaks(['show-file-extensions', 'hide-recent-files']);
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.success)).toBe(true);
+  });
+
+  // Regression guard: the script used to print OK even when the operation was
+  // swallowed, so the tweak was marked applied without any change landing.
+  it('does not report success when the read-back does not confirm the change', async () => {
+    runner.mockImplementation(async (script: string) => {
+      if (script.includes('# FORCHI_VERIFY')) {
+        return {
+          success: true,
+          stdout: '{"verified":false,"reason":"registry value X did not change"}',
+          stderr: '',
+          exitCode: 0,
+        };
+      }
+      if (script.includes('ConvertTo-Json')) {
+        return { success: true, stdout: '{"r0":null}', stderr: '', exitCode: 0 };
+      }
+      return { success: true, stdout: 'OK', stderr: '', exitCode: 0 };
+    });
+
+    const result = await applyTweak('show-file-extensions');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/not confirmed/i);
+    const list = await getTweaks();
+    expect(list.find((t) => t.id === 'show-file-extensions')?.applied).toBe(false);
   });
 
   // ===== P1.2 (+10 safe tweaks, requiresBuild gate) =====

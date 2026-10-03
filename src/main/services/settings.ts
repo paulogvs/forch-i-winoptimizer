@@ -69,14 +69,20 @@ export function loadPersistedSettings(): AppSettings {
   return cached;
 }
 
-function persist(settings: AppSettings): void {
+/** Persist and VERIFY: returns false when the file could not be written or the
+ * read-back does not match what we intended to store. */
+function persist(settings: AppSettings): boolean {
   cached = settings;
   try {
     const dir = settingsDir();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2), 'utf8');
+    const file = settingsFile();
+    fs.writeFileSync(file, JSON.stringify(settings, null, 2), 'utf8');
+    const readBack = JSON.parse(fs.readFileSync(file, 'utf8')) as AppSettings;
+    return JSON.stringify(readBack) === JSON.stringify(settings);
   } catch {
-    // Persistence failure must never crash the app; in-memory state stays valid.
+    // Persistence failure must never crash the app; report it honestly instead.
+    return false;
   }
 }
 
@@ -176,10 +182,13 @@ export function updateSettings(patch: Partial<AppSettings>): UpdateSettingsResul
     next.startWithWindows = patch.startWithWindows;
   }
 
-  persist(next);
+  const persisted = persist(next);
 
   // `getSettings()` re-reads the OS login-item state.
   const payload = getSettings();
+  if (!persisted) {
+    return { ...payload, ok: false, message: 'Settings could not be saved to disk.' };
+  }
   return { ...payload, ok, message };
 }
 

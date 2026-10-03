@@ -307,10 +307,28 @@ export async function uninstallApp(
       };
     }
 
-    const result = await runPowerShell(target.command);
+    // Start-Process -PassThru returns the process; its exit code is the real
+    // verdict. 3010 is MSI's "success, reboot required".
+    const result = await runPowerShell(`
+      $ErrorActionPreference = 'Stop';
+      try {
+        $p = ${target.command};
+        $p.WaitForExit();
+        $code = $p.ExitCode;
+        if ($code -eq 0 -or $code -eq 3010) { Write-Output "UNINSTALL_OK:$code" }
+        else { Write-Output "UNINSTALL_FAILED:$code" }
+      } catch {
+        Write-Output ("FAILED: " + $_.Exception.Message)
+      }
+    `);
+
+    const output = result.stdout.trim();
+    const success = result.success && output.startsWith('UNINSTALL_OK');
     return {
-      success: result.success,
-      message: result.success ? 'App uninstalled successfully' : 'Failed to uninstall app',
+      success,
+      message: success
+        ? 'App uninstalled successfully'
+        : `Failed to uninstall app: ${output || result.stderr || 'unknown error'}`,
     };
   } catch {
     return {

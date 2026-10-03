@@ -183,7 +183,7 @@ describe('junk-scanner', () => {
       expect(result.errors).toEqual([]);
     });
 
-    it('should handle file not found', async () => {
+    it('does not count a missing file as deleted', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
         stdout: 'NOT_FOUND',
@@ -194,8 +194,25 @@ describe('junk-scanner', () => {
       const result = await deleteJunkFiles(['C:\\Windows\\Temp\\nonexistent.tmp']);
 
       expect(result.success).toBe(true);
-      expect(result.deleted).toBe(1);
+      expect(result.deleted).toBe(0);
       expect(result.failed).toBe(0);
+    });
+
+    // Regression guard: a Remove-Item that fails silently used to be reported
+    // as "DELETED" because the script printed it unconditionally.
+    it('reports a failure when the path is still present after removal', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'FAILED: still present after removal',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await deleteJunkFiles(['C:\\Windows\\Temp\\locked.tmp']);
+
+      expect(result.success).toBe(false);
+      expect(result.deleted).toBe(0);
+      expect(result.failed).toBe(1);
     });
 
     it('should handle deletion failure', async () => {

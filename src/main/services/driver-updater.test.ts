@@ -124,10 +124,10 @@ describe('Driver Updater', () => {
   });
 
   describe('createRestorePoint', () => {
-    it('should create restore point successfully', async () => {
+    it('should create restore point successfully when a checkpoint is re-read', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: JSON.stringify({ verified: true, error: '', sequence: 12 }),
         stderr: '',
         exitCode: 0,
       });
@@ -135,6 +135,21 @@ describe('Driver Updater', () => {
       const result = await createRestorePoint('Test restore point');
       expect(result.success).toBe(true);
       expect(result.message).toContain('successfully');
+    });
+
+    // Regression guard: Checkpoint-Computer failed non-terminatingly and the
+    // script still printed SUCCESS.
+    it('reports failure when no restore point is re-read', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify({ verified: false, error: 'System Restore is disabled' }),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await createRestorePoint('Test restore point');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('disabled');
     });
 
     it('should handle restore point failure', async () => {

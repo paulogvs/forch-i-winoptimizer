@@ -10,6 +10,7 @@ vi.mock('./powershell', () => ({
       return null;
     }
   }),
+  toArray: (value: unknown) => (value == null ? [] : Array.isArray(value) ? value : [value]),
 }));
 
 import { runPowerShell } from './powershell';

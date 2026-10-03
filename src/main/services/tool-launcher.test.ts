@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const openPath = vi.hoisted(() => vi.fn());
 const existsSync = vi.hoisted(() => vi.fn());
+const runPowerShell = vi.hoisted(() => vi.fn());
 
 vi.mock('electron', () => ({
   shell: { openPath },
@@ -9,6 +10,10 @@ vi.mock('electron', () => ({
 
 vi.mock('fs', () => ({
   existsSync,
+}));
+
+vi.mock('./powershell', () => ({
+  runPowerShell,
 }));
 
 import { launchWindowsTool, resolveToolPath } from './tool-launcher';
@@ -19,6 +24,12 @@ describe('main/services/tool-launcher', () => {
     vi.clearAllMocks();
     existsSync.mockReturnValue(true);
     openPath.mockResolvedValue('');
+    runPowerShell.mockResolvedValue({
+      success: true,
+      stdout: 'RUNNING',
+      stderr: '',
+      exitCode: 0,
+    });
   });
 
   it('resolves a tool inside System32', () => {
@@ -48,6 +59,15 @@ describe('main/services/tool-launcher', () => {
     expect(openPath).toHaveBeenCalledTimes(1);
     expect(String(openPath.mock.calls[0]?.[0])).toContain('taskmgr.exe');
   });
+
+  // Regression guard: openPath resolves with '' even when the tool never starts.
+  it('reports failure when no process appears after opening', async () => {
+    runPowerShell.mockResolvedValue({ success: true, stdout: 'NO', stderr: '', exitCode: 0 });
+
+    const result = await launchWindowsTool('task-manager');
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/did not appear to start/);
+  }, 15000);
 
   it('surfaces an OS error from openPath', async () => {
     openPath.mockResolvedValue('No application is associated with the file');

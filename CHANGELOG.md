@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-02
+
+Honestidad de resultado en todos los canales mutantes: **ninguna operación
+vuelve a reportar éxito sin haber releído el estado real después de actuar**.
+Se corrige el bug confirmado de `dns:set` (elegía el adaptador equivocado y
+reportaba `SUCCESS` ante un fallo real) y se auditan los 30 canales mutantes.
+
+### Fixed
+
+- **`dns:set` ya no miente** (`src/main/services/security-privacy.ts` +
+  `network-adapter.ts`): antes tomaba el **primer adaptador `Up`** — en esta
+  máquina **Tailscale (idx 24)**, no la Ethernet (idx 3) — y una `CimException`
+  **no terminante** hacía que el script imprimiera `SUCCESS` sin cambiar nada.
+  Ahora resuelve el adaptador por **ruta por defecto (`0.0.0.0/0`) prefiriendo
+  el físico**, captura el DNS original, aplica, **relee y compara**, y si no
+  coincide **revierte y reporta fallo real** con `before`/`after` observados.
+  Validado en runtime: contra la máquina real devuelve `success:false` con el
+  error CIM real y `before=after=["8.8.8.8","8.8.4.4"]` (la sesión no está
+  elevada) — el código viejo lo habría reportado como éxito.
+- **Resolvedor único de adaptador activo** (`network-adapter.ts`): reutilizado
+  por DNS y por el benchmark (`benchmark.ts:363` ya no mide el NIC equivocado).
+- **`memory:free` honesto** (`memory-free.ts`): el script mide el working set
+  **antes/después en el SO** y sólo reporta éxito si **al menos un proceso fue
+  recortado**; el fallback GC (que no recorta nada) ya no se acepta como éxito.
+  Validado: 252 MB → 14 MB (working set OS), `freedMb:347` medido por el script.
+- **Canales con "éxito falso" corregidos** (todos con test de caso de fallo):
+  - `privacy:apply-setting` — relee y compara; fallo real si el valor no cambia.
+  - `security:run-action` — errores terminantes; marker `FAILED` propagado.
+  - `settings:update` — `persist()` verifica el read-back y reporta `ok:false`
+    si el fichero no se pudo escribir.
+  - `cleaner:delete` — `NOT_FOUND` ya no cuenta como borrado; `Remove-Item`
+    confirma que el path desapareció.
+  - `startup:toggle` — relee el Run key (HKCU/HKLM) para confirmar el cambio.
+  - `services:toggle` / `services:set-start-type` — releen estado y tipo de
+    arranque; `-ErrorAction Stop`; sin `SilentlyContinue` que oculte fallos.
+  - `tweaks:apply` / `tweaks:restore` — verificación post-cambio real por
+    operación (registro/servicio/tarea) antes de marcar como aplicado.
+  - `network:fix` / `network:fix-0x00000709` — post-condiciones reales
+    (SMBv1+LanmanWorkstation, adaptador arriba) y read-back del fix.
+  - `security:fix-apply` / `security:fix-revert` — el veredicto sale del
+    **re-read** (`isTargetObservation`/`isOriginalObservation`), no del marker.
+  - `drift:reapply` — relee el valor esperado antes de marcar auto-fixed.
+  - `bundles:install/uninstall` — winget ya no acepta `"already installed"`
+    como éxito.
+  - `drivers:create-restore-point` — relee el restore point (`-ErrorAction Stop`).
+  - `apps:uninstall` — usa el **exit code** del uninstaller (0/3010).
+  - `tools:launch` — confirma que el proceso arrancó antes de reportar éxito.
+- **8 checks de seguridad admin-gated** siguen reportando `requires-admin` con
+  evidencia cuando no hay elevación (nunca `fail`/`unknown` inventados).
+
+### Added
+
+- **`network-adapter.ts`**: resolvedor de adaptador activo (gateway por defecto,
+  físico preferido, exclusión de túneles/VPN/Hyper-V/WSL) + 8 tests.
+- **Tests nuevos de fallo** en `security-privacy`, `benchmark`, `memory-free`,
+  `junk-scanner`, `settings`, `tweaks`, `system-services`, `network-fixer`,
+  `security-fix`, `drift-guard`, `driver-updater`, `installed-apps`,
+  `tool-launcher` (521 → **547** unit tests).
+
 ## [0.9.0] - 2026-10-02
 
 El **catálogo de seguridad crece a 22 checks** con **6 controles de hardening

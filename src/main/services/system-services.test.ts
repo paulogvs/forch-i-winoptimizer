@@ -176,10 +176,10 @@ describe('system-services', () => {
   });
 
   describe('toggleService', () => {
-    it('should start service successfully', async () => {
+    it('should start service successfully when status is re-read as Running', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '',
+        stdout: 'OK',
         stderr: '',
         exitCode: 0,
       });
@@ -190,10 +190,10 @@ describe('system-services', () => {
       expect(result.message).toContain('started');
     });
 
-    it('should stop service successfully', async () => {
+    it('should stop service successfully when status is re-read as Stopped', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '',
+        stdout: 'OK',
         stderr: '',
         exitCode: 0,
       });
@@ -202,6 +202,22 @@ describe('system-services', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('stopped');
+    });
+
+    // Regression guard: a service that reported a clean exit but did not change
+    // state used to be reported as a success.
+    it('reports failure when the re-read status does not match', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'FAILED: status is Stopped',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await toggleService('WSearch', true);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Stopped');
     });
 
     it('should handle start failure', async () => {
@@ -241,10 +257,10 @@ describe('system-services', () => {
   });
 
   describe('setServiceStartType', () => {
-    it('should set start type to automatic', async () => {
+    it('should set start type to automatic when re-read', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '',
+        stdout: 'OK',
         stderr: '',
         exitCode: 0,
       });
@@ -255,10 +271,10 @@ describe('system-services', () => {
       expect(result.message).toContain('automatic');
     });
 
-    it('should set start type to manual', async () => {
+    it('should set start type to manual when re-read', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '',
+        stdout: 'OK',
         stderr: '',
         exitCode: 0,
       });
@@ -269,10 +285,10 @@ describe('system-services', () => {
       expect(result.message).toContain('manual');
     });
 
-    it('should set start type to disabled', async () => {
+    it('should set start type to disabled when re-read', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '',
+        stdout: 'OK',
         stderr: '',
         exitCode: 0,
       });
@@ -281,6 +297,20 @@ describe('system-services', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('disabled');
+    });
+
+    it('reports failure when the re-read start type does not match', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: 'FAILED: start type is Manual',
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await setServiceStartType('WSearch', 'disabled');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Manual');
     });
 
     it('should handle failure', async () => {

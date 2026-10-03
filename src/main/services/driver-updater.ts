@@ -167,22 +167,32 @@ export async function scanDrivers(reporter?: ScanProgressReporter): Promise<Driv
 export async function createRestorePoint(
   description: string
 ): Promise<{ success: boolean; message: string }> {
+  // Errors terminate; the newest restore point is re-read to prove the
+  // checkpoint really exists before reporting success.
   const result = await runPowerShell(`
+    $ErrorActionPreference = 'Stop';
+    $err = '';
     try {
-      Enable-ComputerRestore -Drive "C:\\";
-      Checkpoint-Computer -Description "${description}" -RestorePointType "MODIFY_SETTINGS";
-      Write-Output "SUCCESS"
-    } catch {
-      Write-Output "FAILED: $_"
-    }
+      Enable-ComputerRestore -Drive "C:\\" -ErrorAction Stop;
+      Checkpoint-Computer -Description "${description}" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop;
+    } catch { $err = $_.Exception.Message }
+    $rp = Get-ComputerRestorePoint -ErrorAction SilentlyContinue | Sort-Object -Property SequenceNumber -Descending | Select-Object -First 1;
+    $verified = ($err -eq '') -and ($null -ne $rp);
+    @{ verified = $verified; error = $err; sequence = $(if ($rp) { $rp.SequenceNumber } else { $null }) } | ConvertTo-Json -Compress
   `);
 
+  const payload = result.success
+    ? parsePowerShellJson<{ verified?: boolean; error?: string }>(result.stdout)
+    : null;
+  const verified = payload?.verified === true;
+
   return {
-    success: result.success && result.stdout.includes('SUCCESS'),
-    message:
-      result.success && result.stdout.includes('SUCCESS')
-        ? 'Restore point created successfully'
-        : `Failed to create restore point: ${result.stderr}`,
+    success: verified,
+    message: verified
+      ? 'Restore point created successfully'
+      : `Failed to create restore point: ${
+          payload?.error || result.stderr || 'the checkpoint was not confirmed'
+        }`,
   };
 }
 
@@ -234,8 +244,8 @@ export async function rollbackDriver(driverId: string): Promise<{
     try {
       $device = Get-CimInstance -ClassName Win32_PnPEntity -Filter "DeviceID='${driverId}'";
       if ($device) {
-        pnputil /restart-device "${driverId}";
-        Write-Output "SUCCESS"
+        pnputil /restart-device "${driverId}" | Out-Null;
+        if ($LASTEXITCODE -eq 0) { Write-Output "SUCCESS" } else { Write-Output "FAILED: pnputil exit code $LASTEXITCODE" }
       } else {
         Write-Output "DEVICE_NOT_FOUND"
       }
@@ -249,6 +259,6 @@ export async function rollbackDriver(driverId: string): Promise<{
     message:
       result.success && result.stdout.includes('SUCCESS')
         ? 'Device restarted successfully'
-        : `Failed to rollback driver: ${result.stderr}`,
+        : `Failed to rollback driver: ${result.stderr || result.stdout.trim() || 'unknown error'}`,
   };
 }

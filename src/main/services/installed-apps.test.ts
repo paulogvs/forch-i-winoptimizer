@@ -10,6 +10,14 @@ vi.mock('./powershell', () => ({
 
 import { runPowerShell, parsePowerShellJson } from './powershell';
 
+/** Success payload the uninstall script now emits (exit code 0 / 3010). */
+const uninstallOk = () => ({
+  success: true,
+  stdout: 'UNINSTALL_OK:0',
+  stderr: '',
+  exitCode: 0,
+});
+
 describe('installed-apps', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -135,13 +143,8 @@ describe('installed-apps', () => {
   });
 
   describe('uninstallApp', () => {
-    it('should uninstall MSI app', async () => {
-      vi.mocked(runPowerShell).mockResolvedValue({
-        success: true,
-        stdout: '',
-        stderr: '',
-        exitCode: 0,
-      });
+    it('should uninstall MSI app when the process exits 0', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue(uninstallOk());
 
       const result = await uninstallApp(
         'app-1',
@@ -152,13 +155,27 @@ describe('installed-apps', () => {
       expect(result.message).toContain('success');
     });
 
-    it('should uninstall regular app', async () => {
+    // Regression guard: the exit code was ignored, so a failed uninstall was
+    // reported as successful.
+    it('reports failure when the uninstaller exits non-zero', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: '',
+        stdout: 'UNINSTALL_FAILED:1603',
         stderr: '',
         exitCode: 0,
       });
+
+      const result = await uninstallApp(
+        'app-1',
+        'MsiExec.exe /x {12345678-1234-1234-1234-123456789012}'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('1603');
+    });
+
+    it('should uninstall regular app when the process exits 0', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue(uninstallOk());
 
       const result = await uninstallApp('app-1', 'C:\\Program Files\\App\\uninstall.exe');
 
@@ -241,6 +258,8 @@ describe('installed-apps', () => {
     });
 
     it('runs msiexec with only the validated product GUID', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue(uninstallOk());
+
       const result = await uninstallApp(
         'app-1',
         'MsiExec.exe /x {12345678-1234-1234-1234-123456789012}'
@@ -263,6 +282,8 @@ describe('installed-apps', () => {
     });
 
     it('strips trailing arguments and runs only the validated exe path', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue(uninstallOk());
+
       const result = await uninstallApp(
         'app-1',
         'C:\\Program Files\\App\\uninstall.exe /uninstall /S'

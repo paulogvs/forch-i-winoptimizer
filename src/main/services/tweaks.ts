@@ -137,7 +137,7 @@ function serviceLine(op: Extract<TweakOperation, { kind: 'service' }>): string {
   const lines: string[] = [];
   const svc = psString(op.serviceName);
   if (op.state === 'stopped') {
-    lines.push(`Stop-Service -Name ${svc} -Force -ErrorAction SilentlyContinue`);
+    lines.push(`Stop-Service -Name ${svc} -Force -ErrorAction Stop`);
     lines.push(`Set-Service -Name ${svc} -StartupType Disabled`);
   } else {
     if (op.startType) {
@@ -145,7 +145,7 @@ function serviceLine(op: Extract<TweakOperation, { kind: 'service' }>): string {
       lines.push(`Set-Service -Name ${svc} -StartupType ${type}`);
     }
     if (op.state === 'running') {
-      lines.push(`Start-Service -Name ${svc} -ErrorAction SilentlyContinue`);
+      lines.push(`Start-Service -Name ${svc} -ErrorAction Stop`);
     }
   }
   return lines.join('; ');
@@ -153,7 +153,7 @@ function serviceLine(op: Extract<TweakOperation, { kind: 'service' }>): string {
 
 function taskLine(op: Extract<TweakOperation, { kind: 'scheduled-task' }>): string {
   const cmd = op.disable ? 'Disable-ScheduledTask' : 'Enable-ScheduledTask';
-  return `${cmd} -TaskPath ${psString(op.taskPath)} -TaskName ${psString(op.taskName)} -ErrorAction SilentlyContinue | Out-Null`;
+  return `${cmd} -TaskPath ${psString(op.taskPath)} -TaskName ${psString(op.taskName)} -ErrorAction Stop | Out-Null`;
 }
 
 function operationLine(op: TweakOperation): string | null {
@@ -181,6 +181,95 @@ function buildScript(ops: TweakOperation[]): string | null {
     "; Write-Output 'OK'",
     '} catch { Write-Output ("FAILED: " + $_.Exception.Message) }',
   ].join('\n');
+}
+
+// ---- Verify the change actually landed ----
+
+function psBool(value: boolean): string {
+  return value ? '$true' : '$false';
+}
+
+/** Build the check that proves one operation reached its intended end state. */
+function verificationLine(op: TweakOperation): string | null {
+  switch (op.kind) {
+    case 'registry': {
+      const p = psString(regPath(op));
+      const access = propertyAccess(op.name);
+      if (op.removeOnRevert) {
+        return `if ($null -ne (Get-ItemProperty -LiteralPath ${p} -Name ${psString(op.name)} -ErrorAction SilentlyContinue).${access}) { $ok = $false; if (-not $reason) { $reason = 'registry value ${op.name} is still present' } }`;
+      }
+      const expected =
+        op.type === 'String' ? String(op.value ?? '') : String(Number(op.value) || 0);
+      return `$v = (Get-ItemProperty -LiteralPath ${p} -Name ${psString(op.name)} -ErrorAction SilentlyContinue).${access}; if ($null -eq $v -or [string]$v -ne ${psString(expected)}) { $ok = $false; if (-not $reason) { $reason = 'registry value ${op.name} did not change' } }`;
+    }
+    case 'service': {
+      const name = psString(op.serviceName);
+      const expectedType =
+        op.state === 'stopped'
+          ? 'Disabled'
+          : op.startType
+            ? op.startType.charAt(0).toUpperCase() + op.startType.slice(1)
+            : '';
+      const expectedStatus =
+        op.state === 'running' ? 'Running' : op.state === 'stopped' ? 'Stopped' : '';
+      const parts: string[] = [
+        `$s = Get-Service -Name ${name} -ErrorAction SilentlyContinue;`,
+        `if (-not $s) { $ok = $false; if (-not $reason) { $reason = 'service ${op.serviceName} not found' } } else {`,
+      ];
+      if (expectedStatus) {
+        parts.push(
+          `if ($s.Status.ToString() -ne '${expectedStatus}') { $ok = $false; if (-not $reason) { $reason = 'service ${op.serviceName} status is ' + $s.Status.ToString() } }`
+        );
+      }
+      if (expectedType) {
+        parts.push(
+          `if ($s.StartType.ToString() -ne '${expectedType}') { $ok = $false; if (-not $reason) { $reason = 'service ${op.serviceName} start type is ' + $s.StartType.ToString() } }`
+        );
+      }
+      parts.push('}');
+      return parts.join(' ');
+    }
+    case 'scheduled-task': {
+      const path = psString(op.taskPath);
+      const name = psString(op.taskName);
+      return `$t = Get-ScheduledTask -TaskPath ${path} -TaskName ${name} -ErrorAction SilentlyContinue; if (-not $t) { $ok = $false; if (-not $reason) { $reason = 'scheduled task ${op.taskName} not found' } } elseif (($t.State.ToString() -eq 'Disabled') -ne ${psBool(op.disable)}) { $ok = $false; if (-not $reason) { $reason = 'scheduled task ${op.taskName} state is ' + $t.State.ToString() } }`;
+    }
+    case 'info':
+      return null;
+    default:
+      return null;
+  }
+}
+
+function buildVerifyScript(ops: TweakOperation[]): string | null {
+  const lines = ops.map(verificationLine).filter((line): line is string => line !== null);
+  if (lines.length === 0) return null;
+  return [
+    '# FORCHI_VERIFY',
+    "$ErrorActionPreference = 'SilentlyContinue';",
+    '$ok = $true; $reason = "";',
+    lines.join(';\n'),
+    '@{ verified = $ok; reason = $reason } | ConvertTo-Json -Compress',
+  ].join('\n');
+}
+
+/**
+ * Re-read the machine and confirm every operation reached its intended state.
+ * Returns null when the change is confirmed, or a human-readable error when it
+ * is not. This is what stops a swallowed error from being reported as success.
+ */
+async function verifyTweakState(ops: TweakOperation[]): Promise<string | null> {
+  const script = buildVerifyScript(ops);
+  if (!script) return null;
+
+  const result = await runner(script).catch(() => null);
+  if (!result?.success) return 'Could not read back the state to verify the change.';
+
+  const parsed = parsePowerShellJson<{ verified?: boolean; reason?: string }>(result.stdout);
+  if (!parsed) return 'Could not read back the state to verify the change.';
+  if (parsed.verified) return null;
+
+  return `Change not confirmed: ${parsed.reason || 'value did not change'}`;
 }
 
 // ---- Capture previous state ----
@@ -332,6 +421,11 @@ export async function applyTweak(id: string): Promise<TweakApplyResult> {
     return { id, success: false, message: error };
   }
 
+  const verifyError = await verifyTweakState(tweak.apply);
+  if (verifyError) {
+    return { id, success: false, message: verifyError };
+  }
+
   const state = readState();
   state.applied[id] = { appliedAt: new Date().toISOString(), revert: revertOps };
   try {
@@ -361,6 +455,11 @@ export async function restoreTweak(id: string): Promise<TweakApplyResult> {
   const error = await runOperations(ops);
   if (error) {
     return { id, success: false, message: error };
+  }
+
+  const verifyError = await verifyTweakState(ops);
+  if (verifyError) {
+    return { id, success: false, message: verifyError };
   }
 
   delete state.applied[id];

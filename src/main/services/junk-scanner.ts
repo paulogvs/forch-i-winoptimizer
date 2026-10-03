@@ -291,22 +291,32 @@ export async function deleteJunkFiles(files: string[]): Promise<{
 
   for (const filePath of files) {
     try {
+      // `DELETED` is only emitted after a successful Remove-Item re-verifies the
+      // path is gone. A path that never existed ("NOT_FOUND") is not a deletion.
       const psCommand = `
         $path = ${psQuote(filePath)};
-        if (Test-Path -LiteralPath $path) {
-          Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;
-          Write-Output "DELETED"
-        } else {
+        if (-not (Test-Path -LiteralPath $path)) {
           Write-Output "NOT_FOUND"
+        } else {
+          try {
+            Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;
+            if (Test-Path -LiteralPath $path) { Write-Output "FAILED: still present after removal" }
+            else { Write-Output "DELETED" }
+          } catch {
+            Write-Output ("FAILED: " + $_.Exception.Message)
+          }
         }
       `;
 
       const result = await runPowerShell(psCommand);
-      if (result.success && (result.stdout === 'DELETED' || result.stdout === 'NOT_FOUND')) {
+      const output = result.stdout.trim();
+      if (result.success && output === 'DELETED') {
         deleted++;
+      } else if (result.success && output === 'NOT_FOUND') {
+        // Nothing to delete; honest no-op, not a success and not a failure.
       } else {
         failed++;
-        errors.push(`Failed to delete: ${filePath}`);
+        errors.push(`Failed to delete: ${filePath}${output ? ` (${output})` : ''}`);
       }
     } catch {
       failed++;

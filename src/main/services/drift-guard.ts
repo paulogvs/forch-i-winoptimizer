@@ -1,4 +1,4 @@
-import { runPowerShell } from './powershell';
+import { runPowerShell, parsePowerShellJson } from './powershell';
 import type { DriftEvent, DriftGuardStatus } from '@shared/types';
 
 interface TweakSnapshot {
@@ -144,19 +144,25 @@ export async function reapplyTweak(tweakId: string): Promise<{
     return { success: false, message: `Tweak ${tweakId} not found` };
   }
 
+  // Apply with terminating errors, then RE-READ the value; success is derived
+  // from the observed state, never from an unconditional SUCCESS print.
   const result = await runPowerShell(`
+    $ErrorActionPreference = 'Stop';
+    $err = '';
     try {
       if (!(Test-Path "${tweak.registryPath}")) {
         New-Item -Path "${tweak.registryPath}" -Force | Out-Null;
       }
-      Set-ItemProperty -Path "${tweak.registryPath}" -Name "${tweak.valueName}" -Value ${tweak.expectedValue} -Type DWord -Force;
-      Write-Output "SUCCESS"
-    } catch {
-      Write-Output "FAILED: $_"
-    }
+      Set-ItemProperty -Path "${tweak.registryPath}" -Name "${tweak.valueName}" -Value ${tweak.expectedValue} -Type DWord -Force -ErrorAction Stop;
+    } catch { $err = $_.Exception.Message }
+    $v = (Get-ItemProperty -Path "${tweak.registryPath}" -Name "${tweak.valueName}" -ErrorAction SilentlyContinue).${tweak.valueName};
+    @{ verified = ($err -eq '') -and ($null -ne $v) -and ([string]$v -eq '${tweak.expectedValue}'); error = $err; value = $v } | ConvertTo-Json -Compress
   `);
 
-  const success = result.success && result.stdout.includes('SUCCESS');
+  const payload = result.success
+    ? parsePowerShellJson<{ verified?: boolean; error?: string }>(result.stdout)
+    : null;
+  const success = payload?.verified === true;
   if (success) {
     // Mark drift events as auto-fixed
     driftEvents = driftEvents.map((e) => (e.tweakId === tweakId ? { ...e, autoFixed: true } : e));
@@ -166,7 +172,9 @@ export async function reapplyTweak(tweakId: string): Promise<{
     success,
     message: success
       ? `Successfully re-applied tweak: ${tweak.name}`
-      : `Failed to re-apply tweak: ${result.stderr}`,
+      : `Failed to re-apply tweak: ${
+          payload?.error || result.stderr || 'the change was not confirmed'
+        }`,
   };
 }
 

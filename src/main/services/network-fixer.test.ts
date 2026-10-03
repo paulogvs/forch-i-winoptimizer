@@ -57,6 +57,24 @@ describe('Network Fixer', () => {
       expect(result.connectivityTest).toBeDefined();
       expect(result.connectivityTest.latency).toBe(20);
     });
+
+    // Regression guard: a clean exit used to be reported as success even when
+    // the step's effect never landed.
+    it('marks a step failed when its post-condition is not met', async () => {
+      vi.mocked(runPowerShell).mockImplementation(async (script: string) => {
+        if (script.includes('Get-SmbServerConfiguration')) {
+          return { success: true, stdout: 'FAILED', stderr: '', exitCode: 0 };
+        }
+        if (script.includes('Where-Object { $_.Status -eq')) {
+          return { success: true, stdout: 'OK', stderr: '', exitCode: 0 };
+        }
+        return { success: true, stdout: 'SUCCESS', stderr: '', exitCode: 0 };
+      });
+
+      const result = await runNetworkFix();
+      const smb = result.fixes.find((f) => f.id === 'fix-smb1');
+      expect(smb?.status).toBe('failed');
+    });
   });
 
   describe('testConnectivity', () => {
@@ -94,10 +112,10 @@ describe('Network Fixer', () => {
   });
 
   describe('fixError0x00000709', () => {
-    it('should fix error 0x00000709 successfully', async () => {
+    it('reports success only when the read-back confirms the fix', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: JSON.stringify({ verified: true, error: '', serviceRunning: true }),
         stderr: '',
         exitCode: 0,
       });
@@ -105,6 +123,21 @@ describe('Network Fixer', () => {
       const result = await fixError0x00000709();
       expect(result.success).toBe(true);
       expect(result.message).toContain('fixed');
+    });
+
+    // Regression guard: the script printed SUCCESS unconditionally because all
+    // writes used -ErrorAction SilentlyContinue.
+    it('reports failure when the read-back does not confirm the fix', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify({ verified: false, error: 'Access is denied' }),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await fixError0x00000709();
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Access is denied');
     });
 
     it('should handle fix failure', async () => {

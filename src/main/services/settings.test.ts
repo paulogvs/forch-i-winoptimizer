@@ -44,6 +44,7 @@ describe('main/services/settings', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     setSettingsDir(null);
     fs.rmSync(dir, { recursive: true, force: true });
     if (originalPortable === undefined) delete process.env['PORTABLE_EXECUTABLE_DIR'];
@@ -88,6 +89,16 @@ describe('main/services/settings', () => {
     expect(automaticUpdatesEnabled()).toBe(false);
     updateSettings({ automaticUpdates: true });
     expect(automaticUpdatesEnabled()).toBe(true);
+  });
+
+  it('reports a real failure when the settings file cannot be written', () => {
+    // Make the settings file path itself a DIRECTORY so writeFileSync throws.
+    fs.mkdirSync(path.join(dir, 'settings.json'));
+
+    const result = updateSettings({ enableNotifications: false });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/could not be saved/i);
   });
 
   describe('portable build', () => {

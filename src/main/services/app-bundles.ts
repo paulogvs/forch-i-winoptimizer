@@ -128,12 +128,8 @@ function wingetScript(action: 'install' | 'uninstall', wingetId: string): string
       : 'uninstall --id ' + wingetId + ' --silent';
   return `
     $out = winget ${flags} 2>&1 | Out-String;
-    if ($LASTEXITCODE -eq 0 -or $out -match 'already installed') {
-      Write-Output 'SUCCESS'
-    } else {
-      Write-Output "FAILED: winget exit code $LASTEXITCODE"
-      Write-Output $out
-    }
+    if ($LASTEXITCODE -eq 0) { Write-Output 'SUCCESS' }
+    else { Write-Output "FAILED: winget exit code $LASTEXITCODE"; Write-Output $out }
   `;
 }
 

@@ -59,10 +59,10 @@ describe('Drift Guard', () => {
   });
 
   describe('reapplyTweak', () => {
-    it('should reapply tweak successfully', async () => {
+    it('should reapply tweak successfully when the read-back confirms it', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: JSON.stringify({ verified: true, error: '', value: 0 }),
         stderr: '',
         exitCode: 0,
       });
@@ -76,6 +76,18 @@ describe('Drift Guard', () => {
       const result = await reapplyTweak('unknown-tweak');
       expect(result.success).toBe(false);
       expect(result.message).toContain('not found');
+    });
+
+    it('reports failure when the read-back does not confirm the value', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify({ verified: false, error: 'Access denied' }),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await reapplyTweak('telemetry-disabled');
+      expect(result.success).toBe(false);
     });
 
     it('should handle reapply failure', async () => {
@@ -95,7 +107,7 @@ describe('Drift Guard', () => {
     it('should reapply all tweaks', async () => {
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: 'SUCCESS',
+        stdout: JSON.stringify({ verified: true }),
         stderr: '',
         exitCode: 0,
       });
