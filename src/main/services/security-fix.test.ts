@@ -198,3 +198,187 @@ describe('success predicates', () => {
     expect(isOriginalObservation('remote-desktop', rdpDenied, '0')).toBe(false);
   });
 });
+
+// ===================== v0.10.0: smb-signing auto-fix =====================
+const smbSigOff: FixObservation = {
+  checkId: 'smb-signing',
+  available: true,
+  require: false,
+  enable: false,
+};
+const smbSigOn: FixObservation = {
+  checkId: 'smb-signing',
+  available: true,
+  require: true,
+  enable: true,
+};
+
+describe('smb-signing auto-fix (preview)', () => {
+  it('blocks with requires-admin when not elevated but still shows the observed value', () => {
+    const preview = buildFixPreview('smb-signing', smbSigOff, {
+      isAdmin: false,
+      storedOriginal: null,
+    });
+    expect(preview.canApply).toBe(false);
+    expect(preview.blockedReason).toBe('requires-admin');
+    // The observed current value is always shown, even when blocked.
+    expect(preview.current).toBe('RequireSecuritySignature=False, EnableSecuritySignature=False');
+    expect(preview.target).toBe('RequireSecuritySignature=True, EnableSecuritySignature=True');
+  });
+
+  it('allows the change when elevated and signing is not required yet', () => {
+    const preview = buildFixPreview('smb-signing', smbSigOff, {
+      isAdmin: true,
+      storedOriginal: null,
+    });
+    expect(preview.canApply).toBe(true);
+    expect(preview.blockedReason).toBeNull();
+    expect(preview.reversible).toBe(true);
+    expect(preview.requiresAdmin).toBe(true);
+  });
+
+  it('reports already-applied instead of offering a no-op', () => {
+    expect(
+      buildFixPreview('smb-signing', smbSigOn, { isAdmin: true, storedOriginal: null })
+        .blockedReason
+    ).toBe('already-applied');
+  });
+
+  it('reports unavailable when the value cannot be read', () => {
+    const preview = buildFixPreview(
+      'smb-signing',
+      { checkId: 'smb-signing', available: false, require: null, enable: null },
+      { isAdmin: true, storedOriginal: null }
+    );
+    expect(preview.blockedReason).toBe('unavailable');
+    expect(preview.canApply).toBe(false);
+  });
+
+  it('offers revert only when an original is stored AND the user is elevated', () => {
+    const withOriginal = buildFixPreview('smb-signing', smbSigOff, {
+      isAdmin: true,
+      storedOriginal: 'require=0;enable=0',
+    });
+    expect(withOriginal.canRevert).toBe(true);
+    expect(withOriginal.original).toBe(
+      'RequireSecuritySignature=False, EnableSecuritySignature=False'
+    );
+  });
+});
+
+describe('smb-signing auto-fix (apply/revert planners)', () => {
+  it('apply requires signing on the server and enables it on the client', () => {
+    const apply = buildApplyCommand('smb-signing');
+    expect(apply).toMatch(/-RequireSecuritySignature \$true/);
+    expect(apply).toMatch(/-EnableSecuritySignature \$true/);
+    // Registry fallback writes both values.
+    expect(apply).toMatch(/Set-ItemProperty/);
+    expect(apply).toMatch(/-Name 'RequireSecuritySignature' -Value 1/);
+    expect(apply).toMatch(/-Name 'EnableSecuritySignature' -Value 1/);
+  });
+
+  it('round-trips the exact previous values (both disabled)', () => {
+    const token = encodeOriginal(smbSigOff);
+    expect(token).toBe('require=0;enable=0');
+    const revert = buildRevertCommand('smb-signing', token);
+    expect(revert).toMatch(/-RequireSecuritySignature \$false -EnableSecuritySignature \$false/);
+    expect(revert).toMatch(/-Name 'EnableSecuritySignature' -Value 0/);
+  });
+
+  it('round-trips a mixed original exactly (require=0;enable=1)', () => {
+    const token = encodeOriginal({
+      checkId: 'smb-signing',
+      available: true,
+      require: false,
+      enable: true,
+    });
+    expect(token).toBe('require=0;enable=1');
+    expect(buildRevertCommand('smb-signing', token)).toMatch(
+      /-RequireSecuritySignature \$false -EnableSecuritySignature \$true/
+    );
+  });
+
+  it('preserves an absent value by removing it on revert (never assumes a default)', () => {
+    const token = encodeOriginal({
+      checkId: 'smb-signing',
+      available: true,
+      require: false,
+      enable: null,
+    });
+    expect(token).toBe('require=0;enable=absent');
+    const revert = buildRevertCommand('smb-signing', token);
+    expect(revert).toMatch(/Remove-ItemProperty -Path \$base -Name 'EnableSecuritySignature'/);
+    // The absent branch must not write a made-up value.
+    expect(revert).not.toMatch(/-Name 'EnableSecuritySignature' -Value/);
+  });
+
+  it('reports FAILED when neither the cmdlet nor the registry write succeeds', () => {
+    expect(buildApplyCommand('smb-signing')).toMatch(/Write-Output 'FAILED'/);
+    expect(buildRevertCommand('smb-signing', 'require=0;enable=0')).toMatch(
+      /Write-Output 'FAILED'/
+    );
+  });
+});
+
+describe('smb-signing auto-fix (decode + predicates)', () => {
+  it('decodes the read payload for every value shape', () => {
+    expect(
+      decodeFixObservation('smb-signing', { available: true, require: true, enable: false })
+    ).toEqual({ checkId: 'smb-signing', available: true, require: true, enable: false });
+    expect(
+      decodeFixObservation('smb-signing', { available: true, require: 'true', enable: null })
+    ).toEqual({ checkId: 'smb-signing', available: true, require: true, enable: null });
+    expect(
+      decodeFixObservation('smb-signing', { available: false, require: null, enable: null })
+    ).toEqual({ checkId: 'smb-signing', available: false, require: null, enable: null });
+  });
+
+  it('formats observations and canonical originals', () => {
+    expect(formatObservation(smbSigOff)).toBe(
+      'RequireSecuritySignature=False, EnableSecuritySignature=False'
+    );
+    expect(formatObservation(smbSigOn)).toBe(
+      'RequireSecuritySignature=True, EnableSecuritySignature=True'
+    );
+    expect(formatOriginal('smb-signing', 'require=0;enable=1')).toBe(
+      'RequireSecuritySignature=False, EnableSecuritySignature=True'
+    );
+    expect(formatOriginal('smb-signing', 'require=0;enable=absent')).toBe(
+      'RequireSecuritySignature=False, EnableSecuritySignature=absent'
+    );
+    expect(formatOriginal('smb-signing', null)).toBeNull();
+  });
+
+  it('treats require=true as the hardened target (enable-only is not enough)', () => {
+    expect(isTargetObservation('smb-signing', smbSigOn)).toBe(true);
+    expect(isTargetObservation('smb-signing', smbSigOff)).toBe(false);
+    expect(
+      isTargetObservation('smb-signing', {
+        checkId: 'smb-signing',
+        available: true,
+        require: false,
+        enable: true,
+      })
+    ).toBe(false);
+    expect(
+      isTargetObservation('smb-signing', {
+        checkId: 'smb-signing',
+        available: false,
+        require: null,
+        enable: null,
+      })
+    ).toBe(false);
+  });
+
+  it('recognises a return to the captured original (including absent)', () => {
+    expect(isOriginalObservation('smb-signing', smbSigOff, 'require=0;enable=0')).toBe(true);
+    expect(isOriginalObservation('smb-signing', smbSigOn, 'require=0;enable=0')).toBe(false);
+    expect(
+      isOriginalObservation(
+        'smb-signing',
+        { checkId: 'smb-signing', available: true, require: false, enable: null },
+        'require=0;enable=absent'
+      )
+    ).toBe(true);
+  });
+});

@@ -635,13 +635,18 @@ describe('security-scan engine', () => {
       for (const id of NEW_IDS) {
         const def = SECURITY_CHECK_CATALOG.find((d) => d.id === id);
         expect(def, `missing catalog entry: ${id}`).toBeDefined();
-        // None of the new checks is auto-fixable: v0.7.0's three stay the only ones.
-        expect(def?.autoFixable).toBe(false);
+        // v0.10.0 promoted `smb-signing` to a reversible auto-fix; the rest of
+        // the v0.8.0 additions remain read-only.
+        if (id === 'smb-signing') {
+          expect(def?.autoFixable).toBe(true);
+        } else {
+          expect(def?.autoFixable).toBe(false);
+        }
         expect((def?.reads ?? '').length).toBeGreaterThan(0);
       }
-      // The three reversible auto-fixes are unchanged.
+      // The four reversible auto-fixes (v0.10.0 adds smb-signing).
       const fixable = SECURITY_CHECK_CATALOG.filter((d) => d.autoFixable).map((d) => d.id);
-      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
+      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb-signing', 'smb1']);
     });
 
     it('keeps every script wired (no check falls through to a stub)', () => {
@@ -836,9 +841,9 @@ describe('security-scan engine', () => {
         expect((def?.reads ?? '').length).toBeGreaterThan(0);
         expect(def?.possibleStatuses).toContain('requires-admin');
       }
-      // The three reversible auto-fixes are still the only ones.
+      // The four reversible auto-fixes are still the only ones.
       const fixable = SECURITY_CHECK_CATALOG.filter((d) => d.autoFixable).map((d) => d.id);
-      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
+      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb-signing', 'smb1']);
     });
 
     it('has a live query wired for every new id', () => {

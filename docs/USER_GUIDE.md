@@ -1,11 +1,12 @@
 # FORCH.iA WinOptimizer — Guía de Usuario
 
-> **Novedades v0.9.0** — el catálogo de seguridad crece a **22 checks** con **6
-> controles de hardening admin-gated** (LSASS/`RunAsPPL`, Credential Guard,
-> protectores de BitLocker, cuentas de administrador, reglas entrantes de
-> firewall y exposición de WinRM) y todo el código queda normalizado con
-> Prettier (fin de línea LF). Los 3 auto-fix reversibles siguen validados en
-> runtime real. Ver `docs/SECURITY_CHECKS.md`.
+> **Novedades v0.10.0** — el cuarto **auto-fix reversible** llega al catálogo:
+> `smb-signing` ahora exige firma SMB en servidor y cliente
+> (`RequireSecuritySignature` / `EnableSecuritySignature` = `$true`) con preview,
+> confirmación, **revert exacto** (restaura ambos valores capturados, incluido
+> `absent`) y re-lectura de verificación. Además, el portable estable vive en una
+> carpeta sin versión (`C:\Users\paulo\Apps\FORCH.iA WinOptimizer\`) para que el
+> acceso directo no se rompa con cada release. Ver `docs/SECURITY_CHECKS.md`.
 
 ## Tabla de Contenidos
 
@@ -99,6 +100,50 @@ una limpieza escribiendo a la vez).
 
 1. Descarga el archivo `FORCH.iA-WinOptimizer-Portable-X.X.X.exe`
 2. Ejecuta directamente (no requiere instalación)
+
+### Actualizar el portable estable (acceso directo del escritorio)
+
+Para que el acceso directo del escritorio no se rompa en cada versión, el
+portable "de uso diario" vive en una carpeta **estable** con un nombre **sin
+versión**:
+
+```
+C:\Users\paulo\Apps\FORCH.iA WinOptimizer\FORCH.iA WinOptimizer (Portable).exe
+```
+
+Tras compilar una versión nueva (`npm run electron:build`), el original en
+`release\` **no se borra**; sólo se refresca la copia estable y el acceso directo:
+
+```powershell
+$src = 'release\FORCH.iA-WinOptimizer-Portable-<VERSION>.exe'
+$dstDir = 'C:\Users\paulo\Apps\FORCH.iA WinOptimizer'
+New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
+Copy-Item -LiteralPath $src -Destination (Join-Path $dstDir 'FORCH.iA WinOptimizer (Portable).exe') -Force
+Unblock-File -LiteralPath (Join-Path $dstDir 'FORCH.iA WinOptimizer (Portable).exe')
+```
+
+El acceso directo `%USERPROFILE%\Desktop\FORCH.iA WinOptimizer.lnk` apunta al
+nombre sin versión, así que **no hay que re-apuntarlo** en cada release. Sólo se
+re-apunta cuando la carpeta estable cambia de ubicación:
+
+```powershell
+$exe = 'C:\Users\paulo\Apps\FORCH.iA WinOptimizer\FORCH.iA WinOptimizer (Portable).exe'
+$ws = New-Object -ComObject WScript.Shell
+$lnk = $ws.CreateShortcut("$env:USERPROFILE\Desktop\FORCH.iA WinOptimizer.lnk")
+$lnk.TargetPath = $exe
+$lnk.WorkingDirectory = Split-Path -Parent $exe
+$lnk.IconLocation = "$exe,0"
+$lnk.Description = 'FORCH.iA WinOptimizer (portable)'
+$lnk.Save()
+```
+
+Verificación (debe devolver la ruta estable y el mismo `WorkingDirectory`):
+
+```powershell
+$ws = New-Object -ComObject WScript.Shell
+$lnk = $ws.CreateShortcut("$env:USERPROFILE\Desktop\FORCH.iA WinOptimizer.lnk")
+$lnk.TargetPath; $lnk.WorkingDirectory; $lnk.IconLocation
+```
 
 ### Compilar desde código fuente
 
@@ -293,9 +338,9 @@ escuchando, servicio Windows Update, y 6 controles de hardening **admin-gated**:
 LSASS/`RunAsPPL`, Credential Guard, protectores de BitLocker, cuentas de
 administrador, reglas entrantes de firewall y exposición de WinRM), mostrando la
 **evidencia observada** en cada fila. Sin elevación, los 6 admin-gated salen como
-`requires-admin` y quedan fuera del score. Tres chequeos ofrecen además
+`requires-admin` y quedan fuera del score. Cuatro chequeos ofrecen además
 **auto-fix reversible** (preview → confirmar → aplicar → revertir): `smb1`,
-`guest-account` y `remote-desktop`. Todo lo demás es guía. Ver
+`guest-account`, `remote-desktop` y `smb-signing`. Todo lo demás es guía. Ver
 `docs/SECURITY_CHECKS.md`.
 
 ### Statistics
@@ -413,6 +458,28 @@ Puedes reportar errores en la [sección de issues](https://github.com/paulogvs/f
 
 ---
 
+## Novedades v0.10.0
+
+### Cuarto auto-fix: SMB signing
+
+`smb-signing` se une a los auto-fixes reversibles. El fix **requiere firma SMB en
+servidor y cliente** (`Set-SmbServerConfiguration -RequireSecuritySignature $true
+-EnableSecuritySignature $true`, con fallback por registro que escribe ambos
+DWORD). Antes de escribir, captura los valores **reales** de
+`RequireSecuritySignature` y `EnableSecuritySignature`; el **revert restaura los
+dos exactos** (y **elimina** el valor si originalmente estaba `absent`, sin
+asumir ningún default). Igual que los otros tres: preview obligatorio,
+confirmación, **requiere administrador** (sin elevación queda deshabilitado con
+el motivo) y el veredicto sale de **re-leer** la máquina, no de un mensaje.
+
+### Portable estable + acceso directo
+
+El acceso directo del escritorio ya no apunta al `release\` de cada versión. Ahora
+apunta a una copia estable sin versión en
+`C:\Users\paulo\Apps\FORCH.iA WinOptimizer\FORCH.iA WinOptimizer (Portable).exe`
+(ver [Actualizar el portable estable](#actualizar-el-portable-estable-acceso-directo-del-escritorio)).
+El `release\` original se conserva.
+
 ## Novedades v0.7.0
 
 ### Arranque sin listas (Boost)
@@ -524,15 +591,17 @@ medible, muestra _not scored_ en vez de un número.
 Por qué un check puede salir **unknown** o **requires-admin** y cómo interpretarlo:
 ver `docs/SECURITY_CHECKS.md`.
 
-### Auto-fix (v0.7.0)
+### Auto-fix (v0.10.0)
 
-Tres checks — `smb1`, `guest-account` y `remote-desktop` — tienen un botón **Auto-fix**.
-Al pulsarlo se muestra un **preview** con el valor **actual observado** y el valor
-objetivo; recién al confirmar se aplica. Si la app no corre como administrador, la acción
-aparece **deshabilitada con el motivo** y podés **reiniciar como administrador** desde el
-mismo diálogo. Tras aplicar, el check **se vuelve a medir** (no se asume "pass"). El
-revert restaura el **valor previo real** capturado antes del cambio (nunca un default).
-El resto de los checks sigue siendo solo lectura + guía.
+Cuatro checks — `smb1`, `guest-account`, `remote-desktop` y `smb-signing` — tienen
+un botón **Auto-fix**. Al pulsarlo se muestra un **preview** con el valor **actual
+observado** y el valor objetivo; recién al confirmar se aplica. Si la app no corre
+como administrador, la acción aparece **deshabilitada con el motivo** y podés
+**reiniciar como administrador** desde el mismo diálogo. Tras aplicar, el check
+**se vuelve a medir** (no se asume "pass"). El revert restaura el **valor previo
+real** capturado antes del cambio (nunca un default); en `smb-signing` restaura
+`RequireSecuritySignature` y `EnableSecuritySignature` de forma exacta. El resto
+de los checks sigue siendo solo lectura + guía.
 
 ### Verificación elevada (kit del repo)
 

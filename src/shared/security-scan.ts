@@ -37,11 +37,11 @@ export interface SecurityCheckDefinition {
    * Whether the app can repair this check itself with a mandatory preview,
    * explicit confirmation and a revert that restores the exact previous value.
    *
-   * v0.7.0 ships auto-fix for exactly three checks — `smb1`, `guest-account`
-   * and `remote-desktop` — because each has a standard, admin-only, reversible
-   * remediation. Every other check remains read-only and offers guidance, since
-   * its candidate repair (BitLocker, Secure Boot, ...) can lock a user out or
-   * is not reversible through a single value.
+   * v0.10.0 ships auto-fix for exactly four checks — `smb1`, `guest-account`,
+   * `remote-desktop` and `smb-signing` — because each has a standard,
+   * admin-only, reversible remediation. Every other check remains read-only and
+   * offers guidance, since its candidate repair (BitLocker, Secure Boot, ...)
+   * can lock a user out or is not reversible through a single value.
    */
   autoFixable: boolean;
   /**
@@ -219,7 +219,7 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     reads:
       'Get-SmbServerConfiguration => RequireSecuritySignature / EnableSecuritySignature, with registry fallback (LanmanServer\\Parameters)',
     possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
-    autoFixable: false,
+    autoFixable: true,
     guidance:
       'Require SMB signing for the server (`Set-SmbServerConfiguration -RequireSecuritySignature $true`).',
   },

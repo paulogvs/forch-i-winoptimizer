@@ -402,9 +402,9 @@ _Build. Learn. Evolve._
 3. Si un check debería pasar pero sale "Unknown" de forma persistente, revisa que
    PowerShell no esté restringido y reporta el caso con la evidencia que muestra la UI.
 
-**Nota:** el Security Scan es de solo lectura salvo auto-fix explícito. Desde v0.7.0
-tres checks (`smb1`, `guest-account`, `remote-desktop`) ofrecen auto-fix reversible
-con preview, confirmación y revert; el resto muestra guía o acción separada.
+**Nota:** el Security Scan es de solo lectura salvo auto-fix explícito. Desde v0.10.0
+cuatro checks (`smb1`, `guest-account`, `remote-desktop`, `smb-signing`) ofrecen auto-fix
+reversible con preview, confirmación y revert; el resto muestra guía o acción separada.
 
 ### Un scan devuelve todo "Unknown" en una máquina concreta
 
@@ -425,9 +425,9 @@ build antigua, actualiza. Si persiste, adjunta la evidencia que muestra la UI.
 **Síntomas:** el diálogo de auto-fix muestra el cambio, pero el botón _Apply_ no está
 disponible o aparece "requires-admin".
 
-**Qué significa:** aplicar `smb1`, `guest-account` o `remote-desktop` es un cambio
-persistente del sistema y **requiere elevación**. La app nunca falla en silencio: si no
-corre como administrador, la acción se **deshabilita con el motivo**.
+**Qué significa:** aplicar `smb1`, `guest-account`, `remote-desktop` o `smb-signing` es un
+cambio persistente del sistema y **requiere elevación**. La app nunca falla en silencio: si
+no corre como administrador, la acción se **deshabilita con el motivo**.
 
 **Solución:** usá _Reiniciar como administrador_ en el mismo diálogo (lanza una
 instancia elevada con `Start-Process -Verb RunAs`) o abrí la app con clic derecho →

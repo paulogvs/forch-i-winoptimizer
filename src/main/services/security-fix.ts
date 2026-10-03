@@ -12,10 +12,11 @@ import {
 } from '@shared/security-fix';
 
 /**
- * Reversible security auto-fix engine (v0.7.0).
+ * Reversible security auto-fix engine (v0.7.0, extended in v0.10.0).
  *
- * Scope is deliberately tiny: only `smb1`, `guest-account` and `remote-desktop`
- * — three checks whose repair is standard, admin-only and fully reversible.
+ * Scope is deliberately tiny: only `smb1`, `guest-account`, `remote-desktop`
+ * and `smb-signing` — four checks whose repair is standard, admin-only and
+ * fully reversible.
  *
  * Safety model
  * ------------
@@ -53,7 +54,16 @@ export interface RdpObservation {
   available: boolean;
   deny: number | null;
 }
-export type FixObservation = Smb1Observation | GuestObservation | RdpObservation;
+export interface SmbSigningObservation {
+  checkId: 'smb-signing';
+  available: boolean;
+  /** RequireSecuritySignature: the server refuses unsigned SMB traffic. */
+  require: boolean | null;
+  /** EnableSecuritySignature: the client signs when the peer asks. */
+  enable: boolean | null;
+}
+export type FixObservation =
+  Smb1Observation | GuestObservation | RdpObservation | SmbSigningObservation;
 
 // ---------------------------------------------------------------------------
 // Live read scripts (one JSON object each)
@@ -94,10 +104,30 @@ const READ_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
     } catch { $available = $false }
     @{ available = $available; deny = $deny } | ConvertTo-Json -Compress
   `,
+  'smb-signing': `
+    $available = $false; $require = $null; $enable = $null;
+    try {
+      $c = Get-SmbServerConfiguration -ErrorAction Stop;
+      $require = [bool]$c.RequireSecuritySignature;
+      $enable = [bool]$c.EnableSecuritySignature;
+      $available = $true;
+    } catch {
+      try {
+        $base = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
+        $r = (Get-ItemProperty -Path $base -Name 'RequireSecuritySignature' -ErrorAction Stop).RequireSecuritySignature;
+        $require = ([int]$r -eq 1);
+        $e = (Get-ItemProperty -Path $base -Name 'EnableSecuritySignature' -ErrorAction SilentlyContinue).EnableSecuritySignature;
+        if ($e -ne $null) { $enable = ([int]$e -eq 1) }
+        $available = $true;
+      } catch { $available = $false }
+    }
+    @{ available = $available; require = $require; enable = $enable } | ConvertTo-Json -Compress
+  `,
 };
 
 const RDP_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server';
 const SMB1_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
+const SMB_SIGNING_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
 
 const APPLY_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
   smb1: `
@@ -124,7 +154,42 @@ const APPLY_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
     try { Set-ItemProperty -Path '${RDP_REG_PATH}' -Name 'fDenyTSConnections' -Value 1 -Type DWord -Force -ErrorAction Stop; Write-Output 'OK' }
     catch { Write-Output 'FAILED' }
   `,
+  'smb-signing': `
+    $ok = $false;
+    try {
+      Set-SmbServerConfiguration -RequireSecuritySignature $true -EnableSecuritySignature $true -Force -ErrorAction Stop;
+      $ok = $true
+    } catch {
+      try {
+        Set-ItemProperty -Path '${SMB_SIGNING_REG_PATH}' -Name 'RequireSecuritySignature' -Value 1 -Type DWord -Force -ErrorAction Stop;
+        Set-ItemProperty -Path '${SMB_SIGNING_REG_PATH}' -Name 'EnableSecuritySignature' -Value 1 -Type DWord -Force -ErrorAction Stop;
+        $ok = $true
+      } catch { $ok = $false }
+    }
+    if ($ok) { Write-Output 'OK' } else { Write-Output 'FAILED' }
+  `,
 };
+
+/**
+ * Canonical token for the SMB-signing original. Both values are stored with
+ * three states so a revert can restore `absent` by REMOVING the value instead
+ * of writing a made-up default: `require=<absent|0|1>;enable=<absent|0|1>`.
+ */
+type SmbSigningTriState = 'absent' | '0' | '1';
+
+function parseSmbSigningToken(
+  token: string
+): { require: SmbSigningTriState; enable: SmbSigningTriState } | null {
+  const match = /^require=(absent|0|1);enable=(absent|0|1)$/.exec(token);
+  if (!match) return null;
+  return { require: match[1] as SmbSigningTriState, enable: match[2] as SmbSigningTriState };
+}
+
+function restoreSmbSigningRegistryValue(name: string, value: SmbSigningTriState): string {
+  return value === 'absent'
+    ? `Remove-ItemProperty -Path $base -Name '${name}' -ErrorAction SilentlyContinue`
+    : `Set-ItemProperty -Path $base -Name '${name}' -Value ${value} -Type DWord -Force -ErrorAction Stop`;
+}
 
 /**
  * Build the revert script that restores the exact captured value. Pure: the
@@ -170,6 +235,35 @@ export function buildRevertCommand(checkId: SecurityFixId, previous: string): st
         catch { Write-Output 'FAILED' }
       `;
     }
+    case 'smb-signing': {
+      const parsed = parseSmbSigningToken(previous) ?? { require: '0', enable: '0' };
+      const requireBool = parsed.require === '1' ? '$true' : '$false';
+      const enableBool = parsed.enable === '1' ? '$true' : '$false';
+      const restoreRequire = restoreSmbSigningRegistryValue(
+        'RequireSecuritySignature',
+        parsed.require
+      );
+      const restoreEnable = restoreSmbSigningRegistryValue(
+        'EnableSecuritySignature',
+        parsed.enable
+      );
+      return `
+        $base = '${SMB_SIGNING_REG_PATH}';
+        $ok = $false;
+        $r = '${parsed.require}'; $e = '${parsed.enable}';
+        if ($r -ne 'absent' -and $e -ne 'absent') {
+          try {
+            Set-SmbServerConfiguration -RequireSecuritySignature ${requireBool} -EnableSecuritySignature ${enableBool} -Force -ErrorAction Stop;
+            $ok = $true
+          } catch { $ok = $false }
+        }
+        if (-not $ok) {
+          try { ${restoreRequire}; $ok = $true } catch { $ok = $false }
+          if ($ok) { try { ${restoreEnable} } catch { $ok = $false } }
+        }
+        if ($ok) { Write-Output 'OK' } else { Write-Output 'FAILED' }
+      `;
+    }
   }
 }
 
@@ -191,6 +285,13 @@ export function formatObservation(observation: FixObservation): string {
     case 'remote-desktop':
       if (!observation.available || observation.deny === null) return 'unknown';
       return `fDenyTSConnections=${observation.deny}`;
+    case 'smb-signing': {
+      if (!observation.available || observation.require === null) return 'unknown';
+      const require = observation.require ? 'True' : 'False';
+      const enable =
+        observation.enable === null ? 'unknown' : observation.enable ? 'True' : 'False';
+      return `RequireSecuritySignature=${require}, EnableSecuritySignature=${enable}`;
+    }
   }
 }
 
@@ -207,6 +308,11 @@ export function encodeOriginal(observation: FixObservation): string {
       return observation.enabled ? 'enabled' : 'disabled';
     case 'remote-desktop':
       return String(observation.deny);
+    case 'smb-signing': {
+      const tri = (value: boolean | null): SmbSigningTriState =>
+        value === null ? 'absent' : value ? '1' : '0';
+      return `require=${tri(observation.require)};enable=${tri(observation.enable)}`;
+    }
   }
 }
 
@@ -220,6 +326,15 @@ export function formatOriginal(checkId: SecurityFixId, token: string | null): st
       return token === 'enabled' ? 'Guest account enabled' : 'Guest account disabled';
     case 'remote-desktop':
       return `fDenyTSConnections=${token}`;
+    case 'smb-signing': {
+      const parsed = parseSmbSigningToken(token);
+      if (!parsed) return token;
+      const label = (value: SmbSigningTriState): string =>
+        value === 'absent' ? 'absent' : value === '1' ? 'True' : 'False';
+      return `RequireSecuritySignature=${label(parsed.require)}, EnableSecuritySignature=${label(
+        parsed.enable
+      )}`;
+    }
   }
 }
 
@@ -252,6 +367,13 @@ export function decodeFixObservation(
       };
     case 'remote-desktop':
       return { checkId, available, deny: asNum(payload?.deny) };
+    case 'smb-signing':
+      return {
+        checkId,
+        available,
+        require: asBool(payload?.require),
+        enable: asBool(payload?.enable),
+      };
   }
 }
 
@@ -274,6 +396,12 @@ export function isTargetObservation(checkId: SecurityFixId, observation: FixObse
     case 'remote-desktop':
       return (
         observation.checkId === 'remote-desktop' && observation.available && observation.deny === 1
+      );
+    case 'smb-signing':
+      return (
+        observation.checkId === 'smb-signing' &&
+        observation.available &&
+        observation.require === true
       );
   }
 }
@@ -303,6 +431,16 @@ export function isOriginalObservation(
         observation.available &&
         String(observation.deny) === token
       );
+    case 'smb-signing': {
+      if (observation.checkId !== 'smb-signing' || !observation.available) return false;
+      const parsed = parseSmbSigningToken(token);
+      if (!parsed) return false;
+      const matches = (stored: SmbSigningTriState, actual: boolean | null): boolean =>
+        stored === 'absent' ? actual === null : actual === (stored === '1');
+      return (
+        matches(parsed.require, observation.require) && matches(parsed.enable, observation.enable)
+      );
+    }
   }
 }
 
@@ -392,6 +530,18 @@ export function buildFixPreview(
       }
       if (!options.isAdmin) return blocked('requires-admin', current, 'fDenyTSConnections=1');
       return allowed(current, 'fDenyTSConnections=1');
+    }
+    case 'smb-signing': {
+      const current = formatObservation(observation);
+      const target = 'RequireSecuritySignature=True, EnableSecuritySignature=True';
+      if (!observation.available || observation.require === null) {
+        return blocked('unavailable', current, target);
+      }
+      if (observation.require === true) {
+        return blocked('already-applied', current, target);
+      }
+      if (!options.isAdmin) return blocked('requires-admin', current, target);
+      return allowed(current, target);
     }
   }
 }

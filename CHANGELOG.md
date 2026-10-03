@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-03
+
+Cuarto **auto-fix reversible** del catálogo de seguridad: `smb-signing`. Requiere
+firma SMB en servidor y cliente (`RequireSecuritySignature` /
+`EnableSecuritySignature` = `$true`) con preview obligatorio, confirmación,
+**revert exacto** y re-lectura de verificación (mismo patrón `isTargetObservation`
+/ `isOriginalObservation`). Además, el portable de uso diario pasa a una carpeta
+estable sin versión para que el acceso directo no se rompa en cada release.
+
+### Added
+
+- **`smb-signing` auto-fix** (`src/shared/security-fix.ts`,
+  `src/main/services/security-fix.ts`): `SECURITY_FIX_IDS` incluye `smb-signing`.
+  Apply: `Set-SmbServerConfiguration -RequireSecuritySignature $true
+-EnableSecuritySignature $true -Force`, con **fallback por registro** que escribe
+  ambos DWORD (`LanmanServer\Parameters`). El fix captura los valores **reales**
+  de `RequireSecuritySignature` y `EnableSecuritySignature` **antes** de escribir
+  (token `require=<absent|0|1>;enable=<absent|0|1>`); el **revert restaura ambos
+  exactos** y **elimina** (`Remove-ItemProperty`) el valor que originalmente estaba
+  ausente, sin asumir ningún default. `SECURITY_CHECK_CATALOG` marca
+  `autoFixable: true` para `smb-signing`; el conjunto auto-fixable es ahora
+  **exactamente** `{smb1, guest-account, remote-desktop, smb-signing}`.
+- **Docs**: `docs/SECURITY_CHECKS.md`, `docs/USER_GUIDE.md`,
+  `docs/TROUBLESHOOTING.md` y `docs/FAQ.md` documentan el cuarto auto-fix y el
+  procedimiento del portable estable.
+
+### Changed
+
+- **Portable estable + acceso directo**: la copia de uso diario vive en
+  `C:\Users\paulo\Apps\FORCH.iA WinOptimizer\FORCH.iA WinOptimizer (Portable).exe`
+  (nombre sin versión, `Unblock-File` aplicado) y el acceso directo del escritorio
+  apunta ahí. El `release\` original se conserva. Procedimiento documentado en
+  `docs/USER_GUIDE.md`.
+
+### Tests
+
+- `security-fix.test.ts`: preview (requires-admin / allow / already-applied /
+  unavailable), apply/revert (incluido original `enable=absent` y caso de fallo
+  `FAILED`), decode, formato y predicados `isTargetObservation` /
+  `isOriginalObservation` para `smb-signing`.
+- `security-scan.test.ts` (shared + engine): el conjunto `autoFixable` pasa a ser
+  exactamente los cuatro checks.
+
 ## [0.9.1] - 2026-10-02
 
 Honestidad de resultado en todos los canales mutantes: **ninguna operación

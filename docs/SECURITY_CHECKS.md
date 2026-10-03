@@ -1,6 +1,6 @@
 ﻿# Security Checks Catalog
 
-> **FORCH.iA WinOptimizer v0.9.0** â€” live security scanner reference (22 read-only checks + three reversible auto-fixes).
+> **FORCH.iA WinOptimizer v0.10.0** — live security scanner reference (22 read-only checks + four reversible auto-fixes).
 >
 > Built with FORCH.i by Paulo Velasco.
 
@@ -56,15 +56,16 @@ score = round(100 Ã— Î£(weight(check) Ã— statusScore) / Î£(weight(chec
 - If the denominator is zero, the score is **`null`** ("not scored") â€” never a
   magic number.
 
-## Auto-fix policy (v0.7.0)
+## Auto-fix policy (v0.10.0)
 
-Exactly **three** checks ship a real, reversible self-repair:
+Exactly **four** checks ship a real, reversible self-repair:
 
-| Check            | Apply does                                                                                                      | Revert restores                                                                  |
-| ---------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `smb1`           | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`)    | the **exact previous value** captured before the change (`enabled` / `disabled`) |
-| `guest-account`  | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback) | re-enables it **only if it was enabled before**                                  |
-| `remote-desktop` | sets `fDenyTSConnections = 1`                                                                                   | the **exact previous numeric value** of `fDenyTSConnections`                     |
+| Check            | Apply does                                                                                                                         | Revert restores                                                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `smb1`           | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`)                       | the **exact previous value** captured before the change (`enabled` / `disabled`)                                                       |
+| `guest-account`  | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback)                    | re-enables it **only if it was enabled before**                                                                                        |
+| `remote-desktop` | sets `fDenyTSConnections = 1`                                                                                                      | the **exact previous numeric value** of `fDenyTSConnections`                                                                           |
+| `smb-signing`    | `Set-SmbServerConfiguration -RequireSecuritySignature $true -EnableSecuritySignature $true` (registry fallback writes both DWORDs) | the **exact previous values** of `RequireSecuritySignature` and `EnableSecuritySignature` (including removing a value that was absent) |
 
 Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
 
@@ -83,7 +84,8 @@ Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
    single value, so those checks offer `guidance` only.
 
 The unit test `security-scan.test.ts` asserts that the set of `autoFixable` checks
-is **exactly** `{smb1, guest-account, remote-desktop}` â€” adding a fourth fails CI.
+is **exactly** `{smb1, guest-account, remote-desktop, smb-signing}` — adding a
+fifth fails CI.
 
 ## Check catalog
 
@@ -107,12 +109,13 @@ is **exactly** `{smb1, guest-account, remote-desktop}` â€” adding a fourth 
 | `password-policy`        | Account password policy      | high     | `HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters` → `MaximumPasswordAge`, `MinimumPasswordLength`, `PasswordComplexity`, `LockoutBadCount` (defaults assumed when absent) | pass, warn, fail, unknown                 | no        |
 | `autoplay`               | Autorun / Autoplay           | medium   | Policies `Explorer\NoDriveTypeAutoRun` + `Cdrom\Autorun`                                                                                                                             | pass, warn, unknown                       | no        |
 | `lm-hash`                | LM hash storage (`NoLMHash`) | medium   | `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` → `NoLMHash` (absent ⇒ still storing)                                                                                                    | pass, warn, fail, unknown                 | no        |
-| `smb-signing`            | SMB signing                  | medium   | `Get-SmbServerConfiguration` → `Require/EnableSecuritySignature` (registry fallback)                                                                                                 | pass, warn, fail, requires-admin, unknown | no        |
+| `smb-signing`            | SMB signing                  | medium   | `Get-SmbServerConfiguration` → `Require/EnableSecuritySignature` (registry fallback)                                                                                                 | pass, warn, fail, requires-admin, unknown | **yes**   |
 | `listening-ports`        | Inbound TCP listeners        | medium   | `Get-NetTCPConnection -State Listen` (enumerated, deduplicated)                                                                                                                      | pass, warn, unknown                       | no        |
 | `windows-update-service` | Windows Update service       | medium   | `Get-Service wuauserv` → `Status` + `StartType`                                                                                                                                      | pass, warn, fail, unknown                 | no        |
 
-All six are **read-only**: the `autoFixable` set remains exactly
-`{smb1, guest-account, remote-desktop}`.
+Of these, `smb-signing` became a reversible auto-fix in **v0.10.0**; the other
+five remain read-only, so the `autoFixable` set is now exactly
+`{smb1, guest-account, remote-desktop, smb-signing}`.
 
 ### v0.9.0 additions (admin-gated, read-only, dynamic)
 
@@ -133,7 +136,7 @@ catalog marks them with `requiresAdmin: true`.
 
 All six are **read-only** and none is `autoFixable` (their remediation can lock a
 user out or is not reversible through a single value), so the `autoFixable` set
-remains exactly `{smb1, guest-account, remote-desktop}` — asserted by
+remains exactly `{smb1, guest-account, remote-desktop, smb-signing}` — asserted by
 `security-scan.test.ts`. Because they carry `requiresAdmin: true`, an unelevated
 scan reports them as `requires-admin` and leaves them out of the score.
 

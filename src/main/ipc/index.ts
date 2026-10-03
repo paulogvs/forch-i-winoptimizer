@@ -414,9 +414,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
       options ?? {}
     )
   );
-  // Reversible auto-fix (v0.7.0): preview is read-only; apply/revert are
-  // mutating and serialized by the global lock. All three are admin-gated in
-  // the service (they return `blocked` with `requires-admin`, never silent).
+  // Reversible auto-fix (v0.7.0, extended in v0.10.0): preview is read-only;
+  // apply/revert are mutating and serialized by the global lock. All four are
+  // admin-gated in the service (they return `blocked` with `requires-admin`,
+  // never silent).
   handle('security:fix-preview', (_event: IpcMainInvokeEvent, checkId: string) =>
     previewSecurityFix(String(checkId))
   );

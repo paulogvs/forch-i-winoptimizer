@@ -36,14 +36,15 @@ describe('security-scan contract', () => {
     }
   });
 
-  it('auto-fixes exactly the three reversible checks and nothing else', () => {
-    // v0.7.0 ships auto-fix for smb1, guest-account and remote-desktop only.
-    // This guards against silently adding a fourth (every other candidate can
-    // lock a user out or is not reversible through a single value).
+  it('auto-fixes exactly the four reversible checks and nothing else', () => {
+    // v0.10.0 ships auto-fix for smb1, guest-account, remote-desktop and
+    // smb-signing. This guards against silently adding a fifth (every other
+    // candidate can lock a user out or is not reversible through a single
+    // value).
     const autoFixable = SECURITY_CHECK_CATALOG.filter((definition) => definition.autoFixable).map(
       (definition) => definition.id
     );
-    expect(autoFixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb1']);
+    expect(autoFixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb-signing', 'smb1']);
   });
 
   it('v0.9.0 admin-gated controls are present, read-only and flagged requiresAdmin', () => {
