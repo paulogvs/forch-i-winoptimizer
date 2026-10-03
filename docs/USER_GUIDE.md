@@ -1,9 +1,11 @@
 # FORCH.iA WinOptimizer — Guía de Usuario
 
-> **Novedades v0.8.0** — catálogos curados en DATOS (19 tweaks / 48 apps),
-> **6 checks de seguridad nuevos** (total 16) y validación **real** de los 3
-> auto-fix (aplicar → revertir, estado final idéntico al inicial). Ver
-> `docs/SECURITY_CHECKS.md` y `docs/CATALOGS.md`.
+> **Novedades v0.9.0** — el catálogo de seguridad crece a **22 checks** con **6
+> controles de hardening admin-gated** (LSASS/`RunAsPPL`, Credential Guard,
+> protectores de BitLocker, cuentas de administrador, reglas entrantes de
+> firewall y exposición de WinRM) y todo el código queda normalizado con
+> Prettier (fin de línea LF). Los 3 auto-fix reversibles siguen validados en
+> runtime real. Ver `docs/SECURITY_CHECKS.md`.
 
 ## Tabla de Contenidos
 
@@ -284,10 +286,14 @@ Categorías y tweaks incluidos (todos **Safe** y **Reversible: Sí**):
 
 ### Security
 
-Escaneo de seguridad **real y de solo lectura** contra tu máquina (16 chequeos:
+Escaneo de seguridad **real y de solo lectura** contra tu máquina (22 chequeos:
 antivirus, firewall, UAC, SMBv1, Secure Boot, TPM, BitLocker, updates, cuenta Guest,
 RDP, política de contraseñas, autorun/autoplay, LM hash, SMB signing, puertos
-escuchando y servicio Windows Update), mostrando la **evidencia observada** en cada fila. Tres chequeos ofrecen además
+escuchando, servicio Windows Update, y 6 controles de hardening **admin-gated**:
+LSASS/`RunAsPPL`, Credential Guard, protectores de BitLocker, cuentas de
+administrador, reglas entrantes de firewall y exposición de WinRM), mostrando la
+**evidencia observada** en cada fila. Sin elevación, los 6 admin-gated salen como
+`requires-admin` y quedan fuera del score. Tres chequeos ofrecen además
 **auto-fix reversible** (preview → confirmar → aplicar → revertir): `smb1`,
 `guest-account` y `remote-desktop`. Todo lo demás es guía. Ver
 `docs/SECURITY_CHECKS.md`.

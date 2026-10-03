@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-02
+
+El **catálogo de seguridad crece a 22 checks** con **6 controles de hardening
+admin-gated** de sólo lectura, y todo el código queda normalizado con Prettier
+(fin de línea LF fijado). Se validan en runtime real el auto-fix reversible y los
+canales mutantes reversibles, sin ejecutar nada destructivo.
+
+### Added
+
+- **6 checks de seguridad nuevos, admin-gated y de sólo lectura**
+  (`src/shared/security-scan.ts` + `src/main/services/security-scan.ts`):
+  `lsass-protection` (`RunAsPPL`), `credential-guard` (VBS/Device Guard),
+  `bitlocker-protectors` (protectores de clave), `admin-accounts` (cuentas de
+  administrador local contadas por **SID `S-1-5-32-544`**, nunca por nombre),
+  `firewall-inbound-rules` (reglas entrantes habilitadas) y `winrm-exposure`
+  (servicio WinRM + listeners). Cada uno declara `requiresAdmin: true`: sin
+  elevación reporta `requires-admin` con el valor observado y **queda excluido
+  del denominador del score** — nunca `fail` ni `unknown`. El set `autoFixable`
+  sigue siendo exactamente `{smb1, guest-account, remote-desktop}` (test).
+- **`.gitattributes` (LF) + `.prettierignore`** y normalización completa del
+  código con Prettier (`prettier --check .` pasa). Fin de línea LF fijado para
+  todos los archivos de texto.
+
+### Changed
+
+- **`docs/SECURITY_CHECKS.md`** documenta los 6 checks nuevos (consulta en vivo,
+  estados posibles, severidad, `requires-admin`, auto-reparable = no); el total
+  pasa de 16 a **22**. `docs/USER_GUIDE.md` y `docs/TROUBLESHOOTING.md`
+  alineados.
+- Versión **0.9.0** (`package.json` + `package-lock.json`).
+
+### Validated (runtime, no mocks)
+
+- **Auto-fix `remote-desktop`**: sin sesiones RDP activas y con la máquina ya
+  endurecida (`fDenyTSConnections=1`), el servicio devuelve `blocked` con motivo
+  `already-applied` (`before == after`, sin mutar nada); con el proceso sin
+  elevar, el gate `requires-admin` también está activo. **Sin cambio de estado.**
+- **`cleaner:delete`**: basura scratch en `%TEMP%` → escaneada → borrada
+  (3/3, `failed: 0`) → verificada ausente; directorio scratch eliminado.
+- **`cleaning:run-now`**: schedule scratch creado → ejecutado → eliminado; la
+  tarea programada de Windows queda `ABSENT`; `schedules.json`/`history.json`
+  restaurados byte a byte.
+- Estado final == inicial (`SMBv1 enabled, Guest enabled, RDP denied`).
+
 ## [0.8.0] - 2026-10-02
 
 Los **catálogos curados pasan a DATOS**, se validan los 3 auto-fix **en runtime real**

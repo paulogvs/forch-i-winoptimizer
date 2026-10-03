@@ -70,8 +70,8 @@ unsigned exactly as today.
 signtool sign /v /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
   /dlib "C:\Program Files\Windows Kits\10\bin\10.0.22621.0\x64\Azure.CodeSigning.Dlib.dll" `
   /dm "C:\path\metadata.json" `
-  "release\FORCH.iA WinOptimizer Setup 0.5.0.exe" `
-  "release\FORCH.iA-WinOptimizer-Portable-0.5.0.exe"
+  "release\FORCH.iA-WinOptimizer-Setup-0.9.0.exe" `
+  "release\FORCH.iA-WinOptimizer-Portable-0.9.0.exe"
 ```
 
 For CI, expose the Trusted Signing credentials as GitHub Actions secrets and add
@@ -81,7 +81,7 @@ a signing step to `.github/workflows/release.yml` **after** the
 ### Verify a signature
 
 ```powershell
-Get-AuthenticodeSignature "release\FORCH.iA-WinOptimizer-Portable-0.5.0.exe" |
+Get-AuthenticodeSignature "release\FORCH.iA-WinOptimizer-Portable-0.9.0.exe" |
   Format-List Status, SignerCertificate, TimeStamperCertificate
 ```
 

@@ -169,22 +169,23 @@ ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requ
 
 Muchas funciones leen o modifican el sistema y requieren **ejecutar la app como administrador**:
 
-| Módulo                                                             | ¿Requiere admin? |
-| ------------------------------------------------------------------ | :--------------: |
-| Dashboard / System Info                                            |        No        |
-| Cleaner (limpiar `C:\Windows\*`, caché de Windows Update)          |        Sí        |
-| Boost / Servicios (cambiar tipo de inicio, detener)                |        Sí        |
-| App Manager (desinstalar apps UWP/Win32)                           |        Sí        |
-| Debloat (remover paquetes UWP)                                     |        Sí        |
-| Free RAM (liberar memoria de la app)                               |        No        |
-| Bundles (instalar vía `winget`)                                    |        No        |
-| Drivers (punto de restauración, `pnputil`)                         |        Sí        |
-| Network Fixer (reset TCP/IP, Winsock, firewall)                    |        Sí        |
-| Scheduled Cleaning (crear tareas programadas)                      |        Sí        |
-| Audit / Benchmark (lectura de HKLM)                                |     Parcial      |
-| Tweaks — Performance: SysMain, Prefetch (`HKLM`/servicios)         |        Sí        |
-| Tweaks — Privacy: Telemetry/DiagTrack (servicio + tareas + `HKLM`) |        Sí        |
-| Tweaks — Background Apps, Suggested Content, Explorer (`HKCU`)     |        No        |
+| Módulo                                                                                                                                                  | ¿Requiere admin? |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------: |
+| Dashboard / System Info                                                                                                                                 |        No        |
+| Cleaner (limpiar `C:\Windows\*`, caché de Windows Update)                                                                                               |        Sí        |
+| Boost / Servicios (cambiar tipo de inicio, detener)                                                                                                     |        Sí        |
+| App Manager (desinstalar apps UWP/Win32)                                                                                                                |        Sí        |
+| Debloat (remover paquetes UWP)                                                                                                                          |        Sí        |
+| Free RAM (liberar memoria de la app)                                                                                                                    |        No        |
+| Bundles (instalar vía `winget`)                                                                                                                         |        No        |
+| Drivers (punto de restauración, `pnputil`)                                                                                                              |        Sí        |
+| Network Fixer (reset TCP/IP, Winsock, firewall)                                                                                                         |        Sí        |
+| Scheduled Cleaning (crear tareas programadas)                                                                                                           |        Sí        |
+| Audit / Benchmark (lectura de HKLM)                                                                                                                     |     Parcial      |
+| Security Scan — 6 checks admin-gated (LSASS, Credential Guard, protectores de BitLocker, cuentas de administrador, reglas entrantes de firewall, WinRM) |     Parcial      |
+| Tweaks — Performance: SysMain, Prefetch (`HKLM`/servicios)                                                                                              |        Sí        |
+| Tweaks — Privacy: Telemetry/DiagTrack (servicio + tareas + `HKLM`)                                                                                      |        Sí        |
+| Tweaks — Background Apps, Suggested Content, Explorer (`HKCU`)                                                                                          |        No        |
 
 **Portable:** si las acciones fallan, cerrá la app y reabrí con clic derecho → **Ejecutar como administrador**.
 
@@ -373,6 +374,11 @@ _Build. Learn. Evolve._
   inventa resultados — prefiere declarar que no midió.
 - **Requires admin**: el dato necesita elevación. El error observable fue "acceso
   denegado".
+- **v0.9.0 — 6 checks admin-gated**: `lsass-protection`, `credential-guard`,
+  `bitlocker-protectors`, `admin-accounts`, `firewall-inbound-rules` y
+  `winrm-exposure` requieren elevación por diseño. Sin admin se reportan como
+  `requires-admin` con el valor observado y **no cuentan para el score** (no se
+  penaliza lo que no se pudo medir).
 
 **Soluciones:**
 

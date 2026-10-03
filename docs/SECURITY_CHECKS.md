@@ -1,6 +1,6 @@
 ﻿# Security Checks Catalog
 
-> **FORCH.iA WinOptimizer v0.8.0** â€” live security scanner reference (16 read-only checks + three reversible auto-fixes).
+> **FORCH.iA WinOptimizer v0.9.0** â€” live security scanner reference (22 read-only checks + three reversible auto-fixes).
 >
 > Built with FORCH.i by Paulo Velasco.
 
@@ -12,7 +12,7 @@ list in the renderer â€” main and renderer both read the shared module.
 ## How the scan works
 
 - **One PowerShell process** serves every check (the per-spawn cost is ~1.8 s,
-  so 16 spawns would be ~29 s). This mirrors `system-audit.ts`.
+  so 22 spawns would be ~40 s). This mirrors `system-audit.ts`.
 - Each check is wrapped in its own `try/catch` and emits a marker
   (`@@FSEC_n@@`), so **one failing check cannot abort the scan**: it degrades to
   `unknown`/`requires-admin`.
@@ -113,6 +113,29 @@ is **exactly** `{smb1, guest-account, remote-desktop}` â€” adding a fourth 
 
 All six are **read-only**: the `autoFixable` set remains exactly
 `{smb1, guest-account, remote-desktop}`.
+
+### v0.9.0 additions (admin-gated, read-only, dynamic)
+
+Six machine-wide hardening controls were added. Each measures a control whose
+live assessment is **admin-gated**: when the scanner is **not elevated** the
+check reports `requires-admin` (with the value observed so far) and is excluded
+from the score denominator — it is never reported as `fail` or `unknown`. The
+catalog marks them with `requiresAdmin: true`.
+
+| id                       | Title                            | Severity | Live query                                                                                                                                               | Possible statuses                                   | Auto-fix? |
+| ------------------------ | -------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | --------- |
+| `lsass-protection`       | LSASS protection (`RunAsPPL`)    | high     | Registry `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` → `RunAsPPL`, `LsaCfgFlags` (`RunAsPPL >= 1` ⇒ LSA as a protected process)                          | pass, warn, fail, requires-admin, unknown           | no        |
+| `credential-guard`       | Credential Guard / Device Guard  | high     | `root\Microsoft\Windows\DeviceGuard => Win32_DeviceGuard` (`SecurityServicesConfigured`, `SecurityServicesRunning`, `VirtualizationBasedSecurityStatus`) | pass, warn, fail, requires-admin, unknown           | no        |
+| `bitlocker-protectors`   | BitLocker key protectors         | high     | `Get-BitLockerVolume -MountPoint %SystemDrive%` → `KeyProtector` (types + count; a volume with 0 protectors cannot be unlocked)                          | pass, fail, not-applicable, requires-admin, unknown | no        |
+| `admin-accounts`         | Local administrator accounts     | high     | `Win32_UserAccount` (`LocalAccount=True`, `PasswordExpires`) + administrators-group membership counted live by **SID `S-1-5-32-544`**, never by name     | pass, warn, fail, requires-admin, unknown           | no        |
+| `firewall-inbound-rules` | Enabled inbound firewall rules   | medium   | `Get-NetFirewallRule -Enabled True -Direction Inbound` → count + sample of non-block allow rules (a large inbound surface is flagged)                    | pass, warn, requires-admin, unknown                 | no        |
+| `winrm-exposure`         | WinRM remote management exposure | medium   | `Get-Service WinRM` (Status + StartType) + `WSMan:\localhost\Listener` count                                                                             | pass, warn, fail, requires-admin, unknown           | no        |
+
+All six are **read-only** and none is `autoFixable` (their remediation can lock a
+user out or is not reversible through a single value), so the `autoFixable` set
+remains exactly `{smb1, guest-account, remote-desktop}` — asserted by
+`security-scan.test.ts`. Because they carry `requiresAdmin: true`, an unelevated
+scan reports them as `requires-admin` and leaves them out of the score.
 
 ## Anti-hardcoding guarantees
 
