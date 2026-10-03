@@ -287,7 +287,19 @@ Sin firma Authenticode, SmartScreen desconfía de un `.exe` descargado de intern
 es un bug de la app ni se puede arreglar con código** — requiere un certificado **de
 pago**.
 
-**Qué podés hacer (usuario):**
+**Si las PCs son tuyas (uso interno) — solución gratis:** el aviso lo dispara la "marca
+de internet" que Windows le pone al `.exe` descargado. Quitala una vez y no vuelve a
+aparecer en esa máquina:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\unblock-release.ps1
+```
+
+O clic derecho sobre el `.exe` → _Propiedades_ → **Desbloquear**. (Si te equivocaste de
+archivo, podés volver a marcarlo con: `Set-Content -LiteralPath <exe> -Stream
+Zone.Identifier -Value "[ZoneTransfer]`nZoneId=3"`.)
+
+**Qué podés hacer (si no):**
 
 1. _Más información_ → _Ejecutar de todas formas_ (el flujo esperado para software open
    source sin firmar).
@@ -295,8 +307,9 @@ pago**.
    (`Get-FileHash ".\FORCH.iA-WinOptimizer-Portable-x.y.z.exe" -Algorithm SHA256`).
 
 **Qué NO sirve:** certificados autofirmados (siguen warning) o re-subir el binario.
-**Cómo se elimina de verdad:** certificado **OV** (tras ganar reputación) o **EV/Trusted
-Signing** (inmediato). Pasos, coste y wiring del build en
+**Cómo se elimina de verdad (para distribuir a terceros):** certificado **OV** (tras
+ganar reputación) o **EV/Trusted Signing** (inmediato) — el desbloqueo de arriba es sólo
+para tus propias PCs. Pasos, coste y wiring del build en
 [docs/CODE_SIGNING.md](CODE_SIGNING.md).
 
 ---

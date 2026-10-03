@@ -28,6 +28,19 @@ accrues (typically weeks and enough downloads).
 - Renaming / re-uploading the binary: reputation resets.
 - Repro builds: reproducibility does not substitute for a signature.
 
+## Internal use — no certificate required (free)
+
+If the app only runs on **your own PCs**, you do **not** need to buy anything. The
+SmartScreen warning is triggered by the "mark of the web" Windows attaches to a
+downloaded `.exe`; clearing it once per machine removes the warning permanently:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\unblock-release.ps1
+```
+
+Or right-click the downloaded `.exe` → _Properties_ → **Unblock**. Auto-update keeps
+working either way. Buy a certificate only when you distribute to **third parties**.
+
 ## Options and cost (2026)
 
 | Option                    | Type              | Typical cost             | SmartScreen                 | Notes                                                                                                                          |

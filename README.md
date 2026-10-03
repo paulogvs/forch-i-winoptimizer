@@ -86,7 +86,19 @@ npm run electron:build
 
 Artifacts are written to `release/`.
 
-Prebuilt artifacts are published on the [Releases page](https://github.com/paulogvs/forch-i-winoptimizer/releases) (with SHA-256 checksums). The binaries are **not code-signed**, so Windows SmartScreen may warn on first run.
+Prebuilt artifacts are published on the [Releases page](https://github.com/paulogvs/forch-i-winoptimizer/releases) (with SHA-256 checksums).
+
+The binaries are **not code-signed**, so Windows SmartScreen may warn on first run. For
+**internal use** you can clear that warning for free after downloading, by removing the
+"mark of the web":
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\unblock-release.ps1
+```
+
+Or right-click the downloaded `.exe` → _Properties_ → _Unblock_. A **paid** code-signing
+certificate is only required to distribute to third parties — see
+[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 
 > Building on a fresh Windows machine may hit a `winCodeSign` symbolic-link error — see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) §11.
 
