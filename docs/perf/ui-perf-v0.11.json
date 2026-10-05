@@ -1,0 +1,1862 @@
+{
+  "meta": {
+    "when": "2026-10-05T14:45:03.329Z",
+    "cycles": 1,
+    "load": null,
+    "clock": "renderer performance.now() via MutationObserver",
+    "click": "in-page HTMLElement.click() (no Playwright actionability wait)"
+  },
+  "startup": [
+    {
+      "windowMs": 9228,
+      "loadMs": 4409,
+      "dclMs": 4408,
+      "fcpMs": 5265,
+      "domNodes": 129
+    },
+    {
+      "windowMs": 880,
+      "loadMs": 488,
+      "dclMs": 480,
+      "fcpMs": 971,
+      "domNodes": 129
+    },
+    {
+      "windowMs": 800,
+      "loadMs": 287,
+      "dclMs": 286,
+      "fcpMs": null,
+      "domNodes": 117
+    }
+  ],
+  "ipcInstrumented": {
+    "ok": true,
+    "count": 83
+  },
+  "pageIssues": [
+    {
+      "kind": "console.warning",
+      "text": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "kind": "console.warning",
+      "text": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    }
+  ],
+  "coldRender": {
+    "reloadMs": 52,
+    "longTasks": [],
+    "heapMb": 9.5,
+    "domNodes": 129
+  },
+  "navigation": [
+    {
+      "id": "dashboard",
+      "titleMs": 3,
+      "readyMs": 6,
+      "settledMs": 6,
+      "navEvents": [
+        {
+          "t": 1051,
+          "title": "Settings",
+          "skeleton": false,
+          "sig": "1|586",
+          "modal": false
+        },
+        {
+          "t": 1054,
+          "title": "Dashboard",
+          "skeleton": true,
+          "sig": "1|9",
+          "modal": false
+        },
+        {
+          "t": 1057,
+          "title": "Dashboard",
+          "skeleton": false,
+          "sig": "1|375",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "system:get-info",
+          "ms": 972.7
+        },
+        {
+          "ch": "system:get-info",
+          "ms": 0
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [
+        {
+          "ch": "system:get-info",
+          "startedAt": 4078
+        }
+      ],
+      "ipcCount": 2,
+      "ipcTotalMs": 972.7,
+      "ipcMaxMs": 972.7,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 178,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "cleaner",
+      "titleMs": 3,
+      "readyMs": 3,
+      "settledMs": 3,
+      "navEvents": [
+        {
+          "t": 1418,
+          "title": "Dashboard",
+          "skeleton": false,
+          "sig": "1|375",
+          "modal": false
+        },
+        {
+          "t": 1421,
+          "title": "Cleaner",
+          "skeleton": false,
+          "sig": "1|129",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "system:get-info",
+          "ms": 684.1
+        }
+      ],
+      "ipcStarted": 0,
+      "ipcPending": [],
+      "ipcCount": 1,
+      "ipcTotalMs": 684.1,
+      "ipcMaxMs": 684.1,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 106,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "boost",
+      "titleMs": 2,
+      "readyMs": 2,
+      "settledMs": 2,
+      "navEvents": [
+        {
+          "t": 1758,
+          "title": "Cleaner",
+          "skeleton": false,
+          "sig": "1|129",
+          "modal": false
+        },
+        {
+          "t": 1760,
+          "title": "Boost",
+          "skeleton": false,
+          "sig": "1|24",
+          "modal": false
+        }
+      ],
+      "ipc": [],
+      "ipcStarted": 1,
+      "ipcPending": [
+        {
+          "ch": "services:get-all",
+          "startedAt": 4784
+        }
+      ],
+      "ipcCount": 0,
+      "ipcTotalMs": 0,
+      "ipcMaxMs": 0,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 100,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "tools",
+      "titleMs": 4,
+      "readyMs": 4,
+      "settledMs": 4,
+      "navEvents": [
+        {
+          "t": 3851,
+          "title": "Boost",
+          "skeleton": false,
+          "sig": "1|24",
+          "modal": false
+        },
+        {
+          "t": 3855,
+          "title": "Tools",
+          "skeleton": false,
+          "sig": "1|87",
+          "modal": false
+        },
+        {
+          "t": 3855,
+          "title": "Tools",
+          "skeleton": false,
+          "sig": "1|57",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "services:get-all",
+          "ms": 4157.3
+        }
+      ],
+      "ipcStarted": 1,
+      "ipcPending": [
+        {
+          "ch": "apps:get-installed",
+          "startedAt": 6878
+        }
+      ],
+      "ipcCount": 1,
+      "ipcTotalMs": 4157.3,
+      "ipcMaxMs": 4157.3,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 105,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "drivers",
+      "titleMs": 3,
+      "readyMs": 3,
+      "settledMs": 7,
+      "navEvents": [
+        {
+          "t": 6125,
+          "title": "Tools",
+          "skeleton": false,
+          "sig": "1|57",
+          "modal": false
+        },
+        {
+          "t": 6128,
+          "title": "Driver Updater",
+          "skeleton": false,
+          "sig": "1|46",
+          "modal": false
+        },
+        {
+          "t": 6131,
+          "title": "Driver Updater",
+          "skeleton": true,
+          "sig": "1|45",
+          "modal": false
+        },
+        {
+          "t": 6132,
+          "title": "Driver Updater",
+          "skeleton": true,
+          "sig": "1|131",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "apps:get-installed",
+          "ms": 4438
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [
+        {
+          "ch": "drivers:scan",
+          "startedAt": 9152
+        },
+        {
+          "ch": "apps:get-installed",
+          "startedAt": 11322
+        }
+      ],
+      "ipcCount": 1,
+      "ipcTotalMs": 4438,
+      "ipcMaxMs": 4438,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 163,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "network",
+      "titleMs": 3,
+      "readyMs": 3,
+      "settledMs": 3,
+      "navEvents": [
+        {
+          "t": 8544,
+          "title": "Driver Updater",
+          "skeleton": true,
+          "sig": "1|131",
+          "modal": false
+        },
+        {
+          "t": 8547,
+          "title": "Network Fixer",
+          "skeleton": false,
+          "sig": "1|201",
+          "modal": false
+        }
+      ],
+      "ipc": [],
+      "ipcStarted": 0,
+      "ipcPending": [],
+      "ipcCount": 0,
+      "ipcTotalMs": 0,
+      "ipcMaxMs": 0,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 124,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "audit",
+      "titleMs": 2,
+      "readyMs": 2,
+      "settledMs": 6,
+      "navEvents": [
+        {
+          "t": 8911,
+          "title": "Network Fixer",
+          "skeleton": false,
+          "sig": "1|201",
+          "modal": false
+        },
+        {
+          "t": 8913,
+          "title": "System Audit",
+          "skeleton": false,
+          "sig": "1|21",
+          "modal": false
+        },
+        {
+          "t": 8917,
+          "title": "System Audit",
+          "skeleton": false,
+          "sig": "1|46",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "drivers:scan",
+          "ms": 5210.4
+        },
+        {
+          "ch": "apps:get-installed",
+          "ms": 3111.2
+        }
+      ],
+      "ipcStarted": 1,
+      "ipcPending": [
+        {
+          "ch": "audit:run",
+          "startedAt": 11937
+        }
+      ],
+      "ipcCount": 2,
+      "ipcTotalMs": 8321.6,
+      "ipcMaxMs": 5210.4,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 105,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "benchmark",
+      "titleMs": 2,
+      "readyMs": 2,
+      "settledMs": 2,
+      "navEvents": [
+        {
+          "t": 11682,
+          "title": "System Audit",
+          "skeleton": false,
+          "sig": "1|46",
+          "modal": false
+        },
+        {
+          "t": 11684,
+          "title": "Benchmark",
+          "skeleton": false,
+          "sig": "1|22",
+          "modal": false
+        }
+      ],
+      "ipc": [],
+      "ipcStarted": 0,
+      "ipcPending": [],
+      "ipcCount": 0,
+      "ipcTotalMs": 0,
+      "ipcMaxMs": 0,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 101,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "bundles",
+      "titleMs": 3,
+      "readyMs": 3,
+      "settledMs": 3,
+      "navEvents": [
+        {
+          "t": 12029,
+          "title": "Benchmark",
+          "skeleton": false,
+          "sig": "1|22",
+          "modal": false
+        },
+        {
+          "t": 12032,
+          "title": "App Bundles",
+          "skeleton": false,
+          "sig": "1|29",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "system:op-status",
+          "ms": 0
+        },
+        {
+          "ch": "bundles:get",
+          "ms": 0.1
+        }
+      ],
+      "ipcStarted": 3,
+      "ipcPending": [
+        {
+          "ch": "bundles:check-installed",
+          "startedAt": 15057
+        }
+      ],
+      "ipcCount": 2,
+      "ipcTotalMs": 0.1,
+      "ipcMaxMs": 0.1,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 100,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "cleaning",
+      "titleMs": 2,
+      "readyMs": 2,
+      "settledMs": 2,
+      "navEvents": [
+        {
+          "t": 14762,
+          "title": "App Bundles",
+          "skeleton": false,
+          "sig": "1|29",
+          "modal": false
+        },
+        {
+          "t": 14764,
+          "title": "Scheduled Cleaning",
+          "skeleton": false,
+          "sig": "1|28",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "cleaning:get-schedules",
+          "ms": 5277.8
+        },
+        {
+          "ch": "bundles:check-installed",
+          "ms": 8011
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [
+        {
+          "ch": "cleaning:get-history",
+          "startedAt": 20183
+        }
+      ],
+      "ipcCount": 2,
+      "ipcTotalMs": 13288.8,
+      "ipcMaxMs": 8011,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 100,
+      "listenerNet": 140,
+      "cycle": 0
+    },
+    {
+      "id": "tweaks",
+      "titleMs": 3,
+      "readyMs": 17,
+      "settledMs": 17,
+      "navEvents": [
+        {
+          "t": 20378,
+          "title": "Scheduled Cleaning",
+          "skeleton": false,
+          "sig": "1|28",
+          "modal": false
+        },
+        {
+          "t": 20381,
+          "title": "Tweaks",
+          "skeleton": true,
+          "sig": "1|177",
+          "modal": false
+        },
+        {
+          "t": 20395,
+          "title": "Tweaks",
+          "skeleton": false,
+          "sig": "1|4361",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "system:op-status",
+          "ms": 0
+        },
+        {
+          "ch": "tweaks:get",
+          "ms": 1.5
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [],
+      "ipcCount": 2,
+      "ipcTotalMs": 1.5,
+      "ipcMaxMs": 1.5,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 413,
+      "listenerNet": 158,
+      "cycle": 0
+    },
+    {
+      "id": "statistics",
+      "titleMs": 4,
+      "readyMs": 4,
+      "settledMs": 148,
+      "navEvents": [
+        {
+          "t": 20785,
+          "title": "Tweaks",
+          "skeleton": false,
+          "sig": "1|4361",
+          "modal": false
+        },
+        {
+          "t": 20789,
+          "title": "Statistics",
+          "skeleton": false,
+          "sig": "1|41",
+          "modal": false
+        },
+        {
+          "t": 20933,
+          "title": "Statistics",
+          "skeleton": false,
+          "sig": "1|1028",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "stats:get",
+          "ms": 1.7
+        }
+      ],
+      "ipcStarted": 1,
+      "ipcPending": [],
+      "ipcCount": 1,
+      "ipcTotalMs": 1.7,
+      "ipcMaxMs": 1.7,
+      "longTasks": [
+        {
+          "start": 20792,
+          "duration": 141
+        }
+      ],
+      "heapMb": 9.5,
+      "domNodes": 300,
+      "listenerNet": 158,
+      "cycle": 0
+    },
+    {
+      "id": "security",
+      "titleMs": 4,
+      "readyMs": 4,
+      "settledMs": 4,
+      "navEvents": [
+        {
+          "t": 21282,
+          "title": "Statistics",
+          "skeleton": false,
+          "sig": "1|1028",
+          "modal": false
+        },
+        {
+          "t": 21286,
+          "title": "Security & Privacy",
+          "skeleton": false,
+          "sig": "1|95",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "security:get-actions",
+          "ms": 0.1
+        },
+        {
+          "ch": "cleaning:get-history",
+          "ms": 7110.8
+        },
+        {
+          "ch": "audit:run",
+          "ms": 15538.4
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [
+        {
+          "ch": "privacy:get-settings",
+          "startedAt": 24310
+        }
+      ],
+      "ipcCount": 3,
+      "ipcTotalMs": 22649.3,
+      "ipcMaxMs": 15538.4,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 114,
+      "listenerNet": 158,
+      "cycle": 0
+    },
+    {
+      "id": "settings",
+      "titleMs": 3,
+      "readyMs": 3,
+      "settledMs": 3,
+      "navEvents": [
+        {
+          "t": 24610,
+          "title": "Security & Privacy",
+          "skeleton": false,
+          "sig": "1|95",
+          "modal": false
+        },
+        {
+          "t": 24613,
+          "title": "Settings",
+          "skeleton": false,
+          "sig": "1|586",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "settings:get",
+          "ms": 0.4
+        },
+        {
+          "ch": "updater:status",
+          "ms": 0.1
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [],
+      "ipcCount": 2,
+      "ipcTotalMs": 0.5,
+      "ipcMaxMs": 0.4,
+      "longTasks": [],
+      "heapMb": 9.5,
+      "domNodes": 173,
+      "listenerNet": 160,
+      "cycle": 0
+    }
+  ],
+  "interactions": {
+    "dashboardRefresh": {
+      "found": true,
+      "ms": 1077,
+      "events": [
+        {
+          "t": 25319,
+          "title": "Dashboard",
+          "skeleton": false,
+          "sig": "1|374",
+          "modal": false
+        },
+        {
+          "t": 26396,
+          "title": "Dashboard",
+          "skeleton": false,
+          "sig": "1|375",
+          "modal": false
+        }
+      ],
+      "ipc": [
+        {
+          "ch": "cache:clear",
+          "ms": 0.1
+        },
+        {
+          "ch": "privacy:get-settings",
+          "ms": 4262.8
+        },
+        {
+          "ch": "system:get-info",
+          "ms": 1426.6
+        },
+        {
+          "ch": "system:get-info",
+          "ms": 1371.2
+        }
+      ],
+      "ipcStarted": 2,
+      "ipcPending": [],
+      "ipcCount": 4,
+      "ipcTotalMs": 7060.7,
+      "heapMb": 9.5,
+      "domNodes": 178,
+      "listenerNet": 160
+    },
+    "modalOpen": {
+      "found": true,
+      "ms": 10,
+      "events": [
+        {
+          "t": 27318,
+          "title": "Tweaks",
+          "skeleton": false,
+          "sig": "1|4361",
+          "modal": false
+        },
+        {
+          "t": 27328,
+          "title": "Tweaks",
+          "skeleton": false,
+          "sig": "1|4505",
+          "modal": true
+        }
+      ],
+      "ipc": [],
+      "ipcStarted": 0,
+      "ipcPending": [],
+      "ipcCount": 0,
+      "ipcTotalMs": 0,
+      "heapMb": 9.5,
+      "domNodes": 428,
+      "listenerNet": 179
+    },
+    "modalClose": {
+      "found": true,
+      "ms": 3,
+      "events": [
+        {
+          "t": 27597,
+          "title": "Tweaks",
+          "skeleton": false,
+          "sig": "1|4505",
+          "modal": true
+        },
+        {
+          "t": 27600,
+          "title": "Tweaks",
+          "skeleton": false,
+          "sig": "1|4361",
+          "modal": false
+        }
+      ],
+      "ipc": [],
+      "ipcStarted": 0,
+      "ipcPending": [],
+      "ipcCount": 0,
+      "ipcTotalMs": 0,
+      "heapMb": 9.5,
+      "domNodes": 413,
+      "listenerNet": 178
+    },
+    "toolsTabs": {
+      "Startup": {
+        "found": false,
+        "ms": 1609,
+        "events": [
+          {
+            "t": 28219,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|57",
+            "modal": false
+          },
+          {
+            "t": 29828,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|1293",
+            "modal": false
+          }
+        ],
+        "ipc": [
+          {
+            "ch": "apps:get-installed",
+            "ms": 1924.1
+          }
+        ],
+        "ipcStarted": 1,
+        "ipcPending": [
+          {
+            "ch": "apps:get-installed",
+            "startedAt": 32826
+          }
+        ],
+        "ipcCount": 1,
+        "ipcTotalMs": 1924.1,
+        "heapMb": 9.5,
+        "domNodes": 250,
+        "listenerNet": 181
+      },
+      "Debloat": {
+        "found": true,
+        "ms": 3,
+        "events": [
+          {
+            "t": 30154,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|1293",
+            "modal": false
+          },
+          {
+            "t": 30157,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|249",
+            "modal": false
+          }
+        ],
+        "ipc": [
+          {
+            "ch": "apps:get-installed",
+            "ms": 2391.6
+          }
+        ],
+        "ipcStarted": 1,
+        "ipcPending": [
+          {
+            "ch": "debloat:get-catalog",
+            "startedAt": 33181
+          }
+        ],
+        "ipcCount": 1,
+        "ipcTotalMs": 2391.6,
+        "heapMb": 9.5,
+        "domNodes": 118,
+        "listenerNet": 178
+      },
+      "Utilities": {
+        "found": true,
+        "ms": 3,
+        "events": [
+          {
+            "t": 32426,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|249",
+            "modal": false
+          },
+          {
+            "t": 32429,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|971",
+            "modal": false
+          }
+        ],
+        "ipc": [],
+        "ipcStarted": 0,
+        "ipcPending": [],
+        "ipcCount": 0,
+        "ipcTotalMs": 0,
+        "heapMb": 9.5,
+        "domNodes": 209,
+        "listenerNet": 178
+      },
+      "Apps": {
+        "found": false,
+        "ms": null,
+        "events": [
+          {
+            "t": 32746,
+            "title": "Tools",
+            "skeleton": false,
+            "sig": "1|971",
+            "modal": false
+          }
+        ],
+        "ipc": [
+          {
+            "ch": "debloat:get-catalog",
+            "ms": 2747.7
+          }
+        ],
+        "ipcStarted": 0,
+        "ipcPending": [],
+        "ipcCount": 1,
+        "ipcTotalMs": 2747.7,
+        "heapMb": 9.5,
+        "domNodes": 209,
+        "listenerNet": 178
+      }
+    },
+    "scroll": {
+      "target": "document",
+      "scrollableHeight": 1413,
+      "rows": 0,
+      "frames": 60,
+      "p50": 17,
+      "p95": 17,
+      "max": 17,
+      "over34ms": 0
+    }
+  },
+  "clickOverhead": {
+    "playwrightClickWallMs": 83,
+    "actionabilityMs": 74,
+    "appTitleMs": null,
+    "windowOccludedLikely": false
+  },
+  "scrollFps": {
+    "mockDrivers": {
+      "ok": true,
+      "count": 500,
+      "hadHandler": true
+    },
+    "drivers": {
+      "label": "drivers-500-virtualized",
+      "target": "virtual-list",
+      "scrollHeight": 29000,
+      "clientHeight": 520,
+      "maxTop": 30412,
+      "frames": 100,
+      "durationMs": 1673,
+      "p50FrameMs": 16.7,
+      "p95FrameMs": 16.8,
+      "worstFrameMs": 16.9,
+      "p50Fps": 59.9,
+      "p95Fps": 59.5,
+      "minFps": 59.2,
+      "droppedFrames": 0,
+      "domNodes": 250,
+      "visibilityState": "visible",
+      "load": null,
+      "loadMs": null,
+      "loadError": null,
+      "deltas": [
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.9,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.7
+      ]
+    },
+    "toolsApps": {
+      "label": "tools-apps-installed",
+      "target": "virtual-list",
+      "scrollHeight": 12833,
+      "clientHeight": 384,
+      "maxTop": 13670,
+      "frames": 100,
+      "durationMs": 1673,
+      "p50FrameMs": 16.7,
+      "p95FrameMs": 16.8,
+      "worstFrameMs": 16.9,
+      "p50Fps": 59.9,
+      "p95Fps": 59.5,
+      "minFps": 59.2,
+      "droppedFrames": 0,
+      "domNodes": 331,
+      "visibilityState": "visible",
+      "load": null,
+      "loadMs": null,
+      "loadError": null,
+      "deltas": [
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.8,
+        16.6,
+        16.8,
+        16.8,
+        16.6,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.9,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7
+      ]
+    },
+    "bundles": {
+      "label": "bundles",
+      "target": "document",
+      "scrollHeight": 3736,
+      "clientHeight": 720,
+      "maxTop": 3016,
+      "frames": 100,
+      "durationMs": 1673,
+      "p50FrameMs": 16.7,
+      "p95FrameMs": 16.9,
+      "worstFrameMs": 17.7,
+      "p50Fps": 59.9,
+      "p95Fps": 59.2,
+      "minFps": 56.5,
+      "droppedFrames": 0,
+      "domNodes": 495,
+      "visibilityState": "visible",
+      "load": null,
+      "loadMs": null,
+      "loadError": null,
+      "deltas": [
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.8,
+        16.9,
+        16.7,
+        16.5,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.9,
+        16.5,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        17.7,
+        15.8,
+        17.1,
+        16.3,
+        16.9,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.6,
+        16.9,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.8,
+        16.6,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.6,
+        16.8,
+        16.7,
+        16.8,
+        16.8,
+        16.8,
+        16.6,
+        16.7,
+        16.7,
+        16.7,
+        16.8
+      ]
+    },
+    "tweaks": {
+      "label": "tweaks",
+      "target": "document",
+      "scrollHeight": 2450,
+      "clientHeight": 720,
+      "maxTop": 1730,
+      "frames": 100,
+      "durationMs": 1673,
+      "p50FrameMs": 16.7,
+      "p95FrameMs": 16.9,
+      "worstFrameMs": 17,
+      "p50Fps": 59.9,
+      "p95Fps": 59.2,
+      "minFps": 58.8,
+      "droppedFrames": 0,
+      "domNodes": 413,
+      "visibilityState": "visible",
+      "load": null,
+      "loadMs": null,
+      "loadError": null,
+      "deltas": [
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.9,
+        16.5,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.8,
+        16.9,
+        16.5,
+        16.8,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.8,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        17,
+        16.4,
+        16.8,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.7,
+        16.8,
+        16.8,
+        16.7,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.6,
+        16.7,
+        16.9,
+        16.6,
+        16.8,
+        16.7,
+        16.7,
+        16.7,
+        16.8,
+        16.6,
+        16.9,
+        16.6,
+        16.7,
+        16.8,
+        16.7,
+        16.8,
+        16.7,
+        16.7,
+        16.8
+      ]
+    }
+  },
+  "retention": {
+    "heapMbCycle0": 10,
+    "heapMbLastCycle": 10,
+    "domNodesCycle0": 110,
+    "domNodesLastCycle": 110,
+    "listenerNetCycle0": 140,
+    "listenerNetLastCycle": 140,
+    "listenerAddsTotal": 208,
+    "longTasksTotal": 1,
+    "longTasksByDuration": [
+      141
+    ],
+    "pageErrors": []
+  },
+  "summary": {
+    "pages": {
+      "dashboard": {
+        "titleMedian": 3,
+        "readyMedian": 6,
+        "settledMedian": 6,
+        "ipcCountMax": 2,
+        "ipcStartedMax": 2,
+        "ipcTotalMsMedian": 972.7,
+        "ipcMaxMs": 972.7,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 178
+      },
+      "cleaner": {
+        "titleMedian": 3,
+        "readyMedian": 3,
+        "settledMedian": 3,
+        "ipcCountMax": 1,
+        "ipcStartedMax": 0,
+        "ipcTotalMsMedian": 684.1,
+        "ipcMaxMs": 684.1,
+        "pendingIpcRows": 0,
+        "domNodesMedian": 106
+      },
+      "boost": {
+        "titleMedian": 2,
+        "readyMedian": 2,
+        "settledMedian": 2,
+        "ipcCountMax": 0,
+        "ipcStartedMax": 1,
+        "ipcTotalMsMedian": 0,
+        "ipcMaxMs": 0,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 100
+      },
+      "tools": {
+        "titleMedian": 4,
+        "readyMedian": 4,
+        "settledMedian": 4,
+        "ipcCountMax": 1,
+        "ipcStartedMax": 1,
+        "ipcTotalMsMedian": 4157.3,
+        "ipcMaxMs": 4157.3,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 105
+      },
+      "drivers": {
+        "titleMedian": 3,
+        "readyMedian": 3,
+        "settledMedian": 7,
+        "ipcCountMax": 1,
+        "ipcStartedMax": 2,
+        "ipcTotalMsMedian": 4438,
+        "ipcMaxMs": 4438,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 163
+      },
+      "network": {
+        "titleMedian": 3,
+        "readyMedian": 3,
+        "settledMedian": 3,
+        "ipcCountMax": 0,
+        "ipcStartedMax": 0,
+        "ipcTotalMsMedian": 0,
+        "ipcMaxMs": 0,
+        "pendingIpcRows": 0,
+        "domNodesMedian": 124
+      },
+      "audit": {
+        "titleMedian": 2,
+        "readyMedian": 2,
+        "settledMedian": 6,
+        "ipcCountMax": 2,
+        "ipcStartedMax": 1,
+        "ipcTotalMsMedian": 8321.6,
+        "ipcMaxMs": 5210.4,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 105
+      },
+      "benchmark": {
+        "titleMedian": 2,
+        "readyMedian": 2,
+        "settledMedian": 2,
+        "ipcCountMax": 0,
+        "ipcStartedMax": 0,
+        "ipcTotalMsMedian": 0,
+        "ipcMaxMs": 0,
+        "pendingIpcRows": 0,
+        "domNodesMedian": 101
+      },
+      "bundles": {
+        "titleMedian": 3,
+        "readyMedian": 3,
+        "settledMedian": 3,
+        "ipcCountMax": 2,
+        "ipcStartedMax": 3,
+        "ipcTotalMsMedian": 0.1,
+        "ipcMaxMs": 0.1,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 100
+      },
+      "cleaning": {
+        "titleMedian": 2,
+        "readyMedian": 2,
+        "settledMedian": 2,
+        "ipcCountMax": 2,
+        "ipcStartedMax": 2,
+        "ipcTotalMsMedian": 13288.8,
+        "ipcMaxMs": 8011,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 100
+      },
+      "tweaks": {
+        "titleMedian": 3,
+        "readyMedian": 17,
+        "settledMedian": 17,
+        "ipcCountMax": 2,
+        "ipcStartedMax": 2,
+        "ipcTotalMsMedian": 1.5,
+        "ipcMaxMs": 1.5,
+        "pendingIpcRows": 0,
+        "domNodesMedian": 413
+      },
+      "statistics": {
+        "titleMedian": 4,
+        "readyMedian": 4,
+        "settledMedian": 148,
+        "ipcCountMax": 1,
+        "ipcStartedMax": 1,
+        "ipcTotalMsMedian": 1.7,
+        "ipcMaxMs": 1.7,
+        "pendingIpcRows": 0,
+        "domNodesMedian": 300
+      },
+      "security": {
+        "titleMedian": 4,
+        "readyMedian": 4,
+        "settledMedian": 4,
+        "ipcCountMax": 3,
+        "ipcStartedMax": 2,
+        "ipcTotalMsMedian": 22649.3,
+        "ipcMaxMs": 15538.4,
+        "pendingIpcRows": 1,
+        "domNodesMedian": 114
+      },
+      "settings": {
+        "titleMedian": 3,
+        "readyMedian": 3,
+        "settledMedian": 3,
+        "ipcCountMax": 2,
+        "ipcStartedMax": 2,
+        "ipcTotalMsMedian": 0.5,
+        "ipcMaxMs": 0.4,
+        "pendingIpcRows": 0,
+        "domNodesMedian": 173
+      }
+    },
+    "slowestTitle": [
+      {
+        "cycle": 0,
+        "id": "tools",
+        "titleMs": 4,
+        "readyMs": 4,
+        "ipc": 1
+      },
+      {
+        "cycle": 0,
+        "id": "statistics",
+        "titleMs": 4,
+        "readyMs": 4,
+        "ipc": 1
+      },
+      {
+        "cycle": 0,
+        "id": "security",
+        "titleMs": 4,
+        "readyMs": 4,
+        "ipc": 3
+      },
+      {
+        "cycle": 0,
+        "id": "dashboard",
+        "titleMs": 3,
+        "readyMs": 6,
+        "ipc": 2
+      },
+      {
+        "cycle": 0,
+        "id": "cleaner",
+        "titleMs": 3,
+        "readyMs": 3,
+        "ipc": 1
+      },
+      {
+        "cycle": 0,
+        "id": "drivers",
+        "titleMs": 3,
+        "readyMs": 3,
+        "ipc": 1
+      },
+      {
+        "cycle": 0,
+        "id": "network",
+        "titleMs": 3,
+        "readyMs": 3,
+        "ipc": 0
+      },
+      {
+        "cycle": 0,
+        "id": "bundles",
+        "titleMs": 3,
+        "readyMs": 3,
+        "ipc": 2
+      }
+    ],
+    "navErrors": [],
+    "pendingIpc": [
+      {
+        "cycle": 0,
+        "id": "dashboard",
+        "ch": "system:get-info",
+        "startedAt": 4078
+      },
+      {
+        "cycle": 0,
+        "id": "boost",
+        "ch": "services:get-all",
+        "startedAt": 4784
+      },
+      {
+        "cycle": 0,
+        "id": "tools",
+        "ch": "apps:get-installed",
+        "startedAt": 6878
+      },
+      {
+        "cycle": 0,
+        "id": "drivers",
+        "ch": "drivers:scan",
+        "startedAt": 9152
+      },
+      {
+        "cycle": 0,
+        "id": "drivers",
+        "ch": "apps:get-installed",
+        "startedAt": 11322
+      },
+      {
+        "cycle": 0,
+        "id": "audit",
+        "ch": "audit:run",
+        "startedAt": 11937
+      },
+      {
+        "cycle": 0,
+        "id": "bundles",
+        "ch": "bundles:check-installed",
+        "startedAt": 15057
+      },
+      {
+        "cycle": 0,
+        "id": "cleaning",
+        "ch": "cleaning:get-history",
+        "startedAt": 20183
+      },
+      {
+        "cycle": 0,
+        "id": "security",
+        "ch": "privacy:get-settings",
+        "startedAt": 24310
+      }
+    ],
+    "longTasksOver50": [
+      {
+        "cycle": 0,
+        "id": "statistics",
+        "start": 20792,
+        "duration": 141
+      }
+    ],
+    "worstIpc": [
+      {
+        "cycle": 0,
+        "id": "security",
+        "ch": "audit:run",
+        "ms": 15538.4
+      },
+      {
+        "cycle": 0,
+        "id": "cleaning",
+        "ch": "bundles:check-installed",
+        "ms": 8011
+      },
+      {
+        "cycle": 0,
+        "id": "security",
+        "ch": "cleaning:get-history",
+        "ms": 7110.8
+      },
+      {
+        "cycle": 0,
+        "id": "cleaning",
+        "ch": "cleaning:get-schedules",
+        "ms": 5277.8
+      },
+      {
+        "cycle": 0,
+        "id": "audit",
+        "ch": "drivers:scan",
+        "ms": 5210.4
+      },
+      {
+        "cycle": 0,
+        "id": "drivers",
+        "ch": "apps:get-installed",
+        "ms": 4438
+      },
+      {
+        "cycle": 0,
+        "id": "tools",
+        "ch": "services:get-all",
+        "ms": 4157.3
+      },
+      {
+        "cycle": 0,
+        "id": "audit",
+        "ch": "apps:get-installed",
+        "ms": 3111.2
+      },
+      {
+        "cycle": 0,
+        "id": "dashboard",
+        "ch": "system:get-info",
+        "ms": 972.7
+      },
+      {
+        "cycle": 0,
+        "id": "cleaner",
+        "ch": "system:get-info",
+        "ms": 684.1
+      },
+      {
+        "cycle": 0,
+        "id": "statistics",
+        "ch": "stats:get",
+        "ms": 1.7
+      },
+      {
+        "cycle": 0,
+        "id": "tweaks",
+        "ch": "tweaks:get",
+        "ms": 1.5
+      },
+      {
+        "cycle": 0,
+        "id": "settings",
+        "ch": "settings:get",
+        "ms": 0.4
+      },
+      {
+        "cycle": 0,
+        "id": "bundles",
+        "ch": "bundles:get",
+        "ms": 0.1
+      },
+      {
+        "cycle": 0,
+        "id": "security",
+        "ch": "security:get-actions",
+        "ms": 0.1
+      },
+      {
+        "cycle": 0,
+        "id": "settings",
+        "ch": "updater:status",
+        "ms": 0.1
+      },
+      {
+        "cycle": 0,
+        "id": "dashboard",
+        "ch": "system:get-info",
+        "ms": 0
+      },
+      {
+        "cycle": 0,
+        "id": "bundles",
+        "ch": "system:op-status",
+        "ms": 0
+      },
+      {
+        "cycle": 0,
+        "id": "tweaks",
+        "ch": "system:op-status",
+        "ms": 0
+      }
+    ]
+  }
+}

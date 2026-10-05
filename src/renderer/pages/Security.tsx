@@ -72,24 +72,47 @@ export const Security: React.FC = () => {
   const [fixBusy, setFixBusy] = useState(false);
   const [fixMessage, setFixMessage] = useState<string | null>(null);
 
+  const [dnsLoading, setDnsLoading] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [privacyResult, actionsResult, dnsResult] = await Promise.all([
+      // Fase 1.1: the DNS benchmark (~12s cold) is NOT part of the initial
+      // load. It runs only when the user opens the DNS tab (see below), so
+      // visiting Security no longer waits for it. The 90s TTL in main reuses
+      // a warm result across visits.
+      const [privacyResult, actionsResult] = await Promise.all([
         window.winoptimizer.privacy.getSettings(),
         window.winoptimizer.security.getActions(),
-        window.winoptimizer.dns.benchmark(),
       ]);
       setPrivacySettings(privacyResult);
       setSecurityActions(actionsResult);
-      setDnsResults(dnsResult);
     } catch (error) {
       console.error('Failed to load security data:', error);
     }
   };
+
+  const loadDns = useCallback(async () => {
+    setDnsLoading(true);
+    try {
+      const dnsResult = await window.winoptimizer.dns.benchmark();
+      setDnsResults(dnsResult);
+    } catch (error) {
+      console.error('Failed to benchmark DNS:', error);
+    } finally {
+      setDnsLoading(false);
+    }
+  }, []);
+
+  // Load the DNS benchmark on demand: first time the DNS tab opens.
+  useEffect(() => {
+    if (activeTab === 'dns' && dnsResults.length === 0 && !dnsLoading) {
+      void loadDns();
+    }
+  }, [activeTab, dnsResults.length, dnsLoading, loadDns]);
 
   const runSecurityScan = useCallback(async () => {
     setScanning(true);
@@ -499,7 +522,32 @@ export const Security: React.FC = () => {
 
       {activeTab === 'dns' && (
         <>
-          <Card title="DNS Benchmark" className="mb-4">
+          <Card
+            title="DNS Benchmark"
+            className="mb-4"
+            footer={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  setDnsLoading(true);
+                  try {
+                    setDnsResults(await window.winoptimizer.dns.benchmark({ force: true }));
+                  } catch (error) {
+                    console.error('Failed to benchmark DNS:', error);
+                  } finally {
+                    setDnsLoading(false);
+                  }
+                }}
+                loading={dnsLoading}
+              >
+                Re-run benchmark
+              </Button>
+            }
+          >
+            {dnsLoading && dnsResults.length === 0 && (
+              <p className="text-sm text-fg-secondary">Benchmarking DNS servers…</p>
+            )}
             <div className="flex flex-col gap-3">
               {dnsResults.map((dns) => (
                 <div

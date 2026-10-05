@@ -87,8 +87,24 @@ const ENUMERATE_SCRIPT = `
   $rows | ConvertTo-Json -Compress
 `;
 
+/**
+ * In-memory cache for the resolved adapter (Fase 1.7): enumeration costs one
+ * PowerShell spawn, and callers (`dns:set`, network benchmark) used to pay it
+ * on every call. Reused for 60s; never caches null (a transient failure must
+ * not pin "no adapter").
+ */
+const ADAPTER_CACHE_TTL_MS = 60_000;
+let adapterCache: { value: ActiveAdapter; expiresAt: number } | null = null;
+
+/** Clear the adapter cache (tests + `dns:set` after a successful change). */
+export function clearActiveAdapterCache(): void {
+  adapterCache = null;
+}
+
 /** Enumerate adapters and resolve the active one. Never throws. */
 export async function resolveActiveAdapter(): Promise<ActiveAdapter | null> {
+  if (adapterCache && adapterCache.expiresAt > Date.now()) return adapterCache.value;
+
   const result = await runPowerShell(ENUMERATE_SCRIPT);
   if (!result.success || !result.stdout) return null;
 
@@ -98,11 +114,13 @@ export async function resolveActiveAdapter(): Promise<ActiveAdapter | null> {
   const chosen = selectActiveAdapter(parsed);
   if (!chosen) return null;
 
-  return {
+  const value: ActiveAdapter = {
     name: chosen.Name,
     interfaceIndex: chosen.InterfaceIndex,
     description: chosen.InterfaceDescription,
     hasGateway: Boolean(chosen.HasGateway),
     linkSpeed: chosen.LinkSpeed ?? '',
   };
+  adapterCache = { value, expiresAt: Date.now() + ADAPTER_CACHE_TTL_MS };
+  return value;
 }

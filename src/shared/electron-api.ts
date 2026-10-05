@@ -488,14 +488,14 @@ export interface WinOptimizerAPI {
     stopMonitoring: () => Promise<{ success: boolean }>;
   };
   audit: {
-    run: () => Promise<AuditReport>;
+    run: (options?: CacheOptions) => Promise<AuditReport>;
   };
   benchmark: {
-    run: () => Promise<BenchmarkReport>;
+    run: (options?: CacheOptions) => Promise<BenchmarkReport>;
     exportMarkdown: (report: BenchmarkReport) => Promise<string>;
   };
   privacy: {
-    getSettings: () => Promise<PrivacySetting[]>;
+    getSettings: (options?: CacheOptions) => Promise<PrivacySetting[]>;
     applySetting: (settingId: string) => Promise<OperationResult>;
     applyAll: () => Promise<OperationResult>;
   };
@@ -512,7 +512,7 @@ export interface WinOptimizerAPI {
     relaunchElevated: () => Promise<OperationResult>;
   };
   dns: {
-    benchmark: () => Promise<DNSBenchmarkResult[]>;
+    benchmark: (options?: CacheOptions) => Promise<DNSBenchmarkResult[]>;
     set: (primaryDNS: string, secondaryDNS: string) => Promise<OperationResult>;
   };
   bundles: {

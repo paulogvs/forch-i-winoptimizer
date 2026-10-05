@@ -19,6 +19,7 @@ vi.mock('./powershell', () => ({
 }));
 
 import { runPowerShell } from './powershell';
+import { clearActiveAdapterCache } from './network-adapter';
 
 const adapter = (over: Partial<NetworkAdapterInfo>): NetworkAdapterInfo => ({
   Name: 'Ethernet',
@@ -33,6 +34,7 @@ const adapter = (over: Partial<NetworkAdapterInfo>): NetworkAdapterInfo => ({
 describe('network-adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearActiveAdapterCache();
   });
 
   describe('isVirtualAdapter', () => {
@@ -142,6 +144,8 @@ describe('network-adapter', () => {
     });
 
     it('returns null when PowerShell fails', async () => {
+      const { clearActiveAdapterCache } = await import('./network-adapter');
+      clearActiveAdapterCache();
       vi.mocked(runPowerShell).mockResolvedValue({
         success: false,
         stdout: '',
@@ -149,6 +153,34 @@ describe('network-adapter', () => {
         exitCode: 1,
       });
       expect(await resolveActiveAdapter()).toBeNull();
+    });
+  });
+
+  describe('resolveActiveAdapter cache (Fase 1.7)', () => {
+    it('resolves once and reuses the adapter (N calls -> 1 spawn)', async () => {
+      const { clearActiveAdapterCache } = await import('./network-adapter');
+      clearActiveAdapterCache();
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify({
+          Name: 'Ethernet',
+          InterfaceDescription: 'Realtek',
+          InterfaceIndex: 3,
+          Status: 'Up',
+          HasGateway: true,
+        }),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const first = await resolveActiveAdapter();
+      const second = await resolveActiveAdapter();
+      const third = await resolveActiveAdapter();
+
+      expect(first?.interfaceIndex).toBe(3);
+      expect(second?.interfaceIndex).toBe(3);
+      expect(third?.interfaceIndex).toBe(3);
+      expect(vi.mocked(runPowerShell)).toHaveBeenCalledTimes(1);
     });
   });
 });

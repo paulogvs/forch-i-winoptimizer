@@ -14,7 +14,22 @@ export const Boost: React.FC = () => {
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    loadServices();
+    // Fase 1.2 (SWR): paint from cache first (~instant when warm), then
+    // revalidate silently without flashing the loading state.
+    let cancelled = false;
+    void (async () => {
+      await loadServices();
+      if (cancelled) return;
+      try {
+        const fresh = await window.electronAPI.getSystemServices({ force: true });
+        if (!cancelled) setServices(fresh);
+      } catch (error) {
+        console.error('Background services revalidation failed:', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadServices = async () => {

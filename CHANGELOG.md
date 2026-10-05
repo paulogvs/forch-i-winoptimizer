@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-05
+
+Fase 1 del `PLAN_MEJORAS.md`: la app deja de sentirse lenta (minor: mejoras
+de rendimiento visibles al usuario). Todo medido de verdad con
+`scripts/measure-fase1.mjs` (nuevo) + los harnesses existentes; artefactos en
+`docs/perf/` y tabla antes/después en `docs/PERFORMANCE.md` (ronda v0.11.0).
+El "antes" es el mismo harness contra un worktree limpio de v0.10.2.
+
+### Added
+
+- **1.1 — TTL 90 s a `dns:benchmark` + tab DNS bajo demanda** (`cache.ts`,
+  `ipc/index.ts`, `Security.tsx`): visitar Security ya no paga ~12 s; la 2.ª
+  lectura en TTL cuesta **0 ms/0 spawns** (medido: 14171 ms → 0 ms, payload
+  idéntico). La tab DNS mide solo al abrirse + botón Re-run con `force`.
+- **1.2 — SWR en Dashboard/Audit/Boost/Tools** (`Audit/Dashboard/Boost/Tools.tsx`,
+  tipos + preload con `CacheOptions`): primera pintura desde caché +
+  revalidación `force:true` silenciosa. Navegación real medida: 2–4 ms/página
+  con el IPC en fondo. Test: `Audit.test.tsx` (pinta caché, revalida con force).
+- **1.3 — `apps:get-installed` 3→1 spawn** (`installed-apps.ts`, patrón
+  `startup-apps.ts`): [9131, 3712] ms → **[5003, 2115] ms**, 221 apps en
+  ambas (paridad). Test de paridad 1-spawn con las 3 fuentes.
+- **1.4 — `benchmark:run` 20→1–2 spawns + TTL 60 s** (`benchmark.ts`, patrón
+  `system-audit.ts` con marcadores `@@BENCH_n@@`): **128925 ms → 62005 ms**,
+  15 resultados con la misma matemática de scores. Test de paridad numérica
+  - conteo de spawns.
+- **1.5 — Cleaner/Startup/Debloat virtualizados** (`Cleaner/Tools.tsx`): el
+  mismo `VirtualList` (umbral 50) en las 3 listas que crecen con la máquina;
+  5000 archivos → ventana montada <200 filas (test que lo exige). Scroll real
+  500 filas: p50 **59,9 FPS**. Bundles-grid y Security-report revisados: no
+  crecen con la máquina (catálogo curado / 22 checks fijos), sin cambios.
+- **1.6 — `cleaner:delete` N→1 spawn** (`junk-scanner.ts`): 10 archivos
+  scratch 24801 ms/10 spawns → **2157 ms/1 spawn**, 10/10 verificados,
+  reporte por archivo intacto (re-verificación por path, `NOT_FOUND` honesto).
+  Validado de verdad solo con scratch en `%TEMP%`, limpiado después.
+- **1.7 — Timeouts por servidor + adaptador cacheado** (`security-privacy.ts`,
+  `network-adapter.ts`): `-Count 4→2` + race 10 s (servidor colgado → latencia
+  0, resto idéntico al baseline); `resolveActiveAdapter()` ×3: 3 spawns/8949 ms
+  → **1 spawn**/4751 ms (caché 60 s, nunca cachea null).
+- **1.8 — `docs/PERFORMANCE.md` ronda v0.11.0** con tabla antes/después por
+  ítem + artefactos `docs/perf/fase1-v0.11.json`,
+  `fase1-v0.10-baseline.json`, `ipc-channels-v0.11.json`, `ui-perf-v0.11.json`,
+  `ui-fps-v0.11.json`. Cero números inventados.
+
+### Tests
+
+- Unit: `vitest` **606/606** (57 archivos; +13 netos: caché TTL, adaptador,
+  timeout DNS, paridad installed-apps/benchmark, batch delete, virtualización
+  Cleaner, SWR Audit).
+- E2E web + Electron: pendientes de corrida fresca (ver Gates).
+
 ## [0.10.2] - 2026-10-05
 
 Fase 0 del `PLAN_MEJORAS.md`: seis arreglos de **honestidad funcional**, sin

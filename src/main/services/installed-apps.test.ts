@@ -52,15 +52,79 @@ describe('installed-apps', () => {
 
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: JSON.stringify(mockApps),
+        stdout: JSON.stringify({ Hklm: mockApps, Hkcu: [], Uwp: [] }),
         stderr: '',
         exitCode: 0,
       });
-      vi.mocked(parsePowerShellJson).mockReturnValue(mockApps);
+      vi.mocked(parsePowerShellJson).mockReturnValue({ Hklm: mockApps, Hkcu: [], Uwp: [] });
 
       const result = await getInstalledApps();
 
-      expect(result.length).toBeGreaterThanOrEqual(0);
+      expect(result.length).toBe(1);
+      expect(result[0]).toMatchObject({ name: 'Google Chrome', category: 'win32' });
+    });
+
+    // Fase 1.3: HKLM + HKCU + UWP share ONE PowerShell process (was 3 serial
+    // spawns) with identical parsing — same apps, same categories, 1 spawn.
+    it('queries HKLM+HKCU+UWP in a single spawn with identical results', async () => {
+      const payload = {
+        Hklm: [
+          {
+            Name: 'Google Chrome',
+            DisplayVersion: '120.0.0',
+            Publisher: 'Google LLC',
+            InstallDate: '20240115',
+            EstimatedSize: 512000,
+            InstallLocation: 'C:\\Program Files\\Google\\Chrome',
+            UninstallString: 'C:\\Program Files\\Google\\Chrome\\uninstall.exe',
+          },
+        ],
+        Hkcu: [
+          {
+            Name: 'User App',
+            DisplayVersion: '1.0',
+            Publisher: 'Someone',
+            InstallDate: '20240115',
+            EstimatedSize: 100,
+            InstallLocation: 'C:\\Users\\x\\App',
+            UninstallString: 'C:\\Users\\x\\App\\uninstall.exe',
+          },
+        ],
+        Uwp: [
+          {
+            Name: 'SpotifyAB.SpotifyMusic',
+            PackageFullName: 'SpotifyAB.SpotifyMusic_1.0_x64',
+            Version: '1.0',
+            Publisher: 'Spotify',
+            InstallLocation: 'C:\\Packages\\spotify',
+            UninstallString: 'SpotifyAB.SpotifyMusic_1.0_x64',
+          },
+        ],
+      };
+
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify(payload),
+        stderr: '',
+        exitCode: 0,
+      });
+      vi.mocked(parsePowerShellJson).mockReturnValue(payload);
+
+      const result = await getInstalledApps();
+
+      expect(vi.mocked(runPowerShell)).toHaveBeenCalledTimes(1);
+      expect(result.length).toBe(3);
+      expect(result.map((a) => a.id)).toEqual([
+        'hklm-Google Chrome',
+        'hkcu-User App',
+        'uwp-SpotifyAB.SpotifyMusic',
+      ]);
+      expect(result.map((a) => a.category)).toEqual(['win32', 'win32', 'uwp']);
+      // The single script must cover all three sources.
+      const script = String(vi.mocked(runPowerShell).mock.calls[0]?.[0] ?? '');
+      expect(script).toContain('HKLM:');
+      expect(script).toContain('HKCU:');
+      expect(script).toContain('Get-AppxPackage');
     });
 
     it('should handle empty results', async () => {
@@ -92,16 +156,17 @@ describe('installed-apps', () => {
 
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: JSON.stringify(mockApps),
+        stdout: JSON.stringify({ Hklm: mockApps, Hkcu: [], Uwp: [] }),
         stderr: '',
         exitCode: 0,
       });
-      vi.mocked(parsePowerShellJson).mockReturnValue(mockApps);
+      vi.mocked(parsePowerShellJson).mockReturnValue({ Hklm: mockApps, Hkcu: [], Uwp: [] });
 
       const result = await getInstalledApps();
 
       // Should handle null values gracefully
-      expect(result.length).toBeGreaterThanOrEqual(0);
+      expect(result.length).toBe(1);
+      expect(result[0]).toMatchObject({ name: 'Test App', version: 'Unknown' });
     });
 
     it('should mark Microsoft apps as caution', async () => {
@@ -119,18 +184,17 @@ describe('installed-apps', () => {
 
       vi.mocked(runPowerShell).mockResolvedValue({
         success: true,
-        stdout: JSON.stringify(mockApps),
+        stdout: JSON.stringify({ Hklm: mockApps, Hkcu: [], Uwp: [] }),
         stderr: '',
         exitCode: 0,
       });
-      vi.mocked(parsePowerShellJson).mockReturnValue(mockApps);
+      vi.mocked(parsePowerShellJson).mockReturnValue({ Hklm: mockApps, Hkcu: [], Uwp: [] });
 
       const result = await getInstalledApps();
 
       // Microsoft apps should be marked as caution or protected
-      if (result.length > 0) {
-        expect(['caution', 'protected']).toContain(result[0]!.protection);
-      }
+      expect(result.length).toBe(1);
+      expect(['caution', 'protected']).toContain(result[0]!.protection);
     });
 
     it('should handle exceptions', async () => {

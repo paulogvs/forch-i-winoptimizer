@@ -29,7 +29,7 @@ export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
   const [auditing, setAuditing] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const runAudit = async () => {
+  const runAudit = async (force = false) => {
     setAuditing(true);
     setProgress(0);
 
@@ -38,7 +38,8 @@ export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
     }, 100);
 
     try {
-      const result = await window.winoptimizer.audit.run();
+      // An explicit re-run bypasses the TTL; the first paint serves the cache.
+      const result = await window.winoptimizer.audit.run(force ? { force: true } : undefined);
       clearInterval(progressInterval);
       setProgress(100);
       setReport(result);
@@ -50,7 +51,23 @@ export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
   };
 
   useEffect(() => {
-    runAudit();
+    // Fase 1.2 (SWR): paint from cache first (~instant when warm), then
+    // revalidate silently in the background. The spinner only covers the
+    // first paint; the revalidation never flashes loading state.
+    let cancelled = false;
+    void (async () => {
+      await runAudit(false);
+      if (cancelled) return;
+      try {
+        const fresh = await window.winoptimizer.audit.run({ force: true });
+        if (!cancelled) setReport(fresh);
+      } catch (error) {
+        console.error('Background audit revalidation failed:', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const categories = ['privacy', 'performance', 'memory', 'storage', 'startup', 'network'] as const;
@@ -67,7 +84,7 @@ export const Audit: React.FC<AuditProps> = ({ onNavigate }) => {
     <div className="page">
       <div className="flex justify-between items-center mb-6">
         <h2 className="page-title">System Audit</h2>
-        <Button variant="primary" onClick={runAudit} loading={auditing}>
+        <Button variant="primary" onClick={() => runAudit(true)} loading={auditing}>
           {auditing ? 'Auditing...' : 'Run Audit'}
         </Button>
       </div>

@@ -23,10 +23,12 @@ vi.mock('./powershell', () => ({
 }));
 
 import { runPowerShell } from './powershell';
+import { clearActiveAdapterCache } from './network-adapter';
 
 describe('Security & Privacy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearActiveAdapterCache();
   });
 
   describe('getPrivacySettings', () => {
@@ -245,6 +247,32 @@ describe('Security & Privacy', () => {
       expect(result.length).toBeGreaterThan(1);
       expect(maxInFlight).toBeGreaterThan(1);
     });
+
+    // Fase 1.7: no server may hang the benchmark. A ping that never resolves
+    // degrades to latency 0 for that server instead of blocking Promise.all.
+    it('times out a hanging server instead of blocking the benchmark', async () => {
+      vi.mocked(runPowerShell).mockImplementation((script: string) => {
+        if (String(script).includes('1.1.1.1')) {
+          return new Promise(() => undefined) as unknown as Promise<{
+            success: boolean;
+            stdout: string;
+            stderr: string;
+            exitCode: number;
+          }>;
+        }
+        return Promise.resolve({ success: true, stdout: '20', stderr: '', exitCode: 0 });
+      });
+
+      const start = Date.now();
+      const result = await benchmarkDNS(50);
+      const elapsed = Date.now() - start;
+
+      expect(elapsed).toBeLessThan(5000);
+      expect(result.length).toBe(5);
+      const hung = result.find((r) => r.primaryDNS === '1.1.1.1');
+      expect(hung?.avgLatency).toBe(0);
+      expect(hung?.reliability).toBe(0);
+    }, 10000);
   });
 
   describe('setDNS', () => {

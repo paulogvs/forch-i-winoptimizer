@@ -392,4 +392,60 @@ los dos lados en las mediciones tomadas.
   renderer vs compositor_; **no** se reporta un número inventado.
 - `backgroundThrottling`: se mantuvo el default seguro de Electron (no se desactiva).
 
+## Ronda v0.11.0 — Fase 1 del PLAN_MEJORAS (8 ítems)
+
+> Método: mismo que las rondas anteriores — servicios **compilados reales**
+> (`dist/main/services/*`) contra **PowerShell real**, spawns contados en el
+> único `runPowerShell`, una repetición fría + cálidas donde se indica.
+> Harness nuevo y reutilizable: `scripts/measure-fase1.mjs`
+> (`--out docs/perf/fase1-v0.11.json`). El "antes" es el mismo harness contra
+> un worktree limpio de `HEAD` v0.10.2 (`docs/perf/fase1-v0.10-baseline.json`).
+> UI real vía `scripts/measure-ui-perf.mjs` (`docs/perf/ui-perf-v0.11.json`,
+> `docs/perf/ui-fps-v0.11.json`). Nada de lo aquí citado es estimado: cada
+> número tiene su muestra en `docs/perf/`.
+
+### Tabla antes/después por ítem (1.1–1.7)
+
+| Ítem                                         | Antes (v0.10.2, medido)                                                                                   | Después (v0.11.0, medido)                                                                                                                                                             | Efecto                                       |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 1.1 `dns:benchmark` TTL + tab bajo demanda   | Sin caché; cada visita a Security pagaba el benchmark (~13,3 s frío, 5 spawns)                            | TTL 90 s: 1.ª 14,2 s/5 spawns → 2.ª **0 ms/0 spawns**, payload idéntico; la tab DNS solo mide al abrirse                                                                              | Visitar Security ya no espera ~12 s          |
+| 1.2 SWR (Dashboard/Audit/Boost/Tools)        | Acción principal = lectura fría (Audit/Security forzaban frío)                                            | Primera pintura desde caché + revalidación `force:true` silenciosa; navegación medida 2–4 ms/página con el IPC en fondo                                                               | Pintura ~instantánea en cálido               |
+| 1.3 `apps:get-installed` 3→1 spawn           | **3** spawns seriales, [9131, 3712] ms, 221 apps                                                          | **1** spawn, [5003, 2115] ms, **221 apps** (mismo conteo)                                                                                                                             | −2 arranques de proceso por lectura          |
+| 1.4 `benchmark:run` 19→1–2 spawns + TTL 60 s | **20** spawns, **128925 ms** (~129 s), 15 resultados                                                      | **1** spawn (2 con adaptador frío), **62005 ms** (~62 s), 15 resultados, misma matemática de scores                                                                                   | ~2× más rápido; re-lecturas en TTL = 0 ms    |
+| 1.5 Virtualizar Cleaner (+ Startup/Debloat)  | `MAX_FILES_PER_TARGET=5000` sin virtualizar → miles de nodos DOM                                          | Mismo `VirtualList` (umbral 50) en Cleaner/Startup/Debloat; 5000 archivos → ventana montada <200 filas (test); scroll real 500 filas: p50 **59,9 FPS**, p95 56,8                      | DOM acotado, 60 FPS                          |
+| 1.6 `cleaner:delete` N→1 spawn               | **10** spawns, **24801 ms** para 10 archivos (scratch)                                                    | **1** spawn, **2157 ms**, 10/10 borrados verificados, 0 restantes                                                                                                                     | ~11× más rápido, reporte por archivo intacto |
+| 1.7 Timeouts DNS + adaptador cacheado        | `Test-Connection -Count 4` sin cap; 1 spawn de adaptador **por llamada** (3 llamadas = 3 spawns, 8949 ms) | `-Count 2` + race 10 s por servidor (servidor colgado → latencia 0 honesta, resto idéntico al baseline: 25/33/105/118 vs 24/33/106/118); adaptador 3 llamadas = **1** spawn (4751 ms) | Ningún servidor cuelga el benchmark          |
+
+Muestras (ms) — `apps:get-installed`: antes `[9131, 3712]` → después
+`[5003, 2115]` (221 apps en ambas). `cleaner:delete` ×10 scratch: antes
+`24801` (10 spawns) → después `2157` (1 spawn), `remaining=0` en ambas.
+`benchmark:run`: antes `128925` (20 spawns) → después `62005` (1 spawn);
+el trabajo útil (jobs CPU, loop 100 MB, I/O, ping) es el mismo método, el
+ahorro es el overhead de 19 arranques de `powershell.exe`.
+`dns:benchmark` frío con red sana ≈ 13 s en ambas versiones (5 pings
+paralelos reales); con un servidor colgado el después degrada ese servidor
+a 0 en ≤10 s en vez de arrastrar el total (medido: Cloudflare 0 con el
+resto 25/33/105/118, casi idéntico al baseline 6/24/33/106/118).
+
+### UI medida (app real, `measure-ui-perf.mjs --cycles 1`)
+
+- Arranque: frío `windowMs` 9228 / FCP 5265 ms; cálido 880/800 ms.
+- Navegación por las 14 páginas: **2–4 ms** por título con el IPC
+  resolviéndose en fondo (p. ej. `audit` 8,3 s frío, `cleaning` 13,3 s) —
+  la página pinta sin esperar al canal (efecto SWR 1.2).
+- Scroll 500 filas (`--fps-only`): p50 **59,9 FPS**, p95 56,8, peor frame
+  17,6 ms (< 2 frames a 60 Hz).
+
+### Qué NO cambió (y por qué)
+
+- `drivers:scan`, `bundles:check-installed`, `system:get-info` no los tocó
+  la Fase 1; sus re-mediciones (`docs/perf/ipc-channels-v0.11.json`: medians
+  1981/941/609 ms en máquina caliente vs 7059/2526/8098 ms del baseline en
+  frío) reflejan estado térmico, no una mejora — se reportan como contexto,
+  no como logro.
+- El frío de `benchmark:run` sigue en ~60 s porque el método de medición
+  (jobs CPU, 100 MB, I/O real) no cambió a propósito: la Fase 1 elimina
+  overhead de procesos, no trabajo de medición. Cambiar el método sería
+  Fase 5 (pool de PowerShell).
+
 _Build. Learn. Evolve._

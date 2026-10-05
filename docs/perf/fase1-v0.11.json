@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "when": "2026-10-05T14:38:27.238Z",
+    "node": "v26.7.0"
+  },
+  "items": {
+    "apps:get-installed": {
+      "spawns": 1,
+      "samplesMs": [
+        5003,
+        2115
+      ],
+      "count": 221
+    },
+    "resolveActiveAdapter-x3": {
+      "ms": 4751,
+      "spawns": 1,
+      "adapter": "Ethernet"
+    },
+    "dns:benchmark": {
+      "ms": 15828,
+      "spawns": 5,
+      "latencies": [
+        {
+          "name": "Cloudflare",
+          "ms": 0
+        },
+        {
+          "name": "Quad9",
+          "ms": 25
+        },
+        {
+          "name": "Google",
+          "ms": 33
+        },
+        {
+          "name": "OpenDNS",
+          "ms": 105
+        },
+        {
+          "name": "Level3",
+          "ms": 118
+        }
+      ]
+    },
+    "benchmark:run": {
+      "ms": 62005,
+      "spawns": 1,
+      "results": 15,
+      "totalScore": 825
+    },
+    "cleaner:delete-scratch": {
+      "ms": 2157,
+      "spawns": 1,
+      "files": 10,
+      "deleted": 10,
+      "failed": 0,
+      "remaining": 0
+    },
+    "withCache-reuse": {
+      "reads": 4,
+      "loaderRuns": 2
+    }
+  }
+}

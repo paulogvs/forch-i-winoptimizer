@@ -279,6 +279,11 @@ export async function scanForJunkFiles(
   };
 }
 
+interface DeleteRow {
+  Path: string;
+  Status: string;
+}
+
 export async function deleteJunkFiles(files: string[]): Promise<{
   success: boolean;
   deleted: number;
@@ -289,39 +294,65 @@ export async function deleteJunkFiles(files: string[]): Promise<{
   let failed = 0;
   const errors: string[] = [];
 
-  for (const filePath of files) {
-    try {
-      // `DELETED` is only emitted after a successful Remove-Item re-verifies the
-      // path is gone. A path that never existed ("NOT_FOUND") is not a deletion.
-      const psCommand = `
-        $path = ${psQuote(filePath)};
-        if (-not (Test-Path -LiteralPath $path)) {
-          Write-Output "NOT_FOUND"
-        } else {
-          try {
-            Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;
-            if (Test-Path -LiteralPath $path) { Write-Output "FAILED: still present after removal" }
-            else { Write-Output "DELETED" }
-          } catch {
-            Write-Output ("FAILED: " + $_.Exception.Message)
-          }
-        }
-      `;
+  if (files.length === 0) return { success: true, deleted, failed, errors };
 
-      const result = await runPowerShell(psCommand);
-      const output = result.stdout.trim();
-      if (result.success && output === 'DELETED') {
+  // Fase 1.6: ONE spawn for the whole list (was 1 spawn per file). Every path
+  // is still verified individually — `DELETED` is only emitted after
+  // Remove-Item re-verifies the path is gone, exactly like the per-file loop
+  // did. A path that never existed ("NOT_FOUND") stays an honest no-op.
+  // Long lists ride the `-File` fallback in `powershell.ts`, so there is no
+  // command-line length cliff.
+  const pathLiterals = files.map((f) => psQuote(f)).join(', ');
+  const psCommand = `
+    $targets = @(${pathLiterals});
+    $out = @();
+    foreach ($path in $targets) {
+      if (-not (Test-Path -LiteralPath $path)) {
+        $out += @{ Path = $path; Status = 'NOT_FOUND' };
+      } else {
+        try {
+          Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;
+          if (Test-Path -LiteralPath $path) { $out += @{ Path = $path; Status = 'FAILED: still present after removal' } }
+          else { $out += @{ Path = $path; Status = 'DELETED' } }
+        } catch {
+          $out += @{ Path = $path; Status = ('FAILED: ' + $_.Exception.Message) }
+        }
+      }
+    };
+    @($out) | ConvertTo-Json -Depth 3 -Compress
+  `;
+
+  try {
+    const result = await runPowerShell(psCommand);
+    if (!result.success || !result.stdout) {
+      for (const filePath of files) {
+        failed++;
+        errors.push(`Failed to delete: ${filePath}${result.stderr ? ` (${result.stderr})` : ''}`);
+      }
+      return { success: false, deleted, failed, errors };
+    }
+
+    const rows = toArrayShim(parsePowerShellJson<DeleteRow[] | DeleteRow>(result.stdout));
+    const byPath = new Map(rows.map((r) => [r.Path, r.Status]));
+    for (const filePath of files) {
+      const status = byPath.get(filePath);
+      if (status === 'DELETED') {
         deleted++;
-      } else if (result.success && output === 'NOT_FOUND') {
+      } else if (status === 'NOT_FOUND') {
         // Nothing to delete; honest no-op, not a success and not a failure.
+      } else if (status == null) {
+        // A row missing from the report is never a silent success: it fails
+        // loudly so a truncated report cannot masquerade as a clean run.
+        failed++;
+        errors.push(`No report for: ${filePath} (treated as not deleted)`);
       } else {
         failed++;
-        errors.push(`Failed to delete: ${filePath}${output ? ` (${output})` : ''}`);
+        errors.push(`Failed to delete: ${filePath} (${status})`);
       }
-    } catch {
-      failed++;
-      errors.push(`Error: ${filePath}`);
     }
+  } catch {
+    failed = files.length - deleted;
+    errors.push(`Error deleting ${files.length} file(s)`);
   }
 
   return {
@@ -330,4 +361,10 @@ export async function deleteJunkFiles(files: string[]): Promise<{
     failed,
     errors,
   };
+}
+
+/** Local `toArray` (avoids importing `powershell.ts` helpers here). */
+function toArrayShim<T>(value: T | T[] | null | undefined): T[] {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
 }

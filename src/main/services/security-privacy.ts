@@ -554,14 +554,40 @@ export function getSecurityActions(): SecurityAction[] {
   return SECURITY_ACTIONS;
 }
 
-export async function benchmarkDNS(): Promise<DNSBenchmarkResult[]> {
+/**
+ * Per-server timeout for `dns:benchmark` (Fase 1.7). `Test-Connection -Count 4`
+ * to an unreachable host blocks for many seconds; without a cap the slowest
+ * server holds the whole `Promise.all` hostage. A server that exceeds the
+ * budget degrades to latency 0 / reliability 0 (honest "unreachable", never a
+ * hang). The PowerShell process itself still has its own 60s timeout; the race
+ * only releases the benchmark early.
+ */
+export const DNS_SERVER_TIMEOUT_MS = 10_000;
+
+function withServerTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => T
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(onTimeout()), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+export async function benchmarkDNS(
+  serverTimeoutMs = DNS_SERVER_TIMEOUT_MS
+): Promise<DNSBenchmarkResult[]> {
   // Every server is pinged concurrently. The previous serial `for ... of await`
   // paid each server's full timeout one after another — `dns:benchmark` measured
   // at 35 s when a server was unreachable.
   const results = await Promise.all(
     DNS_SERVERS.map(async (dns) => {
-      const result = await runPowerShell(`
-      $ping = Test-Connection -ComputerName ${dns.primaryDNS} -Count 4 -ErrorAction SilentlyContinue;
+      const ping = runPowerShell(`
+      $ping = Test-Connection -ComputerName ${dns.primaryDNS} -Count 2 -ErrorAction SilentlyContinue;
       if ($ping) {
         $avgLatency = ($ping | Measure-Object -Property ResponseTime -Average).Average;
         Write-Output "$avgLatency"
@@ -569,6 +595,15 @@ export async function benchmarkDNS(): Promise<DNSBenchmarkResult[]> {
         Write-Output "0"
       }
     `);
+
+      // `-Count 2` (was 4): same honest average, roughly half the worst case.
+      // The race caps the straggler; a timeout is reported as unreachable.
+      const result = await withServerTimeout(ping, serverTimeoutMs, () => ({
+        success: false as const,
+        stdout: '0',
+        stderr: 'timeout',
+        exitCode: 124,
+      }));
 
       const latency = parseInt(result.stdout.trim(), 10) || 0;
 

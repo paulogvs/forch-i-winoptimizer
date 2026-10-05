@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SkeletonList } from '../components/ui/Skeleton';
 import { ScanProgress } from '../components/ui/ScanProgress';
+import { VirtualList } from '../components/ui/VirtualList';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { formatBytes } from '../utils/format';
 import type { JunkScanResult } from '@shared/electron-api';
@@ -19,6 +20,34 @@ interface JunkFileWithSelection {
   safeToDelete: boolean;
   selected: boolean;
 }
+
+/** Lists larger than this are virtualized (same rule as Tools/Drivers). */
+const VIRTUALIZE_THRESHOLD = 50;
+
+interface FileRowProps {
+  file: JunkFileWithSelection;
+  onToggle: (id: string) => void;
+}
+
+const FileRow = React.memo(function FileRow({ file, onToggle }: FileRowProps) {
+  return (
+    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-hover">
+      <input
+        type="checkbox"
+        checked={file.selected}
+        onChange={() => onToggle(file.id)}
+        className="w-4 h-4"
+        aria-label={`Select ${file.name}`}
+      />
+      <div className="flex-1">
+        <div className="text-sm font-medium text-primary">{file.name}</div>
+        <div className="text-xs text-tertiary font-mono">{file.path}</div>
+      </div>
+      <Badge variant="info">{file.category}</Badge>
+      <span className="text-sm text-secondary font-mono">{formatBytes(file.size)}</span>
+    </div>
+  );
+});
 
 export const Cleaner: React.FC = () => {
   const [scanning, setScanning] = useState(false);
@@ -130,25 +159,25 @@ export const Cleaner: React.FC = () => {
 
       {files.length > 0 && (
         <Card>
-          <div className="flex flex-col gap-2">
-            {files.map((file) => (
-              <div key={file.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-hover">
-                <input
-                  type="checkbox"
-                  checked={file.selected}
-                  onChange={() => toggleFile(file.id)}
-                  className="w-4 h-4"
-                  aria-label={`Select ${file.name}`}
-                />
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-primary">{file.name}</div>
-                  <div className="text-xs text-tertiary font-mono">{file.path}</div>
-                </div>
-                <Badge variant="info">{file.category}</Badge>
-                <span className="text-sm text-secondary font-mono">{formatBytes(file.size)}</span>
-              </div>
-            ))}
-          </div>
+          {/* Fase 1.5: scans can return thousands of files (MAX_FILES_PER_TARGET
+              is 5000 per target). Past the shared threshold the same VirtualList
+              as Tools/Drivers bounds the DOM instead of rendering N rows. */}
+          {files.length > VIRTUALIZE_THRESHOLD ? (
+            <VirtualList
+              items={files}
+              estimateSize={56}
+              getKey={(file) => file.id}
+              renderItem={(file) => <FileRow file={file} onToggle={toggleFile} />}
+              maxHeight={480}
+              testId="cleaner-files"
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {files.map((file) => (
+                <FileRow key={file.id} file={file} onToggle={toggleFile} />
+              ))}
+            </div>
+          )}
         </Card>
       )}
     </div>

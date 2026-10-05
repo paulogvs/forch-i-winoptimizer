@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "when": "2026-10-05T14:40:16.677Z",
+    "node": "v26.7.0"
+  },
+  "items": {
+    "apps:get-installed": {
+      "spawns": 3,
+      "samplesMs": [
+        9131,
+        3712
+      ],
+      "count": 221
+    },
+    "resolveActiveAdapter-x3": {
+      "ms": 8949,
+      "spawns": 3,
+      "adapter": "Ethernet"
+    },
+    "benchmark:run": {
+      "ms": 128925,
+      "spawns": 20,
+      "results": 15,
+      "totalScore": 929
+    },
+    "cleaner:delete-scratch": {
+      "ms": 24801,
+      "spawns": 10,
+      "files": 10,
+      "deleted": 10,
+      "failed": 0,
+      "remaining": 0
+    },
+    "withCache-reuse": {
+      "reads": 4,
+      "loaderRuns": 2
+    }
+  }
+}

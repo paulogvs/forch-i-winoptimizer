@@ -143,14 +143,14 @@ const winoptimizer: WinOptimizerAPI = {
     stopMonitoring: () => ipcRenderer.invoke('drift:stop-monitoring'),
   },
   audit: {
-    run: () => ipcRenderer.invoke('audit:run'),
+    run: (options) => ipcRenderer.invoke('audit:run', options),
   },
   benchmark: {
-    run: () => ipcRenderer.invoke('benchmark:run'),
+    run: (options) => ipcRenderer.invoke('benchmark:run', options),
     exportMarkdown: (report) => ipcRenderer.invoke('benchmark:export-markdown', report),
   },
   privacy: {
-    getSettings: () => ipcRenderer.invoke('privacy:get-settings'),
+    getSettings: (options) => ipcRenderer.invoke('privacy:get-settings', options),
     applySetting: (settingId: string) => ipcRenderer.invoke('privacy:apply-setting', settingId),
     applyAll: () => ipcRenderer.invoke('privacy:apply-all'),
   },
@@ -165,7 +165,7 @@ const winoptimizer: WinOptimizerAPI = {
     relaunchElevated: () => ipcRenderer.invoke('security:relaunch-elevated'),
   },
   dns: {
-    benchmark: () => ipcRenderer.invoke('dns:benchmark'),
+    benchmark: (options) => ipcRenderer.invoke('dns:benchmark', options),
     set: (primaryDNS: string, secondaryDNS: string) =>
       ipcRenderer.invoke('dns:set', primaryDNS, secondaryDNS),
   },

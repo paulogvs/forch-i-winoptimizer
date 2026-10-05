@@ -23,6 +23,43 @@ interface RegistryApp {
   UninstallString: string;
 }
 
+interface UwpApp {
+  Name: string;
+  PackageFullName: string;
+  Version: string;
+  Publisher: string;
+  InstallLocation: string;
+  UninstallString: string;
+}
+
+/** Combined payload of the single enumeration spawn (Fase 1.3). */
+interface InstalledAppsPayload {
+  Hklm?: RegistryApp[];
+  Hkcu?: RegistryApp[];
+  Uwp?: UwpApp[];
+}
+
+/** Shared registry-row mapping (HKLM and HKCU differ only in id prefix). */
+function pushRegistryApp(apps: InstalledApp[], app: RegistryApp, prefix: 'hklm' | 'hkcu'): void {
+  if (!app.Name) return;
+
+  const isProtected = PROTECTED_APPS.some((p) => app.Name.includes(p));
+  const isCaution = app.Publisher?.includes('Microsoft') && !isProtected;
+
+  apps.push({
+    id: `${prefix}-${app.Name}`,
+    name: app.Name,
+    version: app.DisplayVersion ?? 'Unknown',
+    publisher: app.Publisher ?? 'Unknown',
+    installDate: app.InstallDate ? new Date(app.InstallDate) : new Date(),
+    size: app.EstimatedSize ? app.EstimatedSize * 1024 : 0,
+    installLocation: app.InstallLocation ?? '',
+    uninstallString: app.UninstallString ?? '',
+    protection: isProtected ? 'protected' : isCaution ? 'caution' : 'safe',
+    category: 'win32',
+  });
+}
+
 const PROTECTED_APPS = [
   'Microsoft.WindowsStore',
   'Microsoft.WindowsTerminal',
@@ -84,18 +121,21 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
   const apps: InstalledApp[] = [];
 
   try {
-    // Scan HKLM (64-bit)
-    const hklmResult = await runPowerShell(`
-    $paths = @(
+    // Fase 1.3: HKLM + HKCU + UWP in ONE PowerShell process (was 3 serial
+    // spawns — pattern borrowed from `startup-apps.ts`). The three sections
+    // run the exact same queries as before; only the transport changed, so
+    // parsing below is unchanged in behaviour.
+    const result = await runPowerShell(`
+    $hklmPaths = @(
       'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
       'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
     );
-    $apps = @();
-    foreach ($path in $paths) {
+    $hklm = @();
+    foreach ($path in $hklmPaths) {
       $items = Get-ItemProperty $path -ErrorAction SilentlyContinue;
       foreach ($item in $items) {
         if ($item.DisplayName -and $item.UninstallString) {
-          $apps += @{
+          $hklm += @{
             Name = $item.DisplayName;
             DisplayVersion = $item.DisplayVersion;
             Publisher = $item.Publisher;
@@ -107,42 +147,12 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
         }
       }
     };
-    $apps | ConvertTo-Json -Compress
-  `);
-
-    if (hklmResult.success && hklmResult.stdout) {
-      const parsed = parsePowerShellJson<RegistryApp[]>(hklmResult.stdout);
-      if (parsed) {
-        for (const app of toArray(parsed)) {
-          if (!app.Name) continue;
-
-          const isProtected = PROTECTED_APPS.some((p) => app.Name.includes(p));
-          const isCaution = app.Publisher?.includes('Microsoft') && !isProtected;
-
-          apps.push({
-            id: `hklm-${app.Name}`,
-            name: app.Name,
-            version: app.DisplayVersion ?? 'Unknown',
-            publisher: app.Publisher ?? 'Unknown',
-            installDate: app.InstallDate ? new Date(app.InstallDate) : new Date(),
-            size: app.EstimatedSize ? app.EstimatedSize * 1024 : 0,
-            installLocation: app.InstallLocation ?? '',
-            uninstallString: app.UninstallString ?? '',
-            protection: isProtected ? 'protected' : isCaution ? 'caution' : 'safe',
-            category: 'win32',
-          });
-        }
-      }
-    }
-
-    // Scan HKCU (user apps)
-    const hkcuResult = await runPowerShell(`
-    $path = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*';
-    $items = Get-ItemProperty $path -ErrorAction SilentlyContinue;
-    $apps = @();
-    foreach ($item in $items) {
+    $hkcuPath = 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*';
+    $hkcuItems = Get-ItemProperty $hkcuPath -ErrorAction SilentlyContinue;
+    $hkcu = @();
+    foreach ($item in $hkcuItems) {
       if ($item.DisplayName -and $item.UninstallString) {
-        $apps += @{
+        $hkcu += @{
           Name = $item.DisplayName;
           DisplayVersion = $item.DisplayVersion;
           Publisher = $item.Publisher;
@@ -153,40 +163,22 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
         }
       }
     };
-    $apps | ConvertTo-Json -Compress
-  `);
-
-    if (hkcuResult.success && hkcuResult.stdout) {
-      const parsed = parsePowerShellJson<RegistryApp[]>(hkcuResult.stdout);
-      if (parsed) {
-        for (const app of toArray(parsed)) {
-          if (!app.Name) continue;
-
-          const isProtected = PROTECTED_APPS.some((p) => app.Name.includes(p));
-          const isCaution = app.Publisher?.includes('Microsoft') && !isProtected;
-
-          apps.push({
-            id: `hkcu-${app.Name}`,
-            name: app.Name,
-            version: app.DisplayVersion ?? 'Unknown',
-            publisher: app.Publisher ?? 'Unknown',
-            installDate: app.InstallDate ? new Date(app.InstallDate) : new Date(),
-            size: app.EstimatedSize ? app.EstimatedSize * 1024 : 0,
-            installLocation: app.InstallLocation ?? '',
-            uninstallString: app.UninstallString ?? '',
-            protection: isProtected ? 'protected' : isCaution ? 'caution' : 'safe',
-            category: 'win32',
-          });
-        }
-      }
-    }
-
-    // Scan UWP apps
-    const uwpResult = await runPowerShell(`
-    $apps = Get-AppxPackage | Where-Object { $_.Name -notlike 'Microsoft.Windows*' -and $_.Name -notlike 'Microsoft.NET*' -and $_.Name -notlike 'Microsoft.VCLibs*' -and $_.Name -notlike 'Microsoft.UI*' -and $_.Name -notlike 'Microsoft.WindowsAppRuntime*' -and $_.Name -notlike 'Microsoft.DesktopAppInstaller*' -and $_.Name -notlike 'Microsoft.WindowsTerminal*' -and $_.Name -notlike 'Microsoft.WindowsStore*' -and $_.Name -notlike 'Microsoft.Windows.Photos*' -and $_.Name -notlike 'Microsoft.WindowsCalculator*' -and $_.Name -notlike 'Microsoft.WindowsNotepad*' -and $_.Name -notlike 'Microsoft.WindowsSoundRecorder*' -and $_.Name -notlike 'Microsoft.WindowsCamera*' -and $_.Name -notlike 'Microsoft.WindowsAlarms*' -and $_.Name -notlike 'Microsoft.WindowsMaps*' -and $_.Name -notlike 'Microsoft.WindowsFeedbackHub*' -and $_.Name -notlike 'Microsoft.WindowsCommunicationsApps*' -and $_.Name -notlike 'Microsoft.ZuneMusic*' -and $_.Name -notlike 'Microsoft.ZuneVideo*' -and $_.Name -notlike 'Microsoft.BingWeather*' -and $_.Name -notlike 'Microsoft.YourPhone*' -and $_.Name -notlike 'MicrosoftTeams*' -and $_.Name -notlike 'MicrosoftCorporationII.QuickAssist*' -and $_.Name -notlike 'Microsoft.XboxGameOverlay*' -and $_.Name -notlike 'Microsoft.XboxGamingOverlay*' -and $_.Name -notlike 'Microsoft.Xbox.TCUI*' -and $_.Name -notlike 'Microsoft.XboxSpeechToTextOverlay*' -and $_.Name -notlike 'Microsoft.XboxIdentityProvider*' -and $_.Name -notlike 'Microsoft.XboxApp*' -and $_.Name -notlike 'Microsoft.GamingApp*' -and $_.Name -notlike 'Microsoft.Windows.Ai.Copilot.Provider*' -and $_.Name -notlike 'Microsoft.Windows.Copilot*' -and $_.Name -notlike 'Microsoft.Windows.ShellExperienceHost*' -and $_.Name -notlike 'Microsoft.Windows.StartMenuExperienceHost*' -and $_.Name -notlike 'Microsoft.Windows.Search*' -and $_.Name -notlike 'Microsoft.Windows.SecHealthUI*' -and $_.Name -notlike 'Microsoft.Windows.SecureAssessmentBrowser*' -and $_.Name -notlike 'Microsoft.Windows.PeopleExperienceHost*' -and $_.Name -notlike 'Microsoft.Windows.PinningConfirmationDialog*' -and $_.Name -notlike 'Microsoft.Windows.ParentalControls*' -and $_.Name -notlike 'Microsoft.Windows.OOBENetworkCaptivePortal*' -and $_.Name -notlike 'Microsoft.Windows.OOBENetworkConnectionFlow*' -and $_.Name -notlike 'Microsoft.Windows.NarratorQuickStart*' -and $_.Name -notlike 'Microsoft.Windows.MediaPlayer*' -and $_.Name -notlike 'Microsoft.Windows.LockApp*' -and $_.Name -notlike 'Microsoft.Windows.CallingShellApp*' -and $_.Name -notlike 'Microsoft.Windows.AssignedAccessLockApp*' -and $_.Name -notlike 'Microsoft.Windows.CapturePicker*' -and $_.Name -notlike 'Microsoft.Windows.CloudExperienceHost*' -and $_.Name -notlike 'Microsoft.Windows.ContentDeliveryManager*' -and $_.Name -notlike 'Microsoft.Windows.PrintQueueActionCenter*' -and $_.Name -notlike 'Microsoft.Windows.PrintDialog*' -and $_.Name -notlike 'Microsoft.Windows.Photos*' -and $_.Name -notlike 'Microsoft.Windows.CloudStore*' -and $_.Name -notlike 'Microsoft.Windows.Cortana*' -and $_.Name -notlike 'Microsoft.Windows.BioEnrollment*' -and $_.Name -notlike 'Microsoft.Windows.AssignedAccessManager*' -and $_.Name -notlike 'Microsoft.Windows.AsyncTextService*' };
-    $result = @();
-    foreach ($app in $apps) {
-      $result += @{
+    $uwpBlock = @(
+      'Microsoft.Windows*', 'Microsoft.NET*', 'Microsoft.VCLibs*', 'Microsoft.UI*', 'Microsoft.WindowsAppRuntime*', 'Microsoft.DesktopAppInstaller*',
+      'Microsoft.WindowsTerminal*', 'Microsoft.WindowsStore*', 'Microsoft.Windows.Photos*', 'Microsoft.WindowsCalculator*', 'Microsoft.WindowsNotepad*', 'Microsoft.WindowsSoundRecorder*',
+      'Microsoft.WindowsCamera*', 'Microsoft.WindowsAlarms*', 'Microsoft.WindowsMaps*', 'Microsoft.WindowsFeedbackHub*', 'Microsoft.WindowsCommunicationsApps*', 'Microsoft.ZuneMusic*',
+      'Microsoft.ZuneVideo*', 'Microsoft.BingWeather*', 'Microsoft.YourPhone*', 'MicrosoftTeams*', 'MicrosoftCorporationII.QuickAssist*', 'Microsoft.XboxGameOverlay*',
+      'Microsoft.XboxGamingOverlay*', 'Microsoft.Xbox.TCUI*', 'Microsoft.XboxSpeechToTextOverlay*', 'Microsoft.XboxIdentityProvider*', 'Microsoft.XboxApp*', 'Microsoft.GamingApp*',
+      'Microsoft.Windows.Ai.Copilot.Provider*', 'Microsoft.Windows.Copilot*', 'Microsoft.Windows.ShellExperienceHost*', 'Microsoft.Windows.StartMenuExperienceHost*', 'Microsoft.Windows.Search*', 'Microsoft.Windows.SecHealthUI*',
+      'Microsoft.Windows.SecureAssessmentBrowser*', 'Microsoft.Windows.PeopleExperienceHost*', 'Microsoft.Windows.PinningConfirmationDialog*', 'Microsoft.Windows.ParentalControls*', 'Microsoft.Windows.OOBENetworkCaptivePortal*', 'Microsoft.Windows.OOBENetworkConnectionFlow*',
+      'Microsoft.Windows.NarratorQuickStart*', 'Microsoft.Windows.MediaPlayer*', 'Microsoft.Windows.LockApp*', 'Microsoft.Windows.CallingShellApp*', 'Microsoft.Windows.AssignedAccessLockApp*', 'Microsoft.Windows.CapturePicker*',
+      'Microsoft.Windows.CloudExperienceHost*', 'Microsoft.Windows.ContentDeliveryManager*', 'Microsoft.Windows.PrintQueueActionCenter*', 'Microsoft.Windows.PrintDialog*', 'Microsoft.Windows.Photos*', 'Microsoft.Windows.CloudStore*',
+      'Microsoft.Windows.Cortana*', 'Microsoft.Windows.BioEnrollment*', 'Microsoft.Windows.AssignedAccessManager*', 'Microsoft.Windows.AsyncTextService*'
+    );
+    $uwpPkgs = Get-AppxPackage | Where-Object { $pkgName = $_.Name; $blocked = $false; foreach ($b in $uwpBlock) { if ($pkgName -like $b) { $blocked = $true; break } }; -not $blocked };
+    $uwp = @();
+    foreach ($app in $uwpPkgs) {
+      $uwp += @{
         Name = $app.Name;
         PackageFullName = $app.PackageFullName;
         Version = $app.Version;
@@ -195,39 +187,31 @@ export async function getInstalledApps(): Promise<InstalledApp[]> {
         UninstallString = $app.PackageFullName
       }
     };
-    $result | ConvertTo-Json -Compress
+    @{ Hklm = @($hklm); Hkcu = @($hkcu); Uwp = @($uwp) } | ConvertTo-Json -Depth 4 -Compress
   `);
 
-    if (uwpResult.success && uwpResult.stdout) {
-      const parsed = parsePowerShellJson<
-        Array<{
-          Name: string;
-          PackageFullName: string;
-          Version: string;
-          Publisher: string;
-          InstallLocation: string;
-          UninstallString: string;
-        }>
-      >(uwpResult.stdout);
+    if (!result.success || !result.stdout) return apps;
+    const parsed = parsePowerShellJson<InstalledAppsPayload>(result.stdout);
+    if (!parsed) return apps;
 
-      if (parsed) {
-        for (const app of toArray(parsed)) {
-          if (!app.Name) continue;
+    for (const app of toArray(parsed.Hklm)) pushRegistryApp(apps, app, 'hklm');
+    for (const app of toArray(parsed.Hkcu)) pushRegistryApp(apps, app, 'hkcu');
 
-          apps.push({
-            id: `uwp-${app.Name}`,
-            name: app.Name,
-            version: app.Version ?? 'Unknown',
-            publisher: app.Publisher ?? 'Unknown',
-            installDate: new Date(),
-            size: 0,
-            installLocation: app.InstallLocation ?? '',
-            uninstallString: app.UninstallString ?? '',
-            protection: 'caution',
-            category: 'uwp',
-          });
-        }
-      }
+    for (const app of toArray(parsed.Uwp)) {
+      if (!app.Name) continue;
+
+      apps.push({
+        id: `uwp-${app.Name}`,
+        name: app.Name,
+        version: app.Version ?? 'Unknown',
+        publisher: app.Publisher ?? 'Unknown',
+        installDate: new Date(),
+        size: 0,
+        installLocation: app.InstallLocation ?? '',
+        uninstallString: app.UninstallString ?? '',
+        protection: 'caution',
+        category: 'uwp',
+      });
     }
 
     return apps;

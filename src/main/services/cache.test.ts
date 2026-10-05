@@ -59,6 +59,19 @@ describe('TtlCache', () => {
   });
 });
 
+describe('CACHE_TTL (Fase 1)', () => {
+  it('defines a 60-120s TTL for dns:benchmark', async () => {
+    const { CACHE_TTL } = await import('./cache');
+    expect(CACHE_TTL.dns).toBeGreaterThanOrEqual(60_000);
+    expect(CACHE_TTL.dns).toBeLessThanOrEqual(120_000);
+  });
+
+  it('defines a 60s TTL for benchmark:run', async () => {
+    const { CACHE_TTL } = await import('./cache');
+    expect(CACHE_TTL.benchmark).toBe(60_000);
+  });
+});
+
 describe('withCache', () => {
   beforeEach(() => {
     cache.clear();

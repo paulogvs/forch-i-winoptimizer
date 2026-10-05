@@ -364,8 +364,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     )
   );
 
-  // ===== Benchmark =====
-  handle('benchmark:run', () => runBenchmark());
+  // ===== Benchmark (TTL 60s; `force` bypasses after an explicit re-run) =====
+  // Fase 1.4: the batched run still costs seconds cold; reuse it for 60s.
+  handle('benchmark:run', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('benchmark', () => runBenchmark(), options ?? {})
+  );
   handle(
     'benchmark:export-markdown',
     async (_event: IpcMainInvokeEvent, report: BenchmarkReport) => {
@@ -433,7 +436,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   });
   handle('security:relaunch-elevated', () => relaunchElevated());
 
-  handle('dns:benchmark', () => benchmarkDNS());
+  // Fase 1.1: TTL 90s; the renderer also loads the DNS tab on demand so
+  // visiting Security no longer pays the ~12s cold benchmark.
+  handle('dns:benchmark', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('dns', () => benchmarkDNS(), options ?? {})
+  );
   handle(
     'dns:set',
     async (_event: IpcMainInvokeEvent, primaryDNS: string, secondaryDNS: string) => {

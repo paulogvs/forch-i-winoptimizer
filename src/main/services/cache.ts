@@ -102,6 +102,10 @@ export const CACHE_TTL = {
   health: 30_000,
   privacy: 30_000,
   security: 30_000,
+  /** Fase 1.1: dns:benchmark is ~12s cold; reuse for 90s. */
+  dns: 90_000,
+  /** Fase 1.4: benchmark:run batches into 1-2 spawns; reuse for 60s. */
+  benchmark: 60_000,
 } as const;
 
 export type CacheModule = keyof typeof CACHE_TTL;

@@ -35,7 +35,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }, []);
 
   useEffect(() => {
-    void loadSystemInfo();
+    // Fase 1.2 (SWR): paint from cache first (~instant when warm), then
+    // revalidate silently. The skeleton only covers the first paint.
+    let cancelled = false;
+    void (async () => {
+      await loadSystemInfo();
+      if (cancelled) return;
+      try {
+        const fresh = await window.electronAPI.getSystemInfo({ force: true });
+        if (!cancelled) setSystemInfo(fresh);
+      } catch (error) {
+        console.error('Background system-info revalidation failed:', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loadSystemInfo]);
 
   if (loading && !systemInfo) {

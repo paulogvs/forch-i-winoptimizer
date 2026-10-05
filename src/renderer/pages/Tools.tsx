@@ -45,6 +45,89 @@ interface AppRowProps {
   onUninstall: (app: InstalledApp) => void;
 }
 
+interface StartupRowProps {
+  app: StartupApp;
+  onToggle: (app: StartupApp) => void;
+}
+
+const StartupRow = React.memo(function StartupRow({ app, onToggle }: StartupRowProps) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover">
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-fg-primary">{app.name}</span>
+          <Badge
+            variant={
+              app.impact === 'high' ? 'error' : app.impact === 'medium' ? 'warning' : 'success'
+            }
+          >
+            {app.impact} impact
+          </Badge>
+        </div>
+        <div className="text-xs text-fg-tertiary truncate">{app.path}</div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge variant={app.enabled ? 'success' : 'neutral'}>
+          {app.enabled ? 'Enabled' : 'Disabled'}
+        </Badge>
+        <Button
+          variant={app.enabled ? 'secondary' : 'primary'}
+          size="sm"
+          onClick={() => onToggle(app)}
+        >
+          {app.enabled ? 'Disable' : 'Enable'}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+interface DebloatRowProps {
+  app: DebloatCandidate;
+  checked: boolean;
+  onToggle: (id: string, checked: boolean) => void;
+}
+
+const DebloatRow = React.memo(function DebloatRow({ app, checked, onToggle }: DebloatRowProps) {
+  const selectable = app.installed && app.protection !== 'protected';
+  return (
+    <label
+      className={`flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-bg-hover ${
+        selectable ? 'cursor-pointer' : 'opacity-60'
+      }`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <input
+          type="checkbox"
+          className="accent-primary"
+          data-testid={`debloat-check-${app.id}`}
+          disabled={!selectable}
+          checked={checked}
+          onChange={(e) => onToggle(app.id, e.target.checked)}
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-fg-primary">{app.name}</span>
+            <Badge
+              variant={
+                app.protection === 'protected'
+                  ? 'error'
+                  : app.protection === 'caution'
+                    ? 'warning'
+                    : 'success'
+              }
+            >
+              {app.protection}
+            </Badge>
+            {!app.installed && <Badge variant="neutral">not installed</Badge>}
+          </div>
+          <div className="text-xs text-fg-tertiary truncate">{app.description}</div>
+        </div>
+      </div>
+    </label>
+  );
+});
+
 const AppRow = React.memo(function AppRow({ app, uninstalling, onUninstall }: AppRowProps) {
   return (
     <div className="app-row flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover">
@@ -113,6 +196,7 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const loadInstalledApps = async () => {
     setLoading(true);
     try {
+      // Fase 1.2 (SWR): cache paint first, silent revalidation after.
       const apps = await window.electronAPI.getInstalledApps();
       setInstalledApps(apps);
     } catch (error) {
@@ -120,17 +204,30 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
     } finally {
       setLoading(false);
     }
+    try {
+      const fresh = await window.electronAPI.getInstalledApps({ force: true });
+      setInstalledApps(fresh);
+    } catch (error) {
+      console.error('Background apps revalidation failed:', error);
+    }
   };
 
   const loadStartupApps = async () => {
     setLoading(true);
     try {
+      // Fase 1.2 (SWR): cache paint first, silent revalidation after.
       const apps = await window.electronAPI.getStartupApps();
       setStartupApps(apps);
     } catch (error) {
       console.error('Failed to load startup apps:', error);
     } finally {
       setLoading(false);
+    }
+    try {
+      const fresh = await window.electronAPI.getStartupApps({ force: true });
+      setStartupApps(fresh);
+    } catch (error) {
+      console.error('Background startup revalidation failed:', error);
     }
   };
 
@@ -314,44 +411,23 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
 
       {activeTab === 'startup' && !loading && (
         <Card title="Startup Apps">
-          <div className="flex flex-col gap-2">
-            {startupApps.map((app) => (
-              <div
-                key={app.id}
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-fg-primary">{app.name}</span>
-                    <Badge
-                      variant={
-                        app.impact === 'high'
-                          ? 'error'
-                          : app.impact === 'medium'
-                            ? 'warning'
-                            : 'success'
-                      }
-                    >
-                      {app.impact} impact
-                    </Badge>
-                  </div>
-                  <div className="text-xs text-fg-tertiary truncate">{app.path}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={app.enabled ? 'success' : 'neutral'}>
-                    {app.enabled ? 'Enabled' : 'Disabled'}
-                  </Badge>
-                  <Button
-                    variant={app.enabled ? 'secondary' : 'primary'}
-                    size="sm"
-                    onClick={() => handleToggleStartup(app)}
-                  >
-                    {app.enabled ? 'Disable' : 'Enable'}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Fase 1.5: same VirtualList + threshold as Apps/Cleaner/Drivers. */}
+          {startupApps.length > VIRTUALIZE_THRESHOLD ? (
+            <VirtualList
+              items={startupApps}
+              estimateSize={64}
+              getKey={(app) => app.id}
+              renderItem={(app) => <StartupRow app={app} onToggle={handleToggleStartup} />}
+              maxHeight={384}
+              testId="startup-apps"
+            />
+          ) : (
+            <div className="flex flex-col gap-2" data-testid="startup-apps">
+              {startupApps.map((app) => (
+                <StartupRow key={app.id} app={app} onToggle={handleToggleStartup} />
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
@@ -399,51 +475,40 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
               Curated removable UWP packages. Protection is enforced server-side: protected apps can
               never be removed, even from here.
             </p>
-            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
-              {debloatCatalog.map((app) => {
-                const selectable = app.installed && app.protection !== 'protected';
-                return (
-                  <label
+            {/* Fase 1.5: same VirtualList + threshold as the other machine-grown lists. */}
+            {debloatCatalog.length > VIRTUALIZE_THRESHOLD ? (
+              <VirtualList
+                items={debloatCatalog}
+                estimateSize={64}
+                getKey={(app) => app.id}
+                renderItem={(app) => (
+                  <DebloatRow
+                    app={app}
+                    checked={selectedBloatware.includes(app.id)}
+                    onToggle={toggleBloatware}
+                  />
+                )}
+                maxHeight={384}
+                testId="debloat-catalog"
+              />
+            ) : (
+              <div
+                className="flex flex-col gap-2 max-h-96 overflow-y-auto"
+                data-testid="debloat-catalog"
+              >
+                {debloatCatalog.map((app) => (
+                  <DebloatRow
                     key={app.id}
-                    className={`flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-bg-hover ${
-                      selectable ? 'cursor-pointer' : 'opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <input
-                        type="checkbox"
-                        className="accent-primary"
-                        data-testid={`debloat-check-${app.id}`}
-                        disabled={!selectable}
-                        checked={selectedBloatware.includes(app.id)}
-                        onChange={(e) => toggleBloatware(app.id, e.target.checked)}
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-fg-primary">{app.name}</span>
-                          <Badge
-                            variant={
-                              app.protection === 'protected'
-                                ? 'error'
-                                : app.protection === 'caution'
-                                  ? 'warning'
-                                  : 'success'
-                            }
-                          >
-                            {app.protection}
-                          </Badge>
-                          {!app.installed && <Badge variant="neutral">not installed</Badge>}
-                        </div>
-                        <div className="text-xs text-fg-tertiary truncate">{app.description}</div>
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-              {debloatCatalog.length === 0 && (
-                <div className="text-sm text-fg-tertiary">Catalog unavailable.</div>
-              )}
-            </div>
+                    app={app}
+                    checked={selectedBloatware.includes(app.id)}
+                    onToggle={toggleBloatware}
+                  />
+                ))}
+                {debloatCatalog.length === 0 && (
+                  <div className="text-sm text-fg-tertiary">Catalog unavailable.</div>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       )}
