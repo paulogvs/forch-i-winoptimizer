@@ -175,6 +175,80 @@ $lnk = $ws.CreateShortcut("$env:USERPROFILE\Desktop\FORCH.iA WinOptimizer.lnk")
 $lnk.TargetPath; $lnk.WorkingDirectory; $lnk.IconLocation
 ```
 
+### Ver el estado del programa (`scripts/status.ps1`)
+
+¿Querés saber, sin abrir nada raro, _cómo está_ tu instalación? El repo trae un
+comando de **una sola corrida, de solo lectura y sin elevación**:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\status.ps1
+```
+
+Muestra, en criollo:
+
+1. **Portable estable** — ruta, versión (`FileVersion` del `.exe`) y si el acceso
+   directo del Escritorio existe y a dónde apunta.
+2. **Instalación NSIS** — si está instalada y qué versión.
+3. **Última publicada** en GitHub y si tu portable está **AL DIA** o
+   **DESACTUALIZADO**.
+4. **Resumen del scan de seguridad** — puntaje, conteo por estado y qué checks **no**
+   están en `pass` (una línea cada uno). Recordá: `requires-admin` sólo significa que
+   ese dato necesita elevación; **no** es un fallo y queda fuera del score.
+5. **Resumen** — la lista de cosas a revisar.
+
+El escaneo usa el **mismo** scanner real que la app (vía
+`scripts/security-scan-report.cjs`, ~25 s) y es **de solo lectura**: no aplica
+tweaks, no desinstala nada, no toca servicios. Si todavía no compilaste el `dist/`,
+esa parte se saltea con un mensaje claro. Para saltearla vos (más rápido) usá
+`-SkipSecurityScan`.
+
+Con `-Json` además volcás el mismo resumen a un archivo (por defecto
+`artifacts\status-report.json`, ignorado por git):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\status.ps1 -Json
+# o a una ruta propia:
+powershell -ExecutionPolicy Bypass -File .\scripts\status.ps1 -Json -OutFile .\status-report.json
+```
+
+Ejemplo de salida real (cuando el portable estaba en `0.10.0` y la última era `0.10.1`):
+
+```text
+==========================================================
+ FORCH.iA WinOptimizer - Estado
+==========================================================
+
+[1. Portable estable (uso diario)]
+    Ruta     : C:\Users\paulo\Apps\FORCH.iA WinOptimizer\FORCH.iA WinOptimizer (Portable).exe
+    Version  : 0.10.0
+    Acceso   : OK -> C:\Users\paulo\Apps\FORCH.iA WinOptimizer\FORCH.iA WinOptimizer (Portable).exe
+
+[2. Instalacion NSIS (opcional)]
+    Instalada: NO (solo portable)
+
+[3. Ultima publicada (GitHub)]
+    Ultima   : v0.10.1
+    Titulo   : FORCH.iA WinOptimizer v0.10.1 - quoted UninstallString + honest winget timeout
+    Estado   : DESACTUALIZADO (portable 0.10.0 < ultima v0.10.1)
+               -> actualizar, ver docs/USER_GUIDE.md
+
+[4. Scan de seguridad (solo lectura)]
+    Puntaje  : 85 / 100   (13 de 22 checks medidos)
+    Conteo   : pass 9 | warn 4 | fail 0 | unknown 0 | n/a 1 | requires-admin 8
+    No estan en pass:
+      not-applicable   secure-boot            Secure Boot only applies to UEFI firmware.
+      requires-admin   tpm                    TPM state could not be read.
+      warn             windows-update         A reboot is pending to finish installing updates.
+      ...
+    Nota     : requires-admin = el dato necesita elevacion (corre la app como admin); no es un fallo y queda fuera del score.
+
+[Resumen]
+    1 punto(s) a revisar:
+      - El portable estable esta desactualizado.
+```
+
+> Tras actualizar el portable (ver arriba) la sección 3 pasa a **`Estado : AL DIA`**.
+
 ### Compilar desde código fuente
 
 ```bash

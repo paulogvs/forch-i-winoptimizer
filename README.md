@@ -102,6 +102,19 @@ certificate is only required to distribute to third parties — see
 
 > Building on a fresh Windows machine may hit a `winCodeSign` symbolic-link error — see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) §11.
 
+### Check your install status
+
+To see at a glance which portable build you actually run, whether the desktop
+shortcut is correct, what the latest published release is, and a summary of the
+read-only security scan — all without elevation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\status.ps1
+```
+
+Add `-Json` to also write the same summary to `artifacts\status-report.json`. See
+[docs/USER_GUIDE.md](docs/USER_GUIDE.md#ver-el-estado-del-programa-scriptsstatusps1).
+
 ### Build for Production
 
 ```bash
