@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-05
+
+Fase 5 del `PLAN_MEJORAS.md`: **estructural** (la última). Trae un pool de
+procesos PowerShell persistente, el arranque diferido de los servicios de fondo
+y la auditoría por categoría bajo demanda. Foco en eliminar el arranque en frío
+de `powershell.exe` que no es trabajo útil.
+
+### Added
+
+- **5.1 — Pool de PowerShell persistente (`powershell-pool.ts`).**
+  Cada llamada hacía `execFile powershell.exe` y pagaba el arranque del proceso.
+  El pool mantiene 1–N intérpretes vivos (por defecto **2**, configurable con
+  `FORCHI_PS_POOL_SIZE`, desactivable con `FORCHI_PS_POOL=0`) y multiplexa
+  trabajos con un protocolo de tramas `@@JOB@@` / `@@B@@` / `@@E@@` sobre
+  stdin/stdout, con timeout por trabajo y **reciclado** del proceso si se cuelga.
+  Se monta **detrás** de la API pública estable `runPowerShell` /
+  `runPowerShellScript` / `runPowerShellWithTimeout`: cualquier anomalía
+  (no arranca, muere a mitad de trabajo, plataforma no Windows) devuelve `null`
+  y cae de forma transparente al `execFile` de siempre. **Ningún servicio
+  cambia de contrato.**
+- **5.3 — Auditoría perezosa por categoría.** `runSystemAudit(categories?)` y
+  `audit:run` aceptan `categories`; la caché se indexa por selección. La página
+  System Audit pinta/escanea **solo la categoría abierta** (6 tabs) y expande
+  bajo demanda, en vez de lanzar las 31 comprobaciones al montar.
+
+### Changed
+
+- **5.2 — Arranque diferido.** `setupAutoUpdater`, el tray y `window-behavior`
+  ya no bloquean el camino crítico: la ventana se crea y pinta primero y esos
+  servicios se registran en `did-finish-load` (con `setImmediate` como red de
+  seguridad). El cierre a tray sigue activo (el listener de `close` se registra
+  sincrónicamente).
+- **5.4 — `docs/PERFORMANCE.md` republicado** con números v0.16.0 y artefactos
+  en `docs/perf/` (`ui-before/after`, `ipc-before/after-pool`, `system-info`).
+
+### Fixed
+
+- **Pool: drenado de la cola.** Un lote de más de `size` trabajos concurrentes
+  dejaba encolados los trabajos posteriores al 2.º (el pool no despachaba al
+  liberarse un worker). Corregido y cubierto por test de regresión.
+
+### Notes
+
+- **Honestidad de la medición:** `system:get-info` y `bundles:check-installed`
+  bajan ~3–4× en caliente (207–272 ms vs 847–756 ms). `drivers:scan` **no
+  mejora** (mediana 7.7 s → ~11 s, muy ruidosa): es **una sola** llamada batched
+  dominada por la enumeración real de 95 dispositivos, donde el arranque del
+  proceso es marginal. Nada aquí inventa trabajo: si no mejora, se dice.
+- Los procesos del pool se cierran en `will-quit`, en `process.on('exit')` y,
+  en última instancia, porque el worker termina al recibir EOF en stdin. Si el
+  host se mata a mitad de un trabajo, el worker sale en cuanto ese trabajo acaba
+  (hueco transitorio acotado por su timeout).
+
 ## [0.15.0] - 2026-10-05
 
 Fase 4B del `PLAN_MEJORAS.md`: **Driver Store cleanup seguro + software updater

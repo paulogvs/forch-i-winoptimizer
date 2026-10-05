@@ -12,9 +12,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, '..', 'dist', 'main', 'services');
 
 const ps = require(path.join(dist, 'powershell.js'));
+const pool = require(path.join(dist, 'powershell-pool.js'));
 const systemInfo = require(path.join(dist, 'system-info.js'));
 const junk = require(path.join(dist, 'junk-scanner.js'));
 const drivers = require(path.join(dist, 'driver-updater.js'));
+
+// Fase 5.1: measure the shipped persistent-pool configuration.
+pool.enablePowerShellPool();
 
 // Count spawns by wrapping the single PowerShell entry point used everywhere.
 let spawns = 0;
@@ -68,3 +72,6 @@ if (batched && legacy) {
     `System Info: ${legacy.avgMs}ms -> ${batched.avgMs}ms (${saved}% faster), spawns ${legacy.spawns} -> ${batched.spawns}`
   );
 }
+
+// Never leave pooled PowerShell processes behind after measuring.
+pool.disposePowerShellPool();

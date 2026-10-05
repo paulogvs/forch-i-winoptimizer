@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "when": "2026-10-05T23:49:43.372Z",
+    "runs": 4,
+    "pool": true,
+    "methodology": "compiled dist/main/services called directly against real PowerShell, one channel per invocation, sequential (no parallel navigation); withCache bypassed -> cold-cache cost",
+    "node": "v26.7.0"
+  },
+  "results": [
+    {
+      "channel": "system:get-info",
+      "runs": 4,
+      "okRuns": 4,
+      "min": 205,
+      "max": 3107,
+      "median": 209,
+      "samples": [
+        3107,
+        210,
+        205,
+        207
+      ],
+      "spawns": 1,
+      "details": [
+        "cpu=ok mem=ok",
+        "cpu=ok mem=ok",
+        "cpu=ok mem=ok",
+        "cpu=ok mem=ok"
+      ]
+    },
+    {
+      "channel": "drivers:scan",
+      "runs": 4,
+      "okRuns": 4,
+      "min": 10611,
+      "max": 17264,
+      "median": 11032,
+      "samples": [
+        11389,
+        10675,
+        10611,
+        17264
+      ],
+      "spawns": 0,
+      "details": [
+        "devices=95 outdated=0",
+        "devices=95 outdated=0",
+        "devices=95 outdated=0",
+        "devices=95 outdated=0"
+      ]
+    },
+    {
+      "channel": "bundles:check-installed",
+      "runs": 4,
+      "okRuns": 4,
+      "min": 269,
+      "max": 293,
+      "median": 272,
+      "samples": [
+        293,
+        274,
+        270,
+        269
+      ],
+      "spawns": 1,
+      "details": [
+        "apps=48 installed=7",
+        "apps=48 installed=7",
+        "apps=48 installed=7",
+        "apps=48 installed=7"
+      ]
+    }
+  ]
+}

@@ -10,6 +10,16 @@ import { registerWindowControls, attachWindowStateEvents } from './window-contro
 import { setProgressSender } from './services/scan-progress';
 import { setBehaviorWindow, refreshWindowBehavior, beginQuit } from './window-behavior';
 import { destroyTray } from './tray';
+import { enablePowerShellPool, disposePowerShellPool } from './services/powershell-pool';
+
+/**
+ * Fase 5.1: opt into the persistent PowerShell pool. Behind the stable
+ * `runPowerShell` API, with automatic `execFile` fallback on any anomaly.
+ * `FORCHI_PS_POOL=0` is an escape hatch that restores the legacy behavior.
+ */
+if (process.env.FORCHI_PS_POOL !== '0') {
+  enablePowerShellPool();
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -54,14 +64,34 @@ function createWindow(): void {
   // Window controls (P0.1): forward native maximize/unmaximize to the renderer.
   attachWindowStateEvents(mainWindow);
 
-  // Close-to-tray + tray icon, driven by the persisted setting.
+  // Close-to-tray intercept is just an event listener (cheap) and must exist
+  // before the window can be closed.
   setBehaviorWindow(mainWindow);
-  refreshWindowBehavior();
 
   // Scan progress (P0.3): stream stage/percent events to this window.
   setProgressSender((event) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('scan:progress', event);
+    }
+  });
+
+  // Fase 5.2: the tray and the auto-updater are background services that
+  // otherwise block the critical path (window creation + first paint). Defer
+  // them until the renderer has loaded — the window paints first, then the
+  // services register. `windowBehaviorDeferred` also covers a window that is
+  // closed before it ever finishes loading.
+  const win = mainWindow;
+  const startDeferredServices = (): void => {
+    if (win.isDestroyed()) return;
+    refreshWindowBehavior();
+    setupAutoUpdater(win);
+  };
+  win.webContents.once('did-finish-load', startDeferredServices);
+  // Safety net: if `did-finish-load` never fires (offscreen/E2E edge cases),
+  // register right after the event loop drains so the tray/updater still exist.
+  setImmediate(() => {
+    if (!win.isDestroyed() && win.webContents.isLoading() === false) {
+      startDeferredServices();
     }
   });
 
@@ -80,7 +110,6 @@ app.whenReady().then(() => {
   // Create the window first so IPC closures capture a live reference.
   createWindow();
   registerIpcHandlers(mainWindow);
-  setupAutoUpdater(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -98,6 +127,11 @@ app.on('window-all-closed', () => {
 // A real quit (tray menu, Ctrl+Q, updater install) must let the window close.
 app.on('before-quit', () => {
   beginQuit();
+});
+
+// Fase 5.1: never leave pooled PowerShell processes behind on shutdown.
+app.on('will-quit', () => {
+  disposePowerShellPool();
 });
 
 // Security: prevent new window creation

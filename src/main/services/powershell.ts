@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
+import { pool } from './powershell-pool';
 
 const execFileAsync = promisify(execFile);
 
@@ -65,6 +66,20 @@ async function runViaFile(full: string, timeout: number): Promise<PowerShellResu
  * is run from a temp file instead (see `runViaFile`).
  */
 async function runScript(script: string, timeout: number): Promise<PowerShellResult> {
+  // Fase 5.1: reuse a persistent PowerShell process when the pool is enabled.
+  // `pool.run` returns `null` on any anomaly (disabled, worker won't start,
+  // worker died mid-job), in which case we transparently fall back to the
+  // proven `execFile` path below. A definitive job result — success, non-zero
+  // exit, or timeout (124) — is returned as-is, preserving the public contract.
+  const pooled = await pool.run(script, timeout);
+  if (pooled !== null) {
+    return pooled;
+  }
+  return runScriptViaExec(script, timeout);
+}
+
+/** Original one-process-per-call path; also the pool's automatic fallback. */
+async function runScriptViaExec(script: string, timeout: number): Promise<PowerShellResult> {
   const full = `${PREAMBLE} ${script}`;
   const encoded = Buffer.from(full, 'utf16le').toString('base64');
 

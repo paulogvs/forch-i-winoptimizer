@@ -3,6 +3,7 @@ import { ipcMain, dialog } from 'electron';
 import type { BenchmarkReport, CleaningSchedule } from '@shared/types';
 import { getSystemInfoThrottled } from '../services/system-info';
 import { cache, withCache, type CacheOptions } from '../services/cache';
+import type { AuditRunOptions } from '@shared/electron-api';
 import { createProgressReporter } from '../services/scan-progress';
 import {
   getTweaks,
@@ -485,15 +486,21 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   handle('drift:stop-monitoring', () => stopDriftMonitoring());
 
   // ===== System Audit (TTL 30s) =====
-  handle('audit:run', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+  // Fase 5.3: `options.categories` scans only the requested groups and caches
+  // each selection separately, so the Audit page can load one category per tab
+  // instead of all 31 checks at mount. Omitting `categories` is unchanged.
+  handle('audit:run', (_event: IpcMainInvokeEvent, options?: AuditRunOptions) =>
     withCache(
       'health',
       async () => {
-        const report = await runSystemAudit();
+        const report = await runSystemAudit(options?.categories);
         recordStatsEvent({ type: 'audit', score: report.score });
         return report;
       },
-      options ?? {}
+      options ?? {},
+      options?.categories && options.categories.length > 0
+        ? { categories: options.categories }
+        : undefined
     )
   );
 

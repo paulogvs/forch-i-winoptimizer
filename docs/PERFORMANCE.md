@@ -16,6 +16,58 @@ npm run build
 node scripts/measure-system-info.mjs
 ```
 
+## v0.16.0 — Fase 5 estructural (2026-10-05)
+
+Ronda fresca sobre **v0.15.0 → v0.16.0** con los tres arneses, antes/después.
+Artefactos: `docs/perf/ui-before-v0.16.json`, `docs/perf/ui-after-v0.16.json`,
+`docs/perf/ipc-before-v0.16.json`, `docs/perf/ipc-after-pool-v0.16.json`.
+
+### 5.1 — Pool de PowerShell persistente (`measure-ipc-channels.mjs --runs 4`)
+
+Medianas en caliente (cada repetición paga el coste, `withCache` evita la caché
+TTL; el primer valor de cada canal es el arranque en frío del pool).
+
+| Canal                     | v0.15.0 `execFile` | v0.16.0 pool | 1ª corrida (frío) |
+| ------------------------- | ------------------ | ------------ | ----------------- |
+| `system:get-info`         | **847 ms**         | **209 ms**   | 3107 ms           |
+| `bundles:check-installed` | **756 ms**         | **272 ms**   | 293 ms            |
+| `drivers:scan`            | **7673 ms**        | **11032 ms** | 11389 ms          |
+
+Comandos cortos medidos a mano (mismo proceso persistente): frío **2588 ms**;
+caliente **14–58 ms**. Es decir, el arranque de `powershell.exe` se paga una vez
+por worker y deja de pagarse en cada llamada.
+
+**`drivers:scan` no mejora y se dice:** es **una sola** llamada batched
+(`runPowerShellScript(buildScanScript())`) dominada por la enumeración real de
+95 dispositivos; el arranque del proceso es marginal y la varianza entre
+corridas es grande (6–17 s). El pool no lo empeora de forma determinista, pero
+tampoco es un caso de uso que gane con él.
+
+### 5.2 — Arranque diferido (`measure-ui-perf.mjs --cycles 3`)
+
+Medianas de 3 lanzamientos reales del Electron empaquetado.
+
+| Métrica              | v0.15.0 | v0.16.0    |
+| -------------------- | ------- | ---------- |
+| Ventana (`windowMs`) | 964 ms  | **763 ms** |
+| `load` (`loadMs`)    | 351 ms  | **296 ms** |
+
+La ventana se crea y carga antes de registrar `setupAutoUpdater`/tray, todos
+ellos movidos a `did-finish-load`.
+
+### 5.3 — Auditoría por categoría (System Audit)
+
+Antes, al montar la página: 1 lectura de caché + 1 revalidación **completa**
+(31 comprobaciones). Ahora, al montar: **una sola categoría** (`privacy`); las
+otras 5 solo cuando el usuario abre su tab.
+
+| Métrica (página Audit)         | v0.15.0 | v0.16.0    |
+| ------------------------------ | ------- | ---------- |
+| Llamadas `audit:run` al montar | 2       | **1**      |
+| `ipcStartedMax`                | 2       | **1**      |
+| `ipcMaxMs`                     | 3102.6  | **1368.4** |
+| Filas IPC pendientes           | 3       | **1**      |
+
 ## System Info — 4 sondas → 1 (P1.1)
 
 | Métrica                      | Antes (v0.2.3) | Después (v0.3.0)     |

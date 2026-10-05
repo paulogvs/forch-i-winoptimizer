@@ -140,10 +140,13 @@ export interface DriftGuardStatus {
 }
 
 // ===== System Audit =====
+export type AuditCategory =
+  'privacy' | 'performance' | 'memory' | 'storage' | 'startup' | 'network';
+
 export interface AuditCheck {
   id: string;
   name: string;
-  category: 'privacy' | 'performance' | 'memory' | 'storage' | 'startup' | 'network';
+  category: AuditCategory;
   status: 'pass' | 'warning' | 'critical';
   description: string;
   recommendation: string;

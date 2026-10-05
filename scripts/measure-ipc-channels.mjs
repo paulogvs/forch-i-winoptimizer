@@ -30,9 +30,15 @@ const RUNS = Math.max(1, Number(arg('runs', '5')));
 const OUT = arg('out', '');
 
 const ps = require(resolve(dist, 'powershell.js'));
+const pool = require(resolve(dist, 'powershell-pool.js'));
 const systemInfo = require(resolve(dist, 'system-info.js'));
 const drivers = require(resolve(dist, 'driver-updater.js'));
 const bundles = require(resolve(dist, 'app-bundles.js'));
+
+// Fase 5.1: measure the shipped configuration (persistent pool). `--no-pool`
+// falls back to one-process-per-call for an A/B comparison in the same run.
+const usePool = !process.argv.includes('--no-pool');
+if (usePool) pool.enablePowerShellPool();
 
 // Count process spawns through the single PowerShell entry point used everywhere.
 let spawns = 0;
@@ -130,6 +136,7 @@ const report = {
   meta: {
     when: new Date().toISOString(),
     runs: RUNS,
+    pool: usePool,
     methodology:
       'compiled dist/main/services called directly against real PowerShell, one channel per invocation, sequential (no parallel navigation); withCache bypassed -> cold-cache cost',
     node: process.version,
@@ -163,3 +170,6 @@ for (const r of results) {
     `${r.channel}: mediana ${r.median} ms (min ${r.min} / max ${r.max}), ${r.okRuns}/${r.runs} ok, ${r.spawns} spawn(s), muestras [${r.samples.join(', ')}]`
   );
 }
+
+// Never leave pooled PowerShell processes behind after measuring.
+if (usePool) pool.disposePowerShellPool();

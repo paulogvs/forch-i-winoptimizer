@@ -1,4 +1,5 @@
 import type { ScanProgressEvent } from './scan-progress';
+import type { AuditCategory } from './types';
 import type { TweakApplyResult, TweakPreview, TweakView } from './tweaks';
 import type { AppSettings, SettingsPayload, UpdateSettingsResult } from './settings';
 import type { StatsEvent, StatsExportResult } from './stats';
@@ -264,6 +265,11 @@ export interface AuditReport {
   criticalCount: number;
   score: number;
   timestamp: Date;
+}
+
+/** Fase 5.3: audit options. `categories` restricts the scan to those groups. */
+export interface AuditRunOptions extends CacheOptions {
+  categories?: AuditCategory[];
 }
 
 // ===== Benchmark =====
@@ -597,7 +603,8 @@ export interface WinOptimizerAPI {
     stopMonitoring: () => Promise<{ success: boolean }>;
   };
   audit: {
-    run: (options?: CacheOptions) => Promise<AuditReport>;
+    /** Fase 5.3: `categories` scans only those groups (lazy per-tab loading). */
+    run: (options?: AuditRunOptions) => Promise<AuditReport>;
   };
   benchmark: {
     run: (options?: CacheOptions) => Promise<BenchmarkReport>;

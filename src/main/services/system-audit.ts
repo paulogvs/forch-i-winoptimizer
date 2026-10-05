@@ -1,5 +1,15 @@
 import { runPowerShell } from './powershell';
-import type { AuditCheck, AuditReport } from '@shared/types';
+import type { AuditCheck, AuditCategory, AuditReport } from '@shared/types';
+
+/** Fase 5.3: audit categories, in display order. */
+export const AUDIT_CATEGORIES: readonly AuditCategory[] = [
+  'privacy',
+  'performance',
+  'memory',
+  'storage',
+  'startup',
+  'network',
+];
 
 /** One check's stdout payload: the exact shape the check bodies already read. */
 type CheckOutput = { stdout: string };
@@ -781,19 +791,31 @@ function buildNetworkChecks(outputs: readonly CheckOutput[]): AuditCheck[] {
 }
 
 const CHECK_GROUPS: ReadonlyArray<{
+  category: AuditCategory;
   scripts: readonly string[];
   build: (outputs: readonly CheckOutput[]) => AuditCheck[];
 }> = [
-  { scripts: PRIVACY_SCRIPTS, build: buildPrivacyChecks },
-  { scripts: PERFORMANCE_SCRIPTS, build: buildPerformanceChecks },
-  { scripts: MEMORY_SCRIPTS, build: buildMemoryChecks },
-  { scripts: STORAGE_SCRIPTS, build: buildStorageChecks },
-  { scripts: STARTUP_SCRIPTS, build: buildStartupChecks },
-  { scripts: NETWORK_SCRIPTS, build: buildNetworkChecks },
+  { category: 'privacy', scripts: PRIVACY_SCRIPTS, build: buildPrivacyChecks },
+  { category: 'performance', scripts: PERFORMANCE_SCRIPTS, build: buildPerformanceChecks },
+  { category: 'memory', scripts: MEMORY_SCRIPTS, build: buildMemoryChecks },
+  { category: 'storage', scripts: STORAGE_SCRIPTS, build: buildStorageChecks },
+  { category: 'startup', scripts: STARTUP_SCRIPTS, build: buildStartupChecks },
+  { category: 'network', scripts: NETWORK_SCRIPTS, build: buildNetworkChecks },
 ];
 
-export async function runSystemAudit(): Promise<AuditReport> {
-  const scripts = CHECK_GROUPS.flatMap((group) => group.scripts);
+/**
+ * Run the system audit.
+ *
+ * Fase 5.3: when `categories` is given, only those groups are scanned, so the
+ * Audit page can load one category per tab instead of all 31 checks at mount.
+ * Omitting it keeps the original whole-audit behaviour.
+ */
+export async function runSystemAudit(categories?: readonly AuditCategory[]): Promise<AuditReport> {
+  const selected =
+    categories && categories.length > 0
+      ? CHECK_GROUPS.filter((group) => categories.includes(group.category))
+      : CHECK_GROUPS;
+  const scripts = selected.flatMap((group) => group.scripts);
 
   // One PowerShell process for the whole audit. Each spawn costs ~1.8 s on this
   // machine, so the old per-check spawns paid ~31 of them: `audit:run` measured
@@ -804,7 +826,7 @@ export async function runSystemAudit(): Promise<AuditReport> {
 
   const checks: AuditCheck[] = [];
   let cursor = 0;
-  for (const group of CHECK_GROUPS) {
+  for (const group of selected) {
     const outputs = payloads
       .slice(cursor, cursor + group.scripts.length)
       .map((stdout) => ({ stdout }));
