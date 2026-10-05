@@ -161,8 +161,26 @@ export const Boost: React.FC = () => {
                     {service.protection}
                   </Badge>
                   <Badge variant="neutral">{service.impact} impact</Badge>
+                  {service.risk && service.risk !== 'low' && (
+                    <Badge
+                      variant={
+                        service.risk === 'critical' || service.risk === 'high' ? 'error' : 'warning'
+                      }
+                    >
+                      {service.risk} risk
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-fg-tertiary mt-1">{service.description}</p>
+                {service.safetyWarning && (
+                  <p
+                    className="text-xs text-warning mt-1"
+                    role="note"
+                    data-testid={`service-warning-${service.id}`}
+                  >
+                    ⚠ {service.safetyWarning}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant={service.status === 'running' ? 'success' : 'neutral'}>

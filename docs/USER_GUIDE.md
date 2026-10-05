@@ -837,3 +837,33 @@ códigos de salida, variantes `-SkipRdpCycle`/`-DryRun`, **cómo revertir** y **
 `docs/TROUBLESHOOTING.md` → _Verificación elevada (kit para el usuario)_.
 
 > Es una herramienta de desarrollo: **no forma parte del binario** distribuido.
+
+---
+
+## Driver Store cleanup (v0.15.0)
+
+En **Tools → Utilities**, la sección **Driver Store cleanup** elimina **solo**
+paquetes de driver **superseded** (una versión vieja reemplazada por otra más
+nueva del mismo `INF original + proveedor`). Es estricta a propósito:
+
+- **Nunca** toca un driver **en uso** (bindado a un dispositivo).
+- **Nunca** toca drivers **virtuales/shim** (Tailscale, Wintun, WireGuard,
+  Hyper-V, etc.) — la lista vive en `catalogs/driver-store-rules.json`.
+- La comparación de versiones es **numérica** (no alfabética).
+- Primero **Scan** (solo lectura) → ves exactamente qué se borraría y cuánto
+  espacio recuperarías → recién al confirmar se borra con
+  `pnputil /delete-driver <oem#.inf> /uninstall`.
+- Tras borrar, **se vuelve a escanear** para confirmar cada remoción: si un
+  paquete sigue ahí, se reporta como fallo (nunca un éxito falso).
+- Requiere **administrador**; si no está elevado, aparece **“Restart as
+  administrator”**.
+
+## Software updates (v0.15.0)
+
+En **Tools → App Manager**, la tarjeta **Software updates** detecta
+actualizaciones con el **Windows Package Manager (winget)** — solo lectura, sin
+listas hardcodeadas. La severidad (major/minor/patch) se calcula comparando las
+versiones. Es honesto por diseño: si winget **no responde**, NO dice "al día";
+si responde que no hay nada, dice **up-to-date**. El botón **Update** ejecuta
+`winget upgrade --id …` y vuelve a verificar que la app ya no figure con
+actualización pendiente antes de reportar éxito.

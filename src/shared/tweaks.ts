@@ -6,6 +6,7 @@
 export type TweakCategory = 'performance' | 'privacy' | 'explorer' | 'accessibility';
 export type TweakSafety = 'safe' | 'advanced';
 export type TweakImpact = 'low' | 'medium' | 'high';
+export type TweakRisk = 'low' | 'medium' | 'high' | 'critical';
 
 export type RegistryHive = 'HKCU' | 'HKLM';
 export type RegistryValueType = 'DWORD' | 'String';
@@ -51,6 +52,13 @@ export interface TweakDefinition {
   reversible: true;
   impact: TweakImpact;
   requiresAdmin: boolean;
+  /**
+   * Safety KB (Fase 4.8): how risky the change is and a short user-facing
+   * explanation shown as a warning. Optional for backwards compatibility; the
+   * bundled catalog always carries both.
+   */
+  risk?: TweakRisk;
+  safetyNote?: string;
   /**
    * Minimum Windows build required to APPLY this tweak (e.g. 22000 for
    * Windows 11, 22631 for 23H2). Restore is never gated.

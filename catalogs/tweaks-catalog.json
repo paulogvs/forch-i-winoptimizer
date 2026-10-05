@@ -28,7 +28,9 @@
           "startType": "automatic",
           "state": "running"
         }
-      ]
+      ],
+      "risk": "medium",
+      "safetyNote": "On mechanical disks SysMain helps; disabling may slow app launch. Reversible."
     },
     {
       "id": "prefetch-conservative",
@@ -77,7 +79,9 @@
           "value": null,
           "removeOnRevert": true
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Restores Windows defaults; it does not disable prefetch."
     },
     {
       "id": "background-apps",
@@ -107,7 +111,9 @@
           "type": "DWORD",
           "value": 0
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Only affects UWP background apps for the current user."
     },
     {
       "id": "game-mode-hags",
@@ -130,7 +136,9 @@
           "kind": "info",
           "detail": "Nothing to undo: this tweak never writes to the system."
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Informational only; nothing is written to the system."
     },
     {
       "id": "telemetry-diagtrack",
@@ -232,7 +240,9 @@
           "taskName": "DmClientOnScenarioDownload",
           "disable": false
         }
-      ]
+      ],
+      "risk": "medium",
+      "safetyNote": "Stops telemetry and CEIP tasks; some diagnostics/enterprise features may be affected."
     },
     {
       "id": "suggested-content",
@@ -358,7 +368,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Turns off tips and ads in Start and Settings."
     },
     {
       "id": "show-file-extensions",
@@ -388,7 +400,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Explorer display preference only."
     },
     {
       "id": "hide-recent-files",
@@ -434,7 +448,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Hides Quick Access recent/frequent items; your files are untouched."
     },
     {
       "id": "classic-context-menu",
@@ -465,7 +481,9 @@
           "value": null,
           "removeOnRevert": true
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Adds a registry key; needs an Explorer restart. Reversible."
     },
     {
       "id": "snappier-animations",
@@ -512,7 +530,9 @@
           "type": "String",
           "value": "1"
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Changes menu delay and animations; sign out/in to apply fully."
     },
     {
       "id": "mouse-acceleration-off",
@@ -575,7 +595,9 @@
           "type": "String",
           "value": "10"
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Changes pointer feel; the original values are captured and restored."
     },
     {
       "id": "startup-delay-zero",
@@ -606,7 +628,9 @@
           "value": null,
           "removeOnRevert": true
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Removes the artificial sign-in startup delay."
     },
     {
       "id": "taskbar-align-left",
@@ -638,7 +662,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Windows 11 only; taskbar layout preference."
     },
     {
       "id": "taskbar-search-hidden",
@@ -670,7 +696,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Windows 11 only; search stays available from Start."
     },
     {
       "id": "hide-task-view-button",
@@ -702,7 +730,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Windows 11 only; Win+Tab still works."
     },
     {
       "id": "hide-widgets",
@@ -734,7 +764,9 @@
           "type": "DWORD",
           "value": 1
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Windows 11 only; registry-only, the Widgets service is untouched."
     },
     {
       "id": "hide-copilot",
@@ -783,7 +815,9 @@
           "value": null,
           "removeOnRevert": true
         }
-      ]
+      ],
+      "risk": "medium",
+      "safetyNote": "Disables Windows Copilot via policy; it does not uninstall the app. Reversible."
     },
     {
       "id": "windows-spotlight-off",
@@ -832,7 +866,9 @@
           "value": null,
           "removeOnRevert": true
         }
-      ]
+      ],
+      "risk": "low",
+      "safetyNote": "Disables lock-screen Spotlight; re-enable in Settings."
     },
     {
       "id": "sticky-keys-off",
@@ -880,7 +916,9 @@
           "value": null,
           "removeOnRevert": true
         }
-      ]
+      ],
+      "risk": "medium",
+      "safetyNote": "Turns off Sticky Keys and its shortcut prompt. Reversible in Accessibility settings."
     }
   ]
 }

@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { SkeletonList } from '../components/ui/Skeleton';
 import type { TweakCategory, TweakOperation, TweakView } from '@shared/tweaks';
+import { safetyWarning } from '@shared/safety';
 import { useOperationStatus } from '../hooks/useOperationStatus';
 
 type ActionState = 'idle' | 'working' | 'done' | 'error';
@@ -158,6 +159,13 @@ export const Tweaks: React.FC = () => {
   const renderTweak = (tweak: TweakView) => {
     const infoOnly = isInfoOnly(tweak);
     const state = actionState[tweak.id] ?? 'idle';
+    const warning = tweak.risk
+      ? safetyWarning({
+          safety: tweak.safety,
+          risk: tweak.risk,
+          safetyNote: tweak.safetyNote ?? '',
+        })
+      : null;
     return (
       <Card key={tweak.id} className="tweak-card">
         <div className="tweak-row">
@@ -185,6 +193,15 @@ export const Tweaks: React.FC = () => {
             </div>
             <p className="tweak-description">{tweak.description}</p>
             {tweak.note && <p className="tweak-note">{tweak.note}</p>}
+            {warning && (
+              <p
+                className="tweak-note tweak-warning"
+                role="note"
+                data-testid={`tweak-warning-${tweak.id}`}
+              >
+                ⚠ {warning}
+              </p>
+            )}
             {messages[tweak.id] && (
               <p className={`tweak-message tweak-message--${state}`}>{messages[tweak.id]}</p>
             )}

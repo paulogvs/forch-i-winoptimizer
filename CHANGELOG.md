@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-05
+
+Fase 4B del `PLAN_MEJORAS.md`: **Driver Store cleanup seguro + software updater
+real vía winget + Safety KBs** (minor: nueva capacidad visible).
+
+### Added
+
+- **4.1 — Driver Store cleanup (`driver-store-cleanup.ts` + UI en Tools → Utilities).**
+  Detecta paquetes **superseded** con `pnputil /enum-drivers` usando la identidad
+  `INF original + proveedor` (patrón `driverIdentityKey`) y comparación de versiones
+  **numérica**. Borra solo con `pnputil /delete-driver <oem#.inf> /uninstall`, nunca
+  los que están en uso (no bindiados), y **excluye explícitamente los virtuales**
+  (Tailscale/Wintun/WireGuard/Hyper-V…) vía `catalogs/driver-store-rules.json`.
+  Preview obligatorio (con tamaño real desde `DriverStore\FileRepository`),
+  confirmación, **re-verificación post-borrado** y `requires-admin` con
+  "Restart as administrator". Parser **independiente del idioma** (Windows en
+  español imprime etiquetas localizadas).
+- **4.7 — Software updater real (`software-updater.ts` + UI en Tools → App Manager).**
+  Detecta actualizaciones con `winget upgrade` (solo lectura) con limpieza de salida
+  (`cleanOutput`), severidad por diferencia de versión major/minor/patch
+  (`computeSeverity`) y distinción honesta entre "al día" y "sin respuesta"
+  (`emptyResult`: un vacío **nunca** es "al día"). Sin listas hardcodeadas, con
+  `runPowerShellScript` + caché TTL (5 min) y botón de actualizar que respeta el
+  mutex global.
+- **4.8 — Safety KBs por entrada.** `catalogs/services-catalog.json` y
+  `catalogs/tweaks-catalog.json` ahora llevan `safety`/`risk`/`safetyNote`; la UI
+  (Boost y Tweaks) **muestra la advertencia** antes de aplicar entradas de riesgo.
+
+### Blocked
+
+- **4.4 — YARA en `worker_thread`:** requiere una dependencia (`@litko/yara-x` o
+  similar) y la red de npm está **bloqueada** → no se puede instalar. Ver
+  `PLAN_MEJORAS.md`.
+
+### Notes
+
+- Validado con TDD: los tests usan fixtures reales de `pnputil -e` (locale español)
+  y de `winget upgrade`; **nunca** se ejecuta un borrado real de driver store ni un
+  `winget upgrade` de instalación.
+
 ## [0.14.0] - 2026-10-05
 
 Fase 4A del `PLAN_MEJORAS.md`: **adopciones de Kudu (rendimiento) + Disk repair**

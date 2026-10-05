@@ -1,4 +1,6 @@
 import { runPowerShell, parsePowerShellJson, toArray } from './powershell';
+import { getServiceSafety, safetyWarning } from './safety-kb';
+import type { RiskLevel, SafetyLevel } from '@shared/safety';
 
 /** Escape a value for a PowerShell single-quoted string literal. */
 function psQuote(value: string): string {
@@ -16,6 +18,10 @@ export interface SystemService {
   recommendedAction: 'keep' | 'disable' | 'manual';
   protection: 'safe' | 'caution' | 'protected';
   impact: 'low' | 'medium' | 'high';
+  /** Safety KB (Fase 4.8): level, risk and the warning shown before applying. */
+  safety: SafetyLevel;
+  risk: RiskLevel;
+  safetyWarning: string | null;
 }
 
 interface PowerShellService {
@@ -173,6 +179,14 @@ export async function getSystemServices(): Promise<SystemService[]> {
   return toArray(parsed).map((service) => {
     const isProtected = PROTECTED_SERVICES.includes(service.Name);
     const optimization = OPTIMIZABLE_SERVICES[service.Name];
+    const protection: SystemService['protection'] = isProtected
+      ? 'protected'
+      : optimization
+        ? 'caution'
+        : 'safe';
+    const safetyEntry = getServiceSafety(service.Name);
+    const safety: SafetyLevel = safetyEntry?.safety ?? protection;
+    const risk: RiskLevel = safetyEntry?.risk ?? optimization?.impact ?? 'low';
 
     return {
       id: service.Name,
@@ -183,8 +197,11 @@ export async function getSystemServices(): Promise<SystemService[]> {
       startType: service.StartType.toLowerCase() as 'automatic' | 'manual' | 'disabled',
       canOptimize: !isProtected && !!optimization,
       recommendedAction: optimization?.action ?? 'keep',
-      protection: isProtected ? 'protected' : optimization ? 'caution' : 'safe',
+      protection,
       impact: optimization?.impact ?? 'low',
+      safety,
+      risk,
+      safetyWarning: safetyWarning({ safety, risk, safetyNote: safetyEntry?.safetyNote ?? '' }),
     };
   });
 }

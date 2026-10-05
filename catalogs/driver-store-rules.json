@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-10-05",
+  "source": "native (Fase 4.1 Driver Store cleanup safety KB)",
+  "virtualPatterns": [
+    "tailscale",
+    "wintun",
+    "wireguard",
+    "hyper-v",
+    "hyperv",
+    "virtualbox",
+    "vmware",
+    "wan miniport",
+    "microsoft wi-fi direct",
+    "microsoft hosted network"
+  ],
+  "notes": "A package whose provider, original INF name or class matches any pattern is a virtual/shim driver and must never be removed by the Driver Store cleanup. `oemNN.inf` names are the only deletable handles."
+}

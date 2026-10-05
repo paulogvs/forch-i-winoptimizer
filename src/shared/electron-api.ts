@@ -12,6 +12,12 @@ import type {
 } from './driver-update';
 import type { DeleteReceipt, RetryFailedResult } from './cleanup';
 import type { DiskRepairProgressEvent, DiskRepairResult } from './disk-repair';
+import type {
+  DriverStoreCandidate,
+  DriverStoreCleanResult,
+  DriverStorePreview,
+} from './driver-store';
+import type { SoftwareUpdateReport } from './software-update';
 
 export interface SystemInfo {
   platform: string;
@@ -131,6 +137,10 @@ export interface SystemService {
   recommendedAction: 'keep' | 'disable' | 'manual';
   protection: 'safe' | 'caution' | 'protected';
   impact: 'low' | 'medium' | 'high';
+  /** Safety KB (Fase 4.8): level, risk and the warning to show before applying. */
+  safety: 'safe' | 'caution' | 'protected';
+  risk: 'low' | 'medium' | 'high' | 'critical';
+  safetyWarning: string | null;
 }
 
 export interface UpdateInfo {
@@ -561,6 +571,17 @@ export interface WinOptimizerAPI {
     rollback: (driverId: string) => Promise<DriverInstallResult>;
     /** Subscribe to real driver operation progress. Returns an unsubscribe. */
     onProgress: (callback: (event: DriverProgressEvent) => void) => () => void;
+  };
+  /** Driver Store cleanup (Fase 4.1): preview first, then remove superseded. */
+  driverStore: {
+    preview: () => Promise<DriverStorePreview>;
+    clean: (candidates: DriverStoreCandidate[]) => Promise<DriverStoreCleanResult>;
+    isAdmin: () => Promise<boolean>;
+  };
+  /** Software updater (Fase 4.7): real winget detection + update. */
+  softwareUpdates: {
+    check: (options?: CacheOptions) => Promise<SoftwareUpdateReport>;
+    update: (id: string) => Promise<OperationResult>;
   };
   network: {
     fix: () => Promise<NetworkFixReport>;

@@ -14,6 +14,7 @@ const TWEAK_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const CATEGORIES = new Set(['performance', 'privacy', 'explorer', 'accessibility']);
 const SAFETIES = new Set(['safe', 'advanced']);
 const IMPACTS = new Set(['low', 'medium', 'high']);
+const RISKS = new Set(['low', 'medium', 'high', 'critical']);
 const HIVES = new Set(['HKCU', 'HKLM']);
 const VALUE_TYPES = new Set(['DWORD', 'String']);
 const SERVICE_START_TYPES = new Set(['automatic', 'manual', 'disabled']);
@@ -83,6 +84,8 @@ function isValidTweak(raw: unknown): raw is TweakDefinition {
     typeof raw.requiresAdmin === 'boolean' &&
     (raw.requiresBuild === undefined || typeof raw.requiresBuild === 'number') &&
     (raw.note === undefined || typeof raw.note === 'string') &&
+    (raw.risk === undefined || (typeof raw.risk === 'string' && RISKS.has(raw.risk))) &&
+    (raw.safetyNote === undefined || typeof raw.safetyNote === 'string') &&
     Array.isArray(raw.apply) &&
     raw.apply.length > 0 &&
     raw.apply.every(isValidOperation) &&

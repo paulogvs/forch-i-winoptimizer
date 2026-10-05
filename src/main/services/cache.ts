@@ -230,6 +230,8 @@ export class CategoryScanCache<T extends ScannableItem> {
 export const CACHE_TTL = {
   systemInfo: 60_000,
   drivers: 300_000,
+  /** Fase 4.7: `winget upgrade` can take seconds; reuse for 5m. */
+  softwareUpdates: 300_000,
   junk: 30_000,
   apps: 60_000,
   startup: 60_000,

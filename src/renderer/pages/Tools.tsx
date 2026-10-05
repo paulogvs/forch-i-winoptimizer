@@ -15,6 +15,8 @@ import type {
   InstalledApp,
   StartupApp,
 } from '@shared/electron-api';
+import type { SoftwareUpdateReport, UpdateSeverity } from '@shared/software-update';
+import type { DriverStoreCleanResult, DriverStorePreview } from '@shared/driver-store';
 import type { PageId } from '@shared/types';
 
 type ToolTab = 'apps' | 'startup' | 'debloat' | 'utilities';
@@ -171,6 +173,14 @@ const AppRow = React.memo(function AppRow({ app, uninstalling, onUninstall }: Ap
   );
 });
 
+/** Substantive severity colours for the software-updater list. */
+const SEVERITY_VARIANT: Record<UpdateSeverity, 'error' | 'warning' | 'info' | 'neutral'> = {
+  major: 'error',
+  minor: 'warning',
+  patch: 'info',
+  unknown: 'neutral',
+};
+
 export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<ToolTab>('apps');
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
@@ -189,6 +199,16 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [repairPercent, setRepairPercent] = useState<number | null>(null);
   const [repairResult, setRepairResult] = useState<DiskRepairResult | null>(null);
   const [repairError, setRepairError] = useState<string | null>(null);
+  // Software updater (Fase 4.7): winget detection + update.
+  const [updatesReport, setUpdatesReport] = useState<SoftwareUpdateReport | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatesNote, setUpdatesNote] = useState<string | null>(null);
+  // Driver Store cleanup (Fase 4.1): preview -> clean.
+  const [storePreview, setStorePreview] = useState<DriverStorePreview | null>(null);
+  const [storeBusy, setStoreBusy] = useState(false);
+  const [storeResult, setStoreResult] = useState<DriverStoreCleanResult | null>(null);
+  const [storeError, setStoreError] = useState<string | null>(null);
 
   useEffect(() => {
     const repairApi = window.electronAPI?.diskRepair;
@@ -393,6 +413,74 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleCheckUpdates = async () => {
+    setCheckingUpdates(true);
+    setUpdatesNote(null);
+    try {
+      const report = await window.winoptimizer.softwareUpdates.check({ force: true });
+      setUpdatesReport(report);
+    } catch (error) {
+      setUpdatesReport({
+        success: false,
+        status: 'unavailable',
+        updates: [],
+        count: 0,
+        message: `Could not check for updates: ${String(error)}`,
+        scannedAt: new Date().toISOString(),
+      });
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  const handleUpdateApp = async (id: string, name: string) => {
+    if (!window.confirm(`Update ${name} (${id}) now?`)) return;
+    setUpdatingId(id);
+    setUpdatesNote(null);
+    try {
+      const result = await window.winoptimizer.softwareUpdates.update(id);
+      setUpdatesNote(result.message);
+      const report = await window.winoptimizer.softwareUpdates.check({ force: true });
+      setUpdatesReport(report);
+    } catch (error) {
+      setUpdatesNote(`Update failed: ${String(error)}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleStorePreview = async () => {
+    setStoreBusy(true);
+    setStoreResult(null);
+    setStoreError(null);
+    try {
+      setStorePreview(await window.winoptimizer.driverStore.preview());
+    } catch (error) {
+      setStoreError(`Driver Store scan failed: ${String(error)}`);
+    } finally {
+      setStoreBusy(false);
+    }
+  };
+
+  const handleStoreClean = async () => {
+    if (!storePreview || storePreview.candidates.length === 0) return;
+    const summary = `Remove ${storePreview.candidates.length} superseded driver package(s) (~${formatBytes(
+      storePreview.reclaimableBytes
+    )})? This cannot be undone.`;
+    if (!window.confirm(summary)) return;
+    setStoreBusy(true);
+    setStoreError(null);
+    try {
+      const result = await window.winoptimizer.driverStore.clean(storePreview.candidates);
+      setStoreResult(result);
+      setStorePreview(await window.winoptimizer.driverStore.preview());
+    } catch (error) {
+      setStoreError(`Driver Store cleanup failed: ${String(error)}`);
+    } finally {
+      setStoreBusy(false);
+    }
+  };
+
   const safeApps = installedApps.filter((a) => a.protection === 'safe');
   const cautionApps = installedApps.filter((a) => a.protection === 'caution');
   const protectedApps = installedApps.filter((a) => a.protection === 'protected');
@@ -440,6 +528,80 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
 
       {activeTab === 'apps' && !loading && (
         <div className="flex flex-col gap-4">
+          <Card
+            title="Software updates"
+            footer={
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={checkingUpdates}
+                onClick={handleCheckUpdates}
+                data-testid="check-updates"
+              >
+                Check for updates
+              </Button>
+            }
+          >
+            <p className="text-xs text-fg-tertiary mb-3">
+              Updates detected with the Windows Package Manager (winget). Detection is read-only; an
+              empty answer is shown as “cannot confirm”, never as “up to date”.
+            </p>
+            {updatesNote && (
+              <div role="status" className="mb-2 text-xs text-fg-secondary">
+                {updatesNote}
+              </div>
+            )}
+            {updatesReport && (
+              <div data-testid="software-updates">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge
+                    variant={
+                      updatesReport.status === 'ok'
+                        ? 'info'
+                        : updatesReport.status === 'up-to-date'
+                          ? 'success'
+                          : 'warning'
+                    }
+                  >
+                    {updatesReport.status}
+                  </Badge>
+                  <span className="text-xs text-fg-tertiary">{updatesReport.message}</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {updatesReport.updates.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-bg-hover"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-fg-primary">{u.name || u.id}</span>
+                          <Badge variant={SEVERITY_VARIANT[u.severity]}>{u.severity}</Badge>
+                        </div>
+                        <div className="text-xs text-fg-tertiary truncate">
+                          {u.currentVersion} → {u.availableVersion}
+                          {u.source ? ` · ${u.source}` : ''}
+                        </div>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        loading={updatingId === u.id}
+                        disabled={updatingId !== null}
+                        onClick={() => handleUpdateApp(u.id, u.name || u.id)}
+                        data-testid={`update-app-${u.id}`}
+                      >
+                        Update
+                      </Button>
+                    </div>
+                  ))}
+                  {updatesReport.updates.length === 0 && updatesReport.status === 'ok' && (
+                    <div className="text-sm text-fg-tertiary">No updates available.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </Card>
           <Card
             title="Installed Apps"
             footer={
@@ -598,6 +760,97 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
               queued through the global operation lock, so they never run two at a time.
             </p>
             <QuickFixBar onNavigate={onNavigate} />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-fg-secondary mb-3">Driver Store cleanup</h3>
+            <p className="text-xs text-fg-tertiary mb-3">
+              Removes only SUPERSEDED driver packages (an older version replaced by a newer one for
+              the same vendor INF). Virtual drivers (Tailscale/Wintun/WireGuard/Hyper-V) and drivers
+              currently in use are never touched. Preview first; a post-clean re-scan confirms each
+              removal. Requires administrator rights.
+            </p>
+            <Card>
+              <div className="flex flex-col gap-3 p-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleStorePreview}
+                    loading={storeBusy}
+                    disabled={storeBusy}
+                    data-testid="driver-store-preview"
+                  >
+                    Scan for superseded drivers
+                  </Button>
+                  {storePreview?.status === 'requires-admin' && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleRelaunchElevated}
+                      data-testid="driver-store-relaunch"
+                    >
+                      Restart as administrator
+                    </Button>
+                  )}
+                  {storePreview?.canApply && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={handleStoreClean}
+                      loading={storeBusy}
+                      disabled={storeBusy}
+                      data-testid="driver-store-clean"
+                    >
+                      Remove {storePreview.reclaimableCount} package(s)
+                    </Button>
+                  )}
+                </div>
+                {storeError && (
+                  <div role="alert" className="text-sm text-error">
+                    {storeError}
+                  </div>
+                )}
+                {storePreview && (
+                  <div data-testid="driver-store-result" className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={storePreview.status === 'ok' ? 'success' : 'warning'}>
+                        {storePreview.status}
+                      </Badge>
+                      <span className="text-xs text-fg-tertiary">
+                        {storePreview.totalPackages} package(s) · {storePreview.reclaimableCount}{' '}
+                        superseded · {formatBytes(storePreview.reclaimableBytes)} reclaimable
+                      </span>
+                    </div>
+                    <p className="text-xs text-fg-secondary">{storePreview.message}</p>
+                    {storePreview.candidates.map((candidate) => (
+                      <div
+                        key={candidate.publishedName}
+                        className="flex items-center justify-between gap-3 text-xs"
+                      >
+                        <span className="text-fg-primary truncate">
+                          {candidate.provider} · {candidate.originalName} ({candidate.publishedName}
+                          )
+                        </span>
+                        <span className="text-fg-tertiary whitespace-nowrap">
+                          {candidate.version} → {candidate.supersededBy.version}
+                          {candidate.sizeBytes ? ` · ${formatBytes(candidate.sizeBytes)}` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {storeResult && (
+                  <div
+                    role="status"
+                    className={`text-sm ${storeResult.success ? 'text-success' : 'text-error'}`}
+                    data-testid="driver-store-clean-result"
+                  >
+                    {storeResult.message}
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
 
           <div>

@@ -163,6 +163,15 @@ const winoptimizer: WinOptimizerAPI = {
       return () => ipcRenderer.removeListener('drivers:progress', handler);
     },
   },
+  driverStore: {
+    preview: () => ipcRenderer.invoke('drivers:store-preview'),
+    clean: (candidates) => ipcRenderer.invoke('drivers:store-clean', candidates),
+    isAdmin: () => ipcRenderer.invoke('drivers:store-status'),
+  },
+  softwareUpdates: {
+    check: (options) => ipcRenderer.invoke('apps:check-updates', options),
+    update: (id: string) => ipcRenderer.invoke('apps:update', id),
+  },
   network: {
     fix: () => ipcRenderer.invoke('network:fix'),
     test: () => ipcRenderer.invoke('network:test'),

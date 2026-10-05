@@ -436,6 +436,36 @@ inventan valores. El **Export CSV** funciona igualmente (exporta el encabezado).
   trae el **motivo** (`in-use`, `permissions`, …). Cerrá el programa que lo usa y
   usá **Retry failed files**; sólo se reintentan los fallidos.
 
+### 23. Driver Store cleanup: no puedo borrar o no encuentra nada (v0.15.0)
+
+- **"requires-admin" / el botón Remove no aparece:** borrar paquetes de driver
+  requiere **administrador**. Usá **“Restart as administrator”**. El **scan** en
+  sí es solo lectura y funciona, pero el borrado queda bloqueado.
+- **"No superseded driver packages were found":** no hay versiones viejas
+  reemplazadas por una más nueva del mismo `INF original + proveedor`. Es normal.
+- **Un driver que creía viejo no aparece para borrar:** puede estar **en uso**
+  (bindado a un dispositivo) o ser **virtual** (Tailscale/Wintun/WireGuard/
+  Hyper-V…). Ambos se excluyen a propósito y no se pueden forzar desde la UI.
+- **Borré y dice "failed":** la app **re-escanea** después de borrar; si el
+  paquete sigue presente, es un fallo real (no un éxito falso). Revisá que no esté
+  en uso y reintentá.
+
+### 24. Software updates: winget "unavailable" o no lista nada (v0.15.0)
+
+- **Estado `unavailable`:** winget **no respondió** (no está instalado, está
+  deshabilitado por directiva, o devolvió una salida vacía/irreconocible). Un
+  vacío **nunca** se muestra como “al día”.
+- **Estado `up-to-date`:** winget respondió explícitamente que no hay paquetes
+  que coincidan. Las fuentes/acuerdos se aceptan con `--accept-source-agreements`.
+- **Un paquete con `Unknown` en la versión:** winget no pudo determinar la
+  versión instalada; se muestra con severidad `unknown` (no se inventa). Podés
+  actualizarlo igual con el botón **Update**.
+- **`msstore` / paquetes de la Store:** la detección usa la fuente `winget`; los
+  acuerdos de paquete se aceptan al actualizar.
+- **El botón Update no hace nada mientras hay otra operación:** todas las
+  operaciones mutantes pasan por un **mutex FIFO**; esperá a que termine o
+  encolá la acción.
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

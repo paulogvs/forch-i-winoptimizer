@@ -103,6 +103,13 @@ import { launchWindowsTool } from '../services/tool-launcher';
 import { cleanTempQuick, flushDns } from '../services/quick-fixes';
 import { recordCleanupReceipt, retryLatestFailedDeletions } from '../services/cleanup-receipts';
 import { runDiskRepair, cancelDiskRepair, isDiskRepairAdmin } from '../services/disk-repair';
+import {
+  previewDriverStoreCleanup,
+  applyDriverStoreCleanup,
+} from '../services/driver-store-cleanup';
+import { getSoftwareUpdates, updateSoftwareApp } from '../services/software-updater';
+import { isElevated } from '../services/security-fix';
+import type { DriverStoreCandidate } from '@shared/driver-store';
 import type { DiskRepairProgressEvent } from '@shared/disk-repair';
 import type { AppSettings } from '@shared/settings';
 import type { JunkCategory } from '../services/junk-scanner';
@@ -126,6 +133,8 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'drivers:install',
   'drivers:install-silent',
   'drivers:rollback',
+  'drivers:store-clean',
+  'apps:update',
   'network:fix',
   'network:fix-0x00000709',
   'drift:reapply',
@@ -432,6 +441,31 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   handle('drivers:rollback', async (_event: IpcMainInvokeEvent, driverId: string) => {
     const result = await rollbackDriver(driverId);
     cache.invalidateModule('drivers');
+    return result;
+  });
+
+  // ===== Driver Store cleanup (Fase 4.1): preview (read-only) then clean =====
+  handle('drivers:store-status', async () => {
+    try {
+      return await isElevated();
+    } catch {
+      return false;
+    }
+  });
+  handle('drivers:store-preview', () => previewDriverStoreCleanup());
+  handle(
+    'drivers:store-clean',
+    async (_event: IpcMainInvokeEvent, candidates: DriverStoreCandidate[]) =>
+      applyDriverStoreCleanup(Array.isArray(candidates) ? candidates : [])
+  );
+
+  // ===== Software updater (Fase 4.7): winget detection (read-only) + update =====
+  handle('apps:check-updates', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
+    withCache('softwareUpdates', () => getSoftwareUpdates(), options ?? {})
+  );
+  handle('apps:update', async (_event: IpcMainInvokeEvent, id: string) => {
+    const result = await updateSoftwareApp(String(id));
+    cache.invalidateModule('softwareUpdates');
     return result;
   });
 

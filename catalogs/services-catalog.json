@@ -10,7 +10,10 @@
       "protection": "caution",
       "description": "Servicio de telemetría de Windows. Desactivar mejora privacidad pero puede afectar diagnósticos.",
       "impact": "medium",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "caution",
+      "risk": "medium",
+      "safetyNote": "Telemetry service. Disabling improves privacy but can affect diagnostics and some enterprise features."
     },
     {
       "id": "dmwappush",
@@ -20,7 +23,10 @@
       "protection": "safe",
       "description": "Enrutador de mensajes WAP push. Seguro de desactivar.",
       "impact": "low",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "safe",
+      "risk": "low",
+      "safetyNote": "Legacy WAP push router. Safe to disable on personal PCs."
     },
     {
       "id": "maps",
@@ -30,7 +36,10 @@
       "protection": "safe",
       "description": "Gestor de mapas descargados. Seguro si no usas mapas offline.",
       "impact": "low",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "safe",
+      "risk": "low",
+      "safetyNote": "Only needed for offline Maps. Safe to disable if you don't use it."
     },
     {
       "id": "retaildemo",
@@ -40,7 +49,10 @@
       "protection": "safe",
       "description": "Servicio de demo de tiendas. Seguro de desactivar en PCs personales.",
       "impact": "low",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "safe",
+      "risk": "low",
+      "safetyNote": "Retail display-only service. Safe to disable on personal PCs."
     },
     {
       "id": "sysmain",
@@ -50,7 +62,10 @@
       "protection": "caution",
       "description": "Precarga apps frecuentes. En SSD modernos puede no ser necesario.",
       "impact": "medium",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "caution",
+      "risk": "medium",
+      "safetyNote": "Preload helps on HDD systems; on SSDs disabling it may hurt app launch times. Reversible."
     },
     {
       "id": "wsearch",
@@ -60,7 +75,10 @@
       "protection": "protected",
       "description": "Indexación de búsqueda. Desactivar afecta gravemente la búsqueda en Start.",
       "impact": "high",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "protected",
+      "risk": "high",
+      "safetyNote": "Windows Search indexing. Disabling degrades Start menu and File Explorer search."
     },
     {
       "id": "xblauth",
@@ -70,7 +88,10 @@
       "protection": "safe",
       "description": "Autenticación de Xbox Live. Seguro si no usas Xbox Live.",
       "impact": "low",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "safe",
+      "risk": "low",
+      "safetyNote": "Xbox Live authentication. Safe to disable if you don't use Xbox Live."
     },
     {
       "id": "xblgame",
@@ -80,7 +101,10 @@
       "protection": "safe",
       "description": "Guardado en la nube de Xbox Live. Seguro si no usas Xbox Live.",
       "impact": "low",
-      "source": "winutil"
+      "source": "winutil",
+      "safety": "safe",
+      "risk": "low",
+      "safetyNote": "Xbox Live cloud saves. Safe to disable if you don't use Xbox Live."
     }
   ]
 }
