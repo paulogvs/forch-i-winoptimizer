@@ -54,12 +54,16 @@ export const Cleaner: React.FC = () => {
       if (result.success) {
         setFiles((prev) => prev.filter((f) => !f.selected));
       } else {
-        setError(`Some files could not be removed (${result.failed} failed).`);
-        setFiles((prev) => prev.filter((f) => !f.selected));
+        // Fase 0.3: on failure the files STAY visible so the user can see
+        // what was not removed and retry. Hiding them would lie about the
+        // real (unverified) effect.
+        setError(
+          `Some files could not be removed (${result.failed} failed). The files are still listed below — fix the cause and retry.`
+        );
       }
     } catch (cleanError) {
       console.error('Clean failed:', cleanError);
-      setError('Cleaning failed. Please try again.');
+      setError('Cleaning failed. The files are still listed below — please try again.');
     } finally {
       setCleaning(false);
     }
@@ -98,7 +102,16 @@ export const Cleaner: React.FC = () => {
 
       {error && (
         <div className="mb-4 p-3 rounded-lg text-sm text-error" role="alert">
-          {error}
+          <span>{error}</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleClean}
+            loading={cleaning}
+            disabled={files.length === 0}
+          >
+            Retry cleaning
+          </Button>
         </div>
       )}
 

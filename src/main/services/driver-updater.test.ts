@@ -165,14 +165,31 @@ describe('Driver Updater', () => {
     });
   });
 
-  describe('installDriver', () => {
-    it('should open download URL for manufacturer drivers', async () => {
+  describe('installDriver (Fase 0.2: honest manual-action contract)', () => {
+    it('never reports success when it only opens a download page', async () => {
       const mockShell = { openExternal: vi.fn() };
       vi.doMock('electron', () => ({ shell: mockShell }));
 
       const result = await installDriver('PCI\\VEN_10DE', 'https://nvidia.com/download');
-      expect(result.success).toBe(true);
-      expect(result.message).toContain('Opened manufacturer download page');
+      expect(result.success).toBe(false);
+      expect(result.status).toBe('manual-action-required');
+      // The message must tell the user what to do AND which URL was opened.
+      expect(result.message).toContain('https://nvidia.com/download');
+      expect(result.message.toLowerCase()).toMatch(/download|descarg/);
+      expect(result.url).toBe('https://nvidia.com/download');
+    });
+
+    it('reports failure (never success) when the page cannot even be opened', async () => {
+      const mockShell = {
+        openExternal: vi.fn(() => {
+          throw new Error('no browser');
+        }),
+      };
+      vi.doMock('electron', () => ({ shell: mockShell }));
+
+      const result = await installDriver('PCI\\VEN_10DE', 'https://nvidia.com/download');
+      expect(result.success).toBe(false);
+      expect(result.status).toBe('failed');
     });
 
     it('should use Windows Update for generic drivers', async () => {

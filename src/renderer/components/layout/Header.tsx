@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { Theme } from '@shared/types';
+import type { PageId, Theme } from '@shared/types';
 import { WindowControls } from './WindowControls';
 import { useOperationStatus } from '../../hooks/useOperationStatus';
 
@@ -8,6 +8,7 @@ interface HeaderProps {
   onThemeToggle: () => void;
   onSearch: (query: string) => void;
   searchQuery: string;
+  onNavigate: (page: PageId) => void;
 }
 
 /** Human-readable labels for the mutating IPC channels (P0.3). */
@@ -29,7 +30,7 @@ const OPERATION_LABELS: Record<string, string> = {
   'security:run-action': 'Running security action',
   'dns:set': 'Setting DNS',
   'drivers:install': 'Installing driver',
-  'drivers:rollback': 'Rolling back driver',
+  'drivers:rollback': 'Restarting device',
   'drivers:create-restore-point': 'Creating restore point',
   'network:fix': 'Fixing network',
   'network:fix-0x00000709': 'Fixing printer mapping',
@@ -53,10 +54,18 @@ function operationLabel(channel: string | null): string {
  * Shows the global operation-lock badge while another operation owns the
  * backend lock (P0.3).
  */
-export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, searchQuery }) => {
+export const Header: React.FC<HeaderProps> = ({
+  theme,
+  onThemeToggle,
+  onSearch,
+  searchQuery,
+  onNavigate,
+}) => {
   const operation = useOperationStatus();
   const [ramState, setRamState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const [freedMb, setFreedMb] = useState(0);
+  const [ramBeforeMb, setRamBeforeMb] = useState(0);
+  const [ramAfterMb, setRamAfterMb] = useState(0);
   const resetRef = useRef<number | null>(null);
 
   useEffect(
@@ -73,6 +82,8 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
       const result = await window.electronAPI.freeMemory();
       if (result.success) {
         setFreedMb(result.freedMb);
+        setRamBeforeMb(result.rssBeforeMb);
+        setRamAfterMb(result.rssAfterMb);
         setRamState('done');
       } else {
         setRamState('error');
@@ -88,10 +99,17 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
     ramState === 'working'
       ? 'Freeing...'
       : ramState === 'done'
-        ? `Freed ${freedMb} MB`
+        ? `Freed ${freedMb} MB (this app: ${ramBeforeMb}→${ramAfterMb} MB)`
         : ramState === 'error'
           ? 'Free failed'
           : 'Free RAM';
+
+  // Fase 0.6: Free RAM only trims this app's own working set (main process +
+  // direct children via EmptyWorkingSet). Windows owns system-wide memory
+  // management; trimming other processes could make things worse. The tooltip
+  // and the result text say so explicitly.
+  const ramScopeHint =
+    'Frees RAM used by this app only (its own working set). Windows manages system memory.';
 
   return (
     <header className="header titlebar">
@@ -125,6 +143,8 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
           onClick={handleFreeRam}
           disabled={ramState === 'working' || operation.busy}
           data-testid="free-ram"
+          title={ramScopeHint}
+          aria-label={`Free RAM. ${ramScopeHint}`}
         >
           {ramLabel}
         </button>
@@ -135,7 +155,13 @@ export const Header: React.FC<HeaderProps> = ({ theme, onThemeToggle, onSearch, 
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
-        <button className="btn btn-ghost btn-sm" aria-label="Settings">
+        <button
+          className="btn btn-ghost btn-sm"
+          aria-label="Settings"
+          data-testid="open-settings"
+          title="Open Settings"
+          onClick={() => onNavigate('settings')}
+        >
           ⚙️
         </button>
         <div className="user-avatar" aria-label="User profile">

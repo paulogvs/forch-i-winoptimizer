@@ -46,6 +46,11 @@ test.describe('Navigation', () => {
     await expect(page.locator('h2.page-title')).toHaveText('Settings');
   });
 
+  test('Fase 0.1: header gear opens Settings', async ({ page }) => {
+    await page.click('[data-testid="open-settings"]');
+    await expect(page.locator('h2.page-title')).toHaveText('Settings');
+  });
+
   test('should display brand badge', async ({ page }) => {
     await expect(page.locator('text=Built with FORCH.i by Paulo Velasco')).toBeVisible();
   });

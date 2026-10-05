@@ -11,8 +11,8 @@ export const Bundles: React.FC = () => {
   const [bundles, setBundles] = useState<AppBundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set());
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     loadBundles();
@@ -64,21 +64,18 @@ export const Bundles: React.FC = () => {
       .map((a) => a.wingetId);
 
     setInstalling('selected');
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 5, 90));
-    }, 200);
+    setFeedback(null);
 
     try {
+      // Fase 0.5: no cosmetic progress — indeterminate until the backend
+      // resolves with its verified per-package result.
       const result = await window.winoptimizer.bundles.installMultiple(wingetIds);
-      clearInterval(progressInterval);
-      setProgress(100);
-      alert(result.message);
+      setFeedback({ ok: result.success, message: result.message });
       await loadBundles();
       setSelectedApps(new Set());
     } catch (error) {
       console.error('Failed to install apps:', error);
+      setFeedback({ ok: false, message: `Install failed: ${String(error)}` });
     } finally {
       setInstalling(null);
     }
@@ -86,12 +83,14 @@ export const Bundles: React.FC = () => {
 
   const installApp = async (wingetId: string, appId: string) => {
     setInstalling(appId);
+    setFeedback(null);
     try {
       const result = await window.winoptimizer.bundles.install(wingetId);
-      alert(result.message);
+      setFeedback({ ok: result.success, message: result.message });
       await loadBundles();
     } catch (error) {
       console.error('Failed to install app:', error);
+      setFeedback({ ok: false, message: `Install failed: ${String(error)}` });
     } finally {
       setInstalling(null);
     }
@@ -126,7 +125,17 @@ export const Bundles: React.FC = () => {
       </div>
 
       {installing === 'selected' && (
-        <Progress value={progress} label="Installing apps..." className="mb-4" />
+        <Progress indeterminate label="Installing apps..." className="mb-4" />
+      )}
+
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mb-4 p-3 rounded-lg text-sm ${feedback.ok ? 'text-success' : 'text-error'}`}
+        >
+          {feedback.message}
+        </div>
       )}
 
       <div className="flex flex-col gap-6">

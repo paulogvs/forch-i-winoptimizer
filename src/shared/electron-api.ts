@@ -137,6 +137,20 @@ export interface UpdateInfo {
 }
 
 // ===== Driver Updater =====
+/**
+ * Honest outcome of a driver "update" (Fase 0.2): opening the
+ * manufacturer's download page is a manual action the USER must finish,
+ * never a success. `success` is only true when the app itself verified a
+ * real effect (e.g. Windows Update scan completed).
+ */
+export type DriverInstallStatus = 'manual-action-required' | 'completed' | 'failed';
+
+export interface DriverInstallResult extends OperationResult {
+  status: DriverInstallStatus;
+  /** URL that was opened (or that the user must open) for manual installs. */
+  url?: string;
+  driverId?: string;
+}
 export interface DriverInfo {
   id: string;
   name: string;
@@ -457,7 +471,7 @@ export interface WinOptimizerAPI {
   drivers: {
     scan: (options?: CacheOptions) => Promise<DriverScanResult>;
     createRestorePoint: (description: string) => Promise<OperationResult>;
-    install: (driverId: string, downloadUrl: string) => Promise<OperationResult>;
+    install: (driverId: string, downloadUrl: string) => Promise<DriverInstallResult>;
     rollback: (driverId: string) => Promise<OperationResult>;
   };
   network: {

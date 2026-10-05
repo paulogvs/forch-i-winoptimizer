@@ -420,7 +420,15 @@ export async function setupElectronMock(page: Page): Promise<void> {
               scanDate: new Date(),
             }),
           createRestorePoint: () => Promise.resolve({ success: true, message: 'ok' }),
-          install: () => Promise.resolve({ success: true, message: 'ok' }),
+          install: () =>
+            Promise.resolve({
+              success: false,
+              status: 'manual-action-required',
+              url: 'https://example.com/driver',
+              driverId: 'mock-driver',
+              message:
+                'Manual action required: the manufacturer download page was opened (https://example.com/driver).',
+            }),
           rollback: () => Promise.resolve({ success: true, message: 'ok' }),
         },
         network: {

@@ -1,6 +1,7 @@
 import { runPowerShell, parsePowerShellJson } from './powershell';
 import { createNoopReporter, type ScanProgressReporter } from './scan-progress';
 import type { DriverInfo, DriverScanResult } from '@shared/types';
+import type { DriverInstallResult } from '@shared/electron-api';
 
 interface PnPDevice {
   DeviceID: string;
@@ -199,19 +200,32 @@ export async function createRestorePoint(
 export async function installDriver(
   driverId: string,
   downloadUrl: string
-): Promise<{
-  success: boolean;
-  message: string;
-}> {
-  // For NVIDIA/AMD/Intel, open the download page
-  // For Generic, use Windows Update / SDIO
+): Promise<DriverInstallResult> {
+  // For NVIDIA/AMD/Intel, open the download page. This is a MANUAL action:
+  // the app did not install anything, so it must never report success.
+  // Fase 0.2: honest `manual-action-required` state with the URL + what the
+  // user must do next.
   if (downloadUrl) {
-    const { shell } = await import('electron');
-    shell.openExternal(downloadUrl);
+    try {
+      const { shell } = await import('electron');
+      await shell.openExternal(downloadUrl);
+    } catch (error) {
+      return {
+        success: false,
+        status: 'failed',
+        url: downloadUrl,
+        driverId,
+        message: `Could not open the manufacturer download page (${downloadUrl}). Open it manually to download and install the driver: ${String(error)}`,
+      };
+    }
     return {
-      success: true,
+      success: false,
+      status: 'manual-action-required',
+      url: downloadUrl,
+      driverId,
       message:
-        'Opened manufacturer download page. Please download and install the driver manually.',
+        `Manual action required: the manufacturer download page was opened (${downloadUrl}). ` +
+        'Download the driver for your device and install it manually, then re-scan to verify the new version.',
     };
   }
 
@@ -230,12 +244,24 @@ export async function installDriver(
 
   return {
     success: result.success,
+    status: result.success ? 'completed' : 'failed',
+    driverId,
     message: result.success
       ? 'Driver scan completed. Windows Update will attempt to install the best driver.'
       : `Failed to install driver: ${result.stderr}`,
   };
 }
 
+/**
+ * Fase 0.4 — honest naming (option b): this does NOT roll back to a previous
+ * driver version. It restarts the device (`pnputil /restart-device`) so a
+ * just-installed driver takes effect. A real version rollback
+ * (`pnputil /delete-driver <oem#.inf> /uninstall` + verified restore point +
+ * version re-verification) is deliberately NOT implemented here: it mutates
+ * real hardware and cannot be tested safely in this environment, so shipping
+ * it unverified would violate the project's golden rule (never report success
+ * without verifying the real effect). The UI labels this "Restart device".
+ */
 export async function rollbackDriver(driverId: string): Promise<{
   success: boolean;
   message: string;
@@ -259,6 +285,6 @@ export async function rollbackDriver(driverId: string): Promise<{
     message:
       result.success && result.stdout.includes('SUCCESS')
         ? 'Device restarted successfully'
-        : `Failed to rollback driver: ${result.stderr || result.stdout.trim() || 'unknown error'}`,
+        : `Failed to restart device: ${result.stderr || result.stdout.trim() || 'unknown error'}`,
   };
 }

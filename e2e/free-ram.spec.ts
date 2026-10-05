@@ -23,13 +23,21 @@ test.describe('Free RAM quick action (P1.1)', () => {
     await expect(page.locator('[data-testid="free-ram"]')).toHaveText('Free RAM');
   });
 
-  test('frees memory and reports the trimmed amount', async ({ page }) => {
+  test('frees memory and reports the trimmed amount with its scope', async ({ page }) => {
     await page.click('[data-testid="free-ram"]');
-    await expect(page.locator('[data-testid="free-ram"]')).toHaveText('Freed 42 MB');
+    // Fase 0.6: honest scope — the amount plus the fact it is this app's own
+    // working set (before → after), never system-wide RAM.
+    await expect(page.locator('[data-testid="free-ram"]')).toContainText('Freed 42 MB');
+    await expect(page.locator('[data-testid="free-ram"]')).toContainText('1024→982 MB');
     // Auto-resets to the idle label.
     await expect(page.locator('[data-testid="free-ram"]')).toHaveText('Free RAM', {
       timeout: 5000,
     });
+  });
+
+  test('discloses that it only frees this app’s own memory', async ({ page }) => {
+    const btn = page.locator('[data-testid="free-ram"]');
+    await expect(btn).toHaveAttribute('title', /this app only/i);
   });
 
   test('shows a failure state when the backend reports an error', async ({ page }) => {

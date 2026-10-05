@@ -42,16 +42,10 @@ const VIRTUALIZE_THRESHOLD = 50;
 interface AppRowProps {
   app: InstalledApp;
   uninstalling: boolean;
-  progress: number;
   onUninstall: (app: InstalledApp) => void;
 }
 
-const AppRow = React.memo(function AppRow({
-  app,
-  uninstalling,
-  progress,
-  onUninstall,
-}: AppRowProps) {
+const AppRow = React.memo(function AppRow({ app, uninstalling, onUninstall }: AppRowProps) {
   return (
     <div className="app-row flex items-center justify-between p-3 rounded-lg hover:bg-bg-hover">
       <div className="flex-1 min-w-0">
@@ -75,7 +69,7 @@ const AppRow = React.memo(function AppRow({
       </div>
       <div className="flex items-center gap-2">
         {uninstalling ? (
-          <Progress value={progress} className="w-24" />
+          <Progress indeterminate label="Uninstalling..." className="w-24" />
         ) : (
           <Button
             variant="danger"
@@ -97,7 +91,6 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [startupApps, setStartupApps] = useState<StartupApp[]>([]);
   const [loading, setLoading] = useState(false);
   const [uninstalling, setUninstalling] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [debloatCatalog, setDebloatCatalog] = useState<DebloatCandidate[]>([]);
   const [selectedBloatware, setSelectedBloatware] = useState<string[]>([]);
   const [removing, setRemoving] = useState(false);
@@ -157,17 +150,12 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
     }
 
     setUninstalling(app.id);
-    setProgress(0);
 
     try {
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => Math.min(prev + 10, 90));
-      }, 100);
-
+      // Fase 0.5: no cosmetic progress — the backend reports no percent, so
+      // the row shows an honest indeterminate indicator until uninstallApp
+      // resolves with its verified result.
       const result = await window.electronAPI.uninstallApp(app.id, app.uninstallString);
-
-      clearInterval(progressInterval);
-      setProgress(100);
 
       if (result.success) {
         setInstalledApps((prev) => prev.filter((a) => a.id !== app.id));
@@ -249,12 +237,7 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const protectedApps = installedApps.filter((a) => a.protection === 'protected');
 
   const renderAppRow = (app: InstalledApp) => (
-    <AppRow
-      app={app}
-      uninstalling={uninstalling === app.id}
-      progress={progress}
-      onUninstall={handleUninstall}
-    />
+    <AppRow app={app} uninstalling={uninstalling === app.id} onUninstall={handleUninstall} />
   );
 
   return (

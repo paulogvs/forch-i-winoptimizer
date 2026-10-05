@@ -8,24 +8,21 @@ import type { NetworkFixReport } from '@shared/types';
 export const Network: React.FC = () => {
   const [report, setReport] = useState<NetworkFixReport | null>(null);
   const [fixing, setFixing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [testing, setTesting] = useState(false);
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   const runNetworkFix = async () => {
     setFixing(true);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 3, 90));
-    }, 200);
+    setFeedback(null);
 
     try {
+      // Fase 0.5: no cosmetic progress — indeterminate until the backend
+      // resolves with its verified per-fix report.
       const result = await window.winoptimizer.network.fix();
-      clearInterval(progressInterval);
-      setProgress(100);
       setReport(result);
     } catch (error) {
       console.error('Failed to run network fix:', error);
+      setFeedback({ ok: false, message: `Network fix failed: ${String(error)}` });
     } finally {
       setFixing(false);
     }
@@ -33,26 +30,31 @@ export const Network: React.FC = () => {
 
   const testConnectivity = async () => {
     setTesting(true);
+    setFeedback(null);
     try {
       const result = await window.winoptimizer.network.test();
-      if (result.success) {
-        alert(`Connectivity test passed! Latency: ${result.latency}ms`);
-      } else {
-        alert('Connectivity test failed. Check your network connection.');
-      }
+      setFeedback({
+        ok: result.success,
+        message: result.success
+          ? `Connectivity test passed. Latency: ${result.latency}ms`
+          : 'Connectivity test failed. Check your network connection.',
+      });
     } catch (error) {
       console.error('Failed to test connectivity:', error);
+      setFeedback({ ok: false, message: `Connectivity test failed: ${String(error)}` });
     } finally {
       setTesting(false);
     }
   };
 
   const fixError0x00000709 = async () => {
+    setFeedback(null);
     try {
       const result = await window.winoptimizer.network.fixError0x00000709();
-      alert(result.message);
+      setFeedback({ ok: result.success, message: result.message });
     } catch (error) {
       console.error('Failed to fix error 0x00000709:', error);
+      setFeedback({ ok: false, message: `Fix failed: ${String(error)}` });
     }
   };
 
@@ -70,7 +72,17 @@ export const Network: React.FC = () => {
         </div>
       </div>
 
-      {fixing && <Progress value={progress} label="Running network fixes..." className="mb-4" />}
+      {fixing && <Progress indeterminate label="Running network fixes..." className="mb-4" />}
+
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mb-4 p-3 rounded-lg text-sm ${feedback.ok ? 'text-success' : 'text-error'}`}
+        >
+          {feedback.message}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <Card hoverable>

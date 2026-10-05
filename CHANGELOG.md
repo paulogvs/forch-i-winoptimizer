@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-05
+
+Fase 0 del `PLAN_MEJORAS.md`: seis arreglos de **honestidad funcional**, sin
+capacidad nueva (patch). Ninguna operación vuelve a reportar éxito sin haber
+verificado el efecto real.
+
+### Fixed
+
+- **0.1 — El botón ⚙️ del header abre Settings** (`Header.tsx`, `Layout.tsx`):
+  el botón no tenía `onClick`; ahora navega a la vista Settings (que ya
+  existía) vía `onNavigate`. Test: `Header.test.tsx` + E2E
+  `navigation.spec.ts` ("header gear opens Settings").
+- **0.2 — Drivers "Update" ya no miente `success:true`**
+  (`driver-updater.ts`, `electron-api.ts`): abrir la página del fabricante
+  devuelve `success:false` + `status:'manual-action-required'` con la URL que
+  se abrió y lo que el usuario debe hacer (descargar, instalar, re-escanear).
+  Si la página ni siquiera se abre, `status:'failed'` con el motivo. Tests:
+  `driver-updater.test.ts` (manual → nunca success; fallo de apertura →
+  failed) + E2E `drivers-honesty.spec.ts`.
+- **0.3 — Cleaner: los archivos siguen visibles cuando falla la limpieza**
+  (`Cleaner.tsx`): la rama de fallo ya no filtra los seleccionados; muestra el
+  error con el conteo de fallos y un botón **Retry cleaning**. Test:
+  `Cleaner.test.tsx` (fallo simulado → archivos presentes + error + reintento).
+- **0.4 — "Rollback" renombrado a "Restart device" (opción b)**
+  (`Drivers.tsx`, `driver-updater.ts`, `Header.tsx`): el botón y la confirmación
+  dicen lo que realmente hace (`pnputil /restart-device`); el mensaje de fallo
+  dice "Failed to restart device". **Justificación:** un rollback real
+  (`pnputil /delete-driver <oem#.inf> /uninstall` + restore point verificado +
+  re-verificación de versión) muta hardware real y no puede testearse sin
+  riesgo en este entorno; publicarlo sin verificación violaría la regla de oro
+  del proyecto. Queda para Fase 2 con el pipeline completo y documentado.
+- **0.5 — Progresos reales o indeterminados, cero barras cosméticas**
+  (`Progress.tsx`, `Tools/Bundles/Cleaning/Network/Drivers.tsx`): nuevo modo
+  `indeterminate` en `Progress` (sin `aria-valuenow` fabricado); se eliminan los
+  `setInterval(+10/90ms)` de Tools, Bundles, Cleaning y Network y el `value={50}`
+  fijo de Drivers. Todos los `alert()` tocados migran a feedback inline con
+  `role="status"` + `aria-live`. Tests: `Progress.test.tsx` (indeterminado) +
+  E2E existentes.
+- **0.6 — Free RAM aclara su alcance** (`Header.tsx`, `USER_GUIDE.md`): el
+  botón tiene tooltip/aria-label ("solo la propia app") y el resultado muestra
+  MB reales antes→después (`Freed N MB (this app: A→B MB)`). **Decisión
+  explícita:** no hay trimming system-wide — Windows gestiona la RAM global y
+  recortar otros procesos puede empeorar. Tests: `Header.test.tsx` +
+  `free-ram.spec.ts` actualizada.
+
+### Tests
+
+- Unit: `vitest` **593/593** (5 nuevos: Header 2, Cleaner 1, Progress 1,
+  driver-updater 1 neto).
+- E2E web: `playwright` con 3 specs nuevas/actualizadas (gear→Settings,
+  drivers-honesty 2, free-ram alcance); E2E Electron 1/1.
+
 ## [0.10.1] - 2026-10-03
 
 Corrección de dos bugs reales confirmados al validar los canales de

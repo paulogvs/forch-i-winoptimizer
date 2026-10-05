@@ -231,6 +231,17 @@ un gestor de ventanas que evita eventos `maximize`/`unmaximize` de Electron, rei
 **La caché me muestra datos viejos (≤ TTL):** System Info 60 s, Drivers 5 min, Junk 30 s. Usá
 **Refresh** en el Dashboard (invalida la caché) o volvé a ejecutar el scan del módulo.
 
+**Driver "Update" muestra "Manual action required":** es lo esperado, no un error.
+La app abrió la página oficial del fabricante (la URL está en el mensaje) para que
+descargues e instales el driver a mano; después volvé a **Scan Drivers** para que la
+nueva versión se verifique por re-lectura. Si la página no se abrió, el mensaje dice
+`failed` con el motivo.
+
+**"Restart device" no restaura la versión anterior:** correcto — ese botón reinicia el
+dispositivo (`pnputil /restart-device`) para activar un driver recién instalado, no
+revierte versiones. Para volver atrás usá el **punto de restauración** creado antes
+del cambio (botón **Create Restore Point**).
+
 ---
 
 ### 15. Un botón está deshabilitado o el header muestra un badge ("Applying tweak…")

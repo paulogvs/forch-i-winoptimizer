@@ -35,4 +35,11 @@ describe('Progress', () => {
     render(<Progress value={150} showValue />);
     expect(screen.getByText('100%')).toBeInTheDocument();
   });
+
+  it('supports an honest indeterminate mode (no fake percent)', () => {
+    render(<Progress indeterminate label="Working..." />);
+    const bar = screen.getByRole('progressbar');
+    expect(bar).toBeInTheDocument();
+    expect(screen.getByText('Working...')).toBeInTheDocument();
+  });
 });

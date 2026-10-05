@@ -38,6 +38,7 @@ export const Layout: React.FC<LayoutProps> = ({
           onThemeToggle={onThemeToggle}
           onSearch={onSearch}
           searchQuery={searchQuery}
+          onNavigate={onNavigate}
         />
         <main className="main-content">{children}</main>
         <StatusBar version={version} windowsVersion={windowsVersion} lastScan={lastScan} />

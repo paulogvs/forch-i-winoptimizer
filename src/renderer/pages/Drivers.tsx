@@ -47,14 +47,14 @@ const DriverRow = React.memo(function DriverRow({
       {outdated && (
         <div className="flex items-center gap-2">
           {isInstalling ? (
-            <Progress value={50} className="w-24" />
+            <Progress indeterminate label="Working..." className="w-24" />
           ) : (
             <>
               <Button variant="primary" size="sm" onClick={() => onInstall(driver)}>
                 Update
               </Button>
               <Button variant="secondary" size="sm" onClick={() => onRollback(driver)}>
-                Rollback
+                Restart device
               </Button>
             </>
           )}
@@ -70,6 +70,7 @@ export const Drivers: React.FC = () => {
   const [installing, setInstalling] = useState<string | null>(null);
   const [restorePoint, setRestorePoint] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   const deferredQuery = useDeferredValue(query);
   const progress = useScanProgress('drivers');
@@ -105,12 +106,19 @@ export const Drivers: React.FC = () => {
   const installDriver = useCallback(
     async (driver: DriverInfo) => {
       setInstalling(driver.id);
+      setFeedback(null);
       try {
         const result = await window.winoptimizer.drivers.install(driver.id, driver.downloadUrl);
-        alert(result.message);
+        // Fase 0.2: the result is never a fake success — surface the honest
+        // state (manual-action-required / completed / failed) inline.
+        setFeedback({
+          ok: result.success,
+          message: result.message,
+        });
         await scanDrivers(true);
       } catch (error) {
         console.error('Failed to install driver:', error);
+        setFeedback({ ok: false, message: `Driver update failed: ${String(error)}` });
       } finally {
         setInstalling(null);
       }
@@ -120,13 +128,22 @@ export const Drivers: React.FC = () => {
 
   const rollbackDriver = useCallback(
     async (driver: DriverInfo) => {
-      if (!confirm(`Rollback driver for ${driver.name}?`)) return;
+      // Fase 0.4: honest label — this restarts the device, it does not
+      // restore a previous driver version.
+      if (
+        !confirm(
+          `Restart the device for ${driver.name}? This does not restore a previous driver version.`
+        )
+      )
+        return;
+      setFeedback(null);
       try {
         const result = await window.winoptimizer.drivers.rollback(driver.id);
-        alert(result.message);
+        setFeedback({ ok: result.success, message: result.message });
         await scanDrivers(true);
       } catch (error) {
-        console.error('Failed to rollback driver:', error);
+        console.error('Failed to restart device:', error);
+        setFeedback({ ok: false, message: `Device restart failed: ${String(error)}` });
       }
     },
     [scanDrivers]
@@ -211,6 +228,16 @@ export const Drivers: React.FC = () => {
 
       {restorePoint && (
         <div className="mb-4 p-3 rounded-lg bg-secondary text-sm">{restorePoint}</div>
+      )}
+
+      {feedback && (
+        <div
+          className={`mb-4 p-3 rounded-lg text-sm ${feedback.ok ? 'text-success' : 'text-warning'}`}
+          role="status"
+          aria-live="polite"
+        >
+          {feedback.message}
+        </div>
       )}
 
       {scanning && <ScanProgress event={progress} className="mb-4" />}

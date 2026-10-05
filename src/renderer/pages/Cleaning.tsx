@@ -10,7 +10,7 @@ export const Cleaning: React.FC = () => {
   const [history, setHistory] = useState<CleaningHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'schedules' | 'history'>('schedules');
 
   useEffect(() => {
@@ -35,20 +35,17 @@ export const Cleaning: React.FC = () => {
 
   const runSchedule = async (id: string) => {
     setRunning(id);
-    setProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 10, 90));
-    }, 300);
+    setFeedback(null);
 
     try {
+      // Fase 0.5: no cosmetic progress — indeterminate until runNow resolves
+      // with its verified result.
       const result = await window.winoptimizer.cleaning.runNow(id);
-      clearInterval(progressInterval);
-      setProgress(100);
-      alert(result.message);
+      setFeedback({ ok: result.success, message: result.message });
       await loadData();
     } catch (error) {
       console.error('Failed to run schedule:', error);
+      setFeedback({ ok: false, message: `Schedule run failed: ${String(error)}` });
     } finally {
       setRunning(null);
     }
@@ -104,6 +101,16 @@ export const Cleaning: React.FC = () => {
         </div>
       </div>
 
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mb-4 p-3 rounded-lg text-sm ${feedback.ok ? 'text-success' : 'text-error'}`}
+        >
+          {feedback.message}
+        </div>
+      )}
+
       {activeTab === 'schedules' && (
         <div className="flex flex-col gap-4">
           {schedules.length === 0 && (
@@ -146,7 +153,7 @@ export const Cleaning: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {running === schedule.id ? (
-                    <Progress value={progress} className="w-24" />
+                    <Progress indeterminate label="Running..." className="w-24" />
                   ) : (
                     <>
                       <Button variant="primary" size="sm" onClick={() => runSchedule(schedule.id)}>

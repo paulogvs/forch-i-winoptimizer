@@ -44,7 +44,7 @@
 - **Tweaks seguros** — 19 ajustes de rendimiento/privacidad/Explorer/accesibilidad, reversibles y con vista previa
 - **Debloat** — 30 paquetes UWP preinstalados con niveles safe/caution/protected (los protected nunca se remueven)
 - **Bundles** — 8 bundles y 48 apps instalables en bloque vía `winget`
-- **Free RAM** — Botón ⚡ en el header: libera al instante la RAM que ocupa **la propia app** (recorta el _working set_ de sus procesos, main + renderizadores, sin tocar la de otros programas) y muestra cuánto liberó (`Freed N MB`, se resetea a los 3 s). **Medido:** RSS **266 → 13 MB (~253 MB liberados)** en ~3 s
+- **Free RAM** — Botón ⚡ en el header: libera al instante la RAM que ocupa **la propia app** (recorta el _working set_ de sus procesos, main + renderizadores, sin tocar la de otros programas) y muestra cuánto liberó con el alcance explícito (`Freed N MB (this app: A→B MB)`, se resetea a los 3 s). **Decisión explícita:** no se recorta memoria de otros procesos — Windows gestiona la RAM del sistema y recortarla a la fuerza puede empeorar el rendimiento. **Medido:** RSS **266 → 13 MB (~253 MB liberados)** en ~3 s
 - **Mutex global de operaciones** — Una operación del sistema a la vez (ver [Mutex global de operaciones](#mutex-global-de-operaciones))
 - **Multi-idioma** — Español e Inglés
 - **Temas** — Oscuro, claro y más
@@ -296,6 +296,18 @@ El módulo Cleaner escanea y elimina archivos basura:
 4. Click en **"Delete Selected"**
 
 > **Nota:** Los archivos marcados como "caution" requieren confirmación adicional.
+> Si la limpieza falla, los archivos **siguen visibles** en la lista con el error y
+> un botón **Retry cleaning** — nunca se ocultan como si se hubieran borrado.
+
+### Drivers (actualización honesta)
+
+El módulo Driver Updater compara tus versiones contra su catálogo y, para NVIDIA /
+AMD / Intel, el botón **Update** abre la página oficial de descarga del fabricante.
+Eso es una **acción manual**: la app muestra `Manual action required` con la URL que
+se abrió y lo que tenés que hacer (descargar, instalar, re-escanear) — nunca un
+éxito falso. El botón **Restart device** reinicia el dispositivo (`pnputil
+/restart-device`) para que un driver recién instalado tome efecto; no restaura una
+versión anterior del driver.
 
 ### Boost
 
