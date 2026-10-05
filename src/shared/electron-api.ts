@@ -404,12 +404,42 @@ export interface FreeMemoryResult {
   error?: string;
 }
 
+/** One-click "Clean Temp" outcome (Fase 3): only safeToDelete files. */
+export interface QuickCleanResult {
+  success: boolean;
+  /** Safe candidate files (after the safeToDelete filter). */
+  scanned: number;
+  /** Bytes of the candidates before deletion. */
+  scannedBytes: number;
+  /** Paths the OS confirmed removed. */
+  deleted: number;
+  /** Bytes actually freed (only confirmed-removed paths). */
+  freedBytes: number;
+  failed: number;
+  errors: string[];
+  message: string;
+}
+
+/** One-click "Flush DNS" outcome (Fase 3), verified against the real cache. */
+export interface FlushDnsResult {
+  success: boolean;
+  /** Resolver cache entries measured before the flush. */
+  entriesBefore: number;
+  /** Resolver cache entries re-read after the flush. */
+  entriesAfter: number;
+  message: string;
+}
+
 export interface ElectronAPI {
   getSystemInfo: (options?: CacheOptions) => Promise<SystemInfo>;
   scanForJunkFiles: (options?: CacheOptions) => Promise<JunkScanResult>;
-  deleteFiles: (
-    files: string[]
-  ) => Promise<{ success: boolean; deleted: number; failed: number; errors: string[] }>;
+  deleteFiles: (files: string[]) => Promise<{
+    success: boolean;
+    deleted: number;
+    failed: number;
+    errors: string[];
+    removed?: string[];
+  }>;
   getStartupApps: (options?: CacheOptions) => Promise<StartupApp[]>;
   toggleStartupApp: (
     appId: string,
@@ -460,6 +490,19 @@ export interface ElectronAPI {
   onOperationStatus: (callback: (status: OperationStatus) => void) => () => void;
   // Quick "Free RAM" (P1.1)
   freeMemory: () => Promise<FreeMemoryResult>;
+  // Quick fixes (Fase 3): 1-click actions with verified real results.
+  quickFixes: {
+    /** Trim THIS app's own working set and report the measured MB delta. */
+    freeRam: () => Promise<FreeMemoryResult>;
+    /** Delete only safeToDelete categories (temp/cache/logs/thumbs/browser). */
+    cleanTemp: () => Promise<QuickCleanResult>;
+    /** Run `ipconfig /flushdns` and verify the resolver cache really shrank. */
+    flushDns: () => Promise<FlushDnsResult>;
+    /** Create a verified System Restore point. */
+    createRestorePoint: (description: string) => Promise<OperationResult>;
+    /** Fresh (uncached) driver scan using the real Windows Update source. */
+    scanDrivers: () => Promise<DriverScanResult>;
+  };
   // Cache control (P1.2)
   clearCache: () => Promise<{ success: boolean }>;
 }

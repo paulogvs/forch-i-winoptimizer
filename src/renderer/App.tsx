@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/layout/Layout';
+import { ToastProvider } from './components/ui/Toast';
 import { Dashboard } from './pages/Dashboard';
 import { Cleaner } from './pages/Cleaner';
 import { Boost } from './pages/Boost';
@@ -90,19 +91,21 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout
-      currentPage={currentPage}
-      onNavigate={setCurrentPage}
-      theme={theme}
-      onThemeToggle={handleThemeToggle}
-      onSearch={handleSearch}
-      searchQuery={searchQuery}
-      version={__APP_VERSION__}
-      windowsVersion="Windows 11"
-      lastScan={lastScan}
-    >
-      {renderPage()}
-    </Layout>
+    <ToastProvider>
+      <Layout
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+        theme={theme}
+        onThemeToggle={handleThemeToggle}
+        onSearch={handleSearch}
+        searchQuery={searchQuery}
+        version={__APP_VERSION__}
+        windowsVersion="Windows 11"
+        lastScan={lastScan}
+      >
+        {renderPage()}
+      </Layout>
+    </ToastProvider>
   );
 };
 

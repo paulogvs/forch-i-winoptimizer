@@ -15,6 +15,7 @@
 2. [Instalación](#instalación)
 3. [Módulos](#módulos)
    - [Dashboard](#dashboard)
+   - [Quick fixes (1 clic)](#quick-fixes-1-clic)
    - [Cleaner](#cleaner)
    - [Boost](#boost)
    - [Bundles](#bundles)
@@ -261,6 +262,39 @@ npm run electron:build
 ---
 
 ## Módulos
+
+### Quick fixes (1 clic)
+
+La barra **Quick fixes** (en el **Dashboard** y en **Tools → Utilities**) reúne
+cinco acciones rápidas. Cada una ejecuta de verdad, entra a la cola global de
+operaciones y muestra el **resultado real** en un _toast_ con el enlace
+**"View in Statistics"**. Mientras corre cualquier operación, los cinco botones
+quedan **deshabilitados** (se reactivan solos).
+
+| Acción                      | Qué hace                                                                                                                                     | Confirmación |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| ⚡ **Free RAM**             | Recorta el _working set_ **de esta app** y muestra **MB antes → después** (`Freed N MB (this app: A → B MB)`). No toca la RAM del sistema.   | No (1 clic)  |
+| 🧹 **Clean Temp**           | Borra **solo** basura con `safeToDelete`: temporales, caché, logs, miniaturas y caché de navegador. **Nunca** Windows Update ni la Papelera. | Sí           |
+| 🌐 **Flush DNS**            | Ejecuta `ipconfig /flushdns` y **verifica** que la caché del resolver se vació (`DNS cache flushed (N → M entries)`).                        | No (1 clic)  |
+| 🛡️ **Create Restore Point** | Crea un punto de restauración **verificado** (`Checkpoint-Computer`). Requiere Protección del sistema activada y permisos de administrador.  | Sí           |
+| 🔍 **Scan Drivers**         | Escanea dispositivos y consulta Windows Update por actualizaciones reales de drivers.                                                        | No (1 clic)  |
+
+Resultados reales observados en la verificación (máquina de desarrollo):
+
+- **Free RAM:** `Freed 172 MB (this app: 172 → 0 MB)` sobre un proceso de prueba.
+- **Clean Temp:** borró 3 archivos de un directorio _scratch_ (112 KB) y los 3
+  quedaron confirmados como eliminados (`removed`), sin tocar la Papelera ni
+  Windows Update.
+- **Flush DNS:** `DNS cache flushed (1 → 1 entries)` (la caché ya estaba casi
+  vacía; la verificación exige que no crezca).
+- **Scan Drivers:** 95 dispositivos, 0 actualizaciones ofrecidas por Windows
+  Update (`wuStatus: ok`).
+- **Create Restore Point:** en un proceso **sin elevación** devuelve
+  `Failed to create restore point: Acceso denegado` (estado honesto; con la app
+  elevada y Protección del sistema activa, crea y verifica el punto).
+
+Cada acción queda registrada en **Statistics** (eventos `clean`, `boost` y
+`maintenance`).
 
 ### Dashboard
 

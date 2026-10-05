@@ -396,6 +396,56 @@ export async function setupElectronMock(page: Page): Promise<void> {
             }
           );
         },
+        // Quick fixes (Fase 3): 1-click utilities. Success fixtures by default;
+        // E2E can flip `window.__cleanTempResult` to assert the failure path.
+        quickFixes: {
+          freeRam: () => {
+            const w = window as unknown as { __freeMemoryResult?: unknown };
+            return Promise.resolve(
+              w.__freeMemoryResult ?? {
+                success: true,
+                freedMb: 42,
+                rssBeforeMb: 1024,
+                rssAfterMb: 982,
+              }
+            );
+          },
+          cleanTemp: () => {
+            const w = window as unknown as { __cleanTempResult?: unknown };
+            return Promise.resolve(
+              w.__cleanTempResult ?? {
+                success: true,
+                scanned: 3,
+                scannedBytes: 3072,
+                deleted: 3,
+                freedBytes: 3072,
+                failed: 0,
+                errors: [],
+                message: 'Cleaned 3 file(s), freed 0.00 MB.',
+              }
+            );
+          },
+          flushDns: () =>
+            Promise.resolve({
+              success: true,
+              entriesBefore: 20,
+              entriesAfter: 0,
+              message: 'DNS cache flushed (20 → 0 entries).',
+            }),
+          createRestorePoint: () =>
+            Promise.resolve({ success: true, message: 'Restore point created successfully' }),
+          scanDrivers: () =>
+            Promise.resolve({
+              drivers: [],
+              totalDevices: 3,
+              outdatedCount: 1,
+              upToDateCount: 2,
+              unknownCount: 0,
+              wuStatus: 'ok',
+              wuMessage: '1 driver update(s) offered by Windows Update.',
+              scanDate: new Date(),
+            }),
+        },
       };
 
       (window as unknown as { electronAPI: typeof mockAPI }).electronAPI = mockAPI;

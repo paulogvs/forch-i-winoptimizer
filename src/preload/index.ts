@@ -102,6 +102,16 @@ const api: ElectronAPI = {
   // Quick "Free RAM" (P1.1)
   freeMemory: (): Promise<FreeMemoryResult> => ipcRenderer.invoke('memory:free'),
 
+  // Quick fixes (Fase 3): 1-click utilities with verified real results.
+  quickFixes: {
+    freeRam: (): Promise<FreeMemoryResult> => ipcRenderer.invoke('memory:free'),
+    cleanTemp: () => ipcRenderer.invoke('quickfix:clean-temp'),
+    flushDns: () => ipcRenderer.invoke('network:flush-dns'),
+    createRestorePoint: (description: string) =>
+      ipcRenderer.invoke('quickfix:restore-point', description),
+    scanDrivers: () => ipcRenderer.invoke('quickfix:scan-drivers'),
+  },
+
   // Events
   onUpdateProgress: (callback: (percent: number) => void) => {
     const handler = (_event: IpcRendererEvent, percent: number) => callback(percent);

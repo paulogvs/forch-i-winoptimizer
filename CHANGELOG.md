@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-05
+
+Fase 3 del `PLAN_MEJORAS.md`: **botones rápidos de RAM y utilidades 1-clic**
+(minor: nueva capacidad visible). Trae una barra _Quick fixes_ visible en el
+Dashboard y en Tools, cinco acciones que ejecutan de verdad y reportan el
+resultado real, un sistema de **toast** (adiós `alert()`) y el registro de cada
+acción en Statistics.
+
+### Added
+
+- **3.1 — Barra de Quick fixes visible.** El Dashboard amplía sus _Quick
+  Actions_ (`Dashboard.tsx`) con la sección **Quick fixes**; se mantiene el
+  botón **Free RAM** del header y se agrega la misma sección en la pestaña
+  **Utilities** de Tools. Componente reutilizable `QuickFixBar`.
+- **3.2 — Cinco acciones 1-clic, con resultado verificado:**
+  - `⚡ Free RAM` — recorta el _working set_ **de la propia app** y muestra
+    **MB antes → después reales** (`Freed N MB (this app: A → B MB)`); no toca la
+    RAM del sistema.
+  - `🧹 Clean Temp` — borra **solo** archivos con `safeToDelete` (temp, caché,
+    logs, miniaturas, caché de navegador). Nunca toca Windows Update ni la
+    Papelera. Reporta archivos + MB reales y **no oculta fallos**.
+  - `🌐 Flush DNS` — ejecuta `ipconfig /flushdns` y **verifica** el efecto
+    midiendo la caché del resolver antes/después.
+  - `🛡️ Create Restore Point` — reutiliza `Checkpoint-Computer` verificado.
+  - `🔍 Scan Drivers` — reutiliza el escaneo real de v0.12.0 (Windows Update).
+- **3.3 — Comportamiento uniforme:** 1 clic → `operation-lock` FIFO → **toast**
+  con el resultado real + enlace **"View in Statistics"** → botones
+  **deshabilitados** mientras corre otra operación → evento registrado en
+  `stats.ts` → `aria-live="polite"`.
+- **3.4 — Sistema de toast** (`components/ui/Toast.tsx` + `toast-context.ts`):
+  reemplaza los `alert()` de Benchmark y Security. Sin `alert()` nuevos.
+- **3.5 — Confirmación solo donde corresponde:** `Clean Temp` y
+  `Create Restore Point` piden confirmación; `Free RAM`, `Flush DNS` y
+  `Scan Drivers` son 1 clic puro.
+
+### Changed
+
+- `deleteJunkFiles` devuelve `removed: string[]` (rutas confirmadas borradas)
+  para contabilizar los bytes liberados con evidencia real.
+- `StatsEventType` suma `maintenance`; Statistics muestra "Maintenance actions".
+- Nuevos canales IPC: `quickfix:clean-temp`, `network:flush-dns`,
+  `quickfix:restore-point` y `quickfix:scan-drivers` (serializados por el mutex
+  global).
+
+### Fixed
+
+- No queda ningún `alert()` en el renderer.
+
 ## [0.12.0] - 2026-10-05
 
 Fase 2 del `PLAN_MEJORAS.md`: **descargas automáticas de drivers** (minor: nueva

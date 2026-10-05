@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Progress } from '../components/ui/Progress';
 import { SkeletonCards } from '../components/ui/Skeleton';
 import { ScanProgress } from '../components/ui/ScanProgress';
+import { QuickFixBar } from '../components/QuickFixBar';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { formatBytes, formatUptime } from '../utils/format';
 import type { SystemInfo } from '@shared/electron-api';
@@ -173,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       <div className="mt-6">
         <Card title="Quick Actions">
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap mb-6">
             <Button variant="primary" onClick={() => loadSystemInfo(true)}>
               Scan Now
             </Button>
@@ -184,6 +185,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               Optimize
             </Button>
           </div>
+          <h3 className="text-sm font-semibold text-fg-secondary mb-3">Quick fixes</h3>
+          <QuickFixBar onNavigate={onNavigate} />
         </Card>
       </div>
     </div>

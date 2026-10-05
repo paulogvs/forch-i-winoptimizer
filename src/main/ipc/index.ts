@@ -99,6 +99,7 @@ import {
   exportStatsCsv,
 } from '../services/stats';
 import { launchWindowsTool } from '../services/tool-launcher';
+import { cleanTempQuick, flushDns } from '../services/quick-fixes';
 import type { AppSettings } from '@shared/settings';
 import type { JunkCategory } from '../services/junk-scanner';
 
@@ -136,6 +137,10 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'bundles:uninstall',
   'cleaning:run-now',
   'memory:free',
+  'quickfix:clean-temp',
+  'quickfix:restore-point',
+  'quickfix:scan-drivers',
+  'network:flush-dns',
   'debloat:remove',
   'tweaks:apply',
   'tweaks:restore',
@@ -180,6 +185,33 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     if (result.success && result.freedMb > 0) {
       recordStatsEvent({ type: 'boost', bytes: Math.round(result.freedMb * 1024 * 1024) });
     }
+    return result;
+  });
+
+  // ===== Quick fixes (Fase 3): 1-click utilities =====
+  // All are serialized by the global lock so the renderer can queue/disable
+  // them uniformly and no two heavy actions run at once.
+  handle('quickfix:clean-temp', async () => {
+    const result = await cleanTempQuick(createProgressReporter('junk'));
+    if (result.deleted > 0) {
+      // Only confirmed-removed files/bytes are recorded (real observation).
+      recordStatsEvent({ type: 'clean', files: result.deleted, bytes: result.freedBytes });
+    }
+    return result;
+  });
+  handle('network:flush-dns', async () => {
+    const result = await flushDns();
+    if (result.success) recordStatsEvent({ type: 'maintenance', files: 1 });
+    return result;
+  });
+  handle('quickfix:restore-point', async (_event: IpcMainInvokeEvent, description: string) => {
+    const result = await createRestorePoint(String(description));
+    if (result.success) recordStatsEvent({ type: 'maintenance', files: 1 });
+    return result;
+  });
+  handle('quickfix:scan-drivers', async () => {
+    const result = await scanDrivers(createProgressReporter('drivers'));
+    recordStatsEvent({ type: 'maintenance', files: 1 });
     return result;
   });
 

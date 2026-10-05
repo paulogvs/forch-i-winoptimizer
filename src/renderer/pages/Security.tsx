@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Modal } from '../components/ui/Modal';
+import { useToast } from '../components/ui/toast-context';
 import { useAppStore } from '../stores/useAppStore';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
 import type { SecurityFixOutcome, SecurityFixPreview } from '@shared/security-fix';
@@ -58,6 +59,7 @@ export const Security: React.FC = () => {
   // can land directly on Privacy.
   const activeTab = useAppStore((state) => state.securityTab);
   const setActiveTab = useAppStore((state) => state.setSecurityTab);
+  const { notify } = useToast();
   const [report, setReport] = useState<SecurityScanReport | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySetting[]>([]);
   const [securityActions, setSecurityActions] = useState<SecurityAction[]>([]);
@@ -138,7 +140,11 @@ export const Security: React.FC = () => {
     setApplying(settingId);
     try {
       const result = await window.winoptimizer.privacy.applySetting(settingId);
-      alert(result.message);
+      notify({
+        variant: result.success ? 'success' : 'error',
+        title: result.success ? 'Privacy setting applied' : 'Privacy setting failed',
+        message: result.message,
+      });
       await loadData();
     } catch (error) {
       console.error('Failed to apply privacy setting:', error);
@@ -151,7 +157,11 @@ export const Security: React.FC = () => {
     setApplying('all');
     try {
       const result = await window.winoptimizer.privacy.applyAll();
-      alert(result.message);
+      notify({
+        variant: result.success ? 'success' : 'error',
+        title: result.success ? 'Privacy settings applied' : 'Privacy settings failed',
+        message: result.message,
+      });
       await loadData();
     } catch (error) {
       console.error('Failed to apply all privacy settings:', error);
@@ -165,7 +175,11 @@ export const Security: React.FC = () => {
     setApplying(action.id);
     try {
       const result = await window.winoptimizer.security.runAction(action.id);
-      alert(result.message);
+      notify({
+        variant: result.success ? 'success' : 'error',
+        title: result.success ? 'Security action completed' : 'Security action failed',
+        message: result.message,
+      });
     } catch (error) {
       console.error('Failed to run security action:', error);
     } finally {
@@ -176,7 +190,11 @@ export const Security: React.FC = () => {
   const setDNS = async (primary: string, secondary: string) => {
     try {
       const result = await window.winoptimizer.dns.set(primary, secondary);
-      alert(result.message);
+      notify({
+        variant: result.success ? 'success' : 'error',
+        title: result.success ? 'DNS updated' : 'DNS update failed',
+        message: result.message,
+      });
     } catch (error) {
       console.error('Failed to set DNS:', error);
     }

@@ -52,6 +52,7 @@ export const Statistics: React.FC = () => {
   const cleans = useMemo(() => events.filter((e) => e.type === 'clean'), [events]);
   const audits = useMemo(() => events.filter((e) => e.type === 'audit'), [events]);
   const boosts = useMemo(() => events.filter((e) => e.type === 'boost'), [events]);
+  const maintenance = useMemo(() => events.filter((e) => e.type === 'maintenance'), [events]);
 
   const totalFreed = useMemo(() => cleans.reduce((sum, e) => sum + e.bytes, 0), [cleans]);
   const totalFilesCleaned = useMemo(() => cleans.reduce((sum, e) => sum + e.files, 0), [cleans]);
@@ -167,6 +168,16 @@ export const Statistics: React.FC = () => {
                 formatValue={formatBytes}
                 emptyMessage="No Free RAM boosts recorded yet."
                 color="var(--color-chart-tertiary)"
+              />
+            </Card>
+            <Card title="Maintenance actions">
+              <BarChart
+                testId="chart-maintenance"
+                data={toSeries(maintenance, () => 1)}
+                ariaLabel="One-click maintenance actions (Flush DNS, restore point, driver scan)"
+                formatValue={(v) => `${v} action(s)`}
+                emptyMessage="No maintenance actions recorded yet."
+                color="var(--color-chart-secondary)"
               />
             </Card>
           </div>

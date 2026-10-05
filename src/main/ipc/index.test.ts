@@ -40,10 +40,38 @@ vi.mock('../services/security-privacy', () => ({
   setDNS: vi.fn(),
 }));
 
+vi.mock('../services/quick-fixes', () => ({
+  cleanTempQuick: vi.fn(async () => ({
+    success: true,
+    scanned: 2,
+    scannedBytes: 2048,
+    deleted: 2,
+    freedBytes: 2048,
+    failed: 0,
+    errors: [],
+    message: 'Cleaned 2 file(s), freed 0.00 MB.',
+  })),
+  flushDns: vi.fn(async () => ({
+    success: true,
+    entriesBefore: 20,
+    entriesAfter: 0,
+    message: 'DNS cache flushed (20 → 0 entries).',
+  })),
+}));
+
+vi.mock('../services/stats', () => ({
+  recordStatsEvent: vi.fn(),
+  getStatsEvents: vi.fn(() => []),
+  defaultStatsFileName: vi.fn(() => 'stats.csv'),
+  exportStatsCsv: vi.fn(),
+}));
+
 import { registerIpcHandlers, MUTATING_CHANNELS } from './index';
 import { withOperationLock, setOperationNotifier } from '../services/operation-lock';
 import { runSystemAudit } from '../services/system-audit';
 import { getPrivacySettings } from '../services/security-privacy';
+import { cleanTempQuick, flushDns } from '../services/quick-fixes';
+import { recordStatsEvent } from '../services/stats';
 import { cache } from '../services/cache';
 import type { AuditReport, PrivacySetting } from '@shared/types';
 
@@ -111,10 +139,52 @@ describe('IPC handler registration (P0.3 global mutex)', () => {
       'drift:reapply',
       'memory:free',
       'debloat:remove',
+      'quickfix:clean-temp',
+      'quickfix:restore-point',
+      'quickfix:scan-drivers',
+      'network:flush-dns',
     ];
     for (const channel of expected) {
       expect(MUTATING_CHANNELS.has(channel), `"${channel}" must be serialized`).toBe(true);
     }
+  });
+});
+
+describe('Quick fixes IPC (Fase 3)', () => {
+  beforeEach(() => {
+    handlers.clear();
+    vi.mocked(withOperationLock).mockClear();
+    vi.mocked(cleanTempQuick).mockClear();
+    vi.mocked(flushDns).mockClear();
+    vi.mocked(recordStatsEvent).mockClear();
+    registerIpcHandlers(null);
+  });
+
+  it('registers all four quick-fix channels', () => {
+    expect(handlers.has('quickfix:clean-temp')).toBe(true);
+    expect(handlers.has('network:flush-dns')).toBe(true);
+    expect(handlers.has('quickfix:restore-point')).toBe(true);
+    expect(handlers.has('quickfix:scan-drivers')).toBe(true);
+  });
+
+  it('routes Clean Temp through the lock and records the real cleanup', async () => {
+    const result = await handlers.get('quickfix:clean-temp')?.({});
+
+    expect(vi.mocked(withOperationLock)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(withOperationLock).mock.calls[0]?.[0]).toBe('quickfix:clean-temp');
+    expect(result).toMatchObject({ deleted: 2, freedBytes: 2048 });
+    expect(vi.mocked(recordStatsEvent)).toHaveBeenCalledWith({
+      type: 'clean',
+      files: 2,
+      bytes: 2048,
+    });
+  });
+
+  it('records a maintenance event only when Flush DNS is verified', async () => {
+    await handlers.get('network:flush-dns')?.({});
+
+    expect(vi.mocked(withOperationLock).mock.calls[0]?.[0]).toBe('network:flush-dns');
+    expect(vi.mocked(recordStatsEvent)).toHaveBeenCalledWith({ type: 'maintenance', files: 1 });
   });
 });
 

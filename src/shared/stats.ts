@@ -2,16 +2,18 @@
  * Usage statistics contract (shared by main + renderer).
  *
  * Every event is a real observation recorded by the main process:
- *  - `scan`  : junk found by a cleaner scan (bytes/files)
- *  - `clean` : files actually deleted (bytes/files)
- *  - `audit` : system audit score (score)
- *  - `boost` : memory trimmed by "Free RAM" (bytes)
+ *  - `scan`        : junk found by a cleaner scan (bytes/files)
+ *  - `clean`       : files actually deleted (bytes/files)
+ *  - `audit`       : system audit score (score)
+ *  - `boost`       : memory trimmed by "Free RAM" (bytes)
+ *  - `maintenance` : a 1-click maintenance action ran (Flush DNS, restore
+ *                    point, driver scan); `files` = 1, no bytes/score.
  *
  * No synthetic/placeholder data is ever produced. Charts must show an empty
  * state when a series has too few points instead of inventing values.
  */
 
-export type StatsEventType = 'scan' | 'clean' | 'audit' | 'boost';
+export type StatsEventType = 'scan' | 'clean' | 'audit' | 'boost' | 'maintenance';
 
 export interface StatsEvent {
   id: string;

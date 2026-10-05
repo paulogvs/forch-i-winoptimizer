@@ -3,9 +3,11 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
+import { useToast } from '../components/ui/toast-context';
 import type { BenchmarkReport } from '@shared/types';
 
 export const Benchmark: React.FC = () => {
+  const { notify } = useToast();
   const [report, setReport] = useState<BenchmarkReport | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -36,9 +38,18 @@ export const Benchmark: React.FC = () => {
       const markdown = await window.winoptimizer.benchmark.exportMarkdown(report);
       // Copy to clipboard
       await navigator.clipboard.writeText(markdown);
-      alert('Markdown report copied to clipboard!');
+      notify({
+        variant: 'success',
+        title: 'Copied',
+        message: 'Markdown report copied to clipboard.',
+      });
     } catch (error) {
       console.error('Failed to export markdown:', error);
+      notify({
+        variant: 'error',
+        title: 'Export failed',
+        message: error instanceof Error ? error.message : 'Could not copy the report.',
+      });
     }
   };
 

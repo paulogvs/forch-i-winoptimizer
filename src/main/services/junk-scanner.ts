@@ -289,12 +289,15 @@ export async function deleteJunkFiles(files: string[]): Promise<{
   deleted: number;
   failed: number;
   errors: string[];
+  /** Paths the OS confirmed gone (Test-Path false after removal). */
+  removed: string[];
 }> {
   let deleted = 0;
   let failed = 0;
   const errors: string[] = [];
+  const removed: string[] = [];
 
-  if (files.length === 0) return { success: true, deleted, failed, errors };
+  if (files.length === 0) return { success: true, deleted, failed, errors, removed };
 
   // Fase 1.6: ONE spawn for the whole list (was 1 spawn per file). Every path
   // is still verified individually — `DELETED` is only emitted after
@@ -329,7 +332,7 @@ export async function deleteJunkFiles(files: string[]): Promise<{
         failed++;
         errors.push(`Failed to delete: ${filePath}${result.stderr ? ` (${result.stderr})` : ''}`);
       }
-      return { success: false, deleted, failed, errors };
+      return { success: false, deleted, failed, errors, removed };
     }
 
     const rows = toArrayShim(parsePowerShellJson<DeleteRow[] | DeleteRow>(result.stdout));
@@ -338,6 +341,7 @@ export async function deleteJunkFiles(files: string[]): Promise<{
       const status = byPath.get(filePath);
       if (status === 'DELETED') {
         deleted++;
+        removed.push(filePath);
       } else if (status === 'NOT_FOUND') {
         // Nothing to delete; honest no-op, not a success and not a failure.
       } else if (status == null) {
@@ -360,6 +364,7 @@ export async function deleteJunkFiles(files: string[]): Promise<{
     deleted,
     failed,
     errors,
+    removed,
   };
 }
 

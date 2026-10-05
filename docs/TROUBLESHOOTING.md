@@ -391,6 +391,27 @@ inventan valores. El **Export CSV** funciona igualmente (exporta el encabezado).
 
 ---
 
+### 21. Quick fixes: resultados inesperados (v0.13.0)
+
+- **Free RAM libera poco o `Freed 0 MB`:** solo recorta el _working set_ de
+  **esta app**. Si ya estaba ajustado, el resultado real es 0 MB (no es un
+  error). Windows gestiona la RAM del sistema.
+- **Clean Temp reporta "could not be deleted":** algún archivo estaba en uso
+  (por ejemplo, un temporal abierto por otro programa). La barra **no oculta**
+  el fallo: muestra cuántos se borraron y el primer error. Cerrá el programa que
+  lo usa y reintentá; nunca se tocan Windows Update ni la Papelera.
+- **Flush DNS falla:** verificá que `ipconfig` esté disponible y que la consola
+  tenga permisos. La app confirma el efecto midiendo la caché del resolver
+  antes/después.
+- **Create Restore Point falla con "Acceso denegado":** requiere Protección del
+  sistema activada (`Enable-ComputerRestore -Drive C:\`) y ejecutar la app como
+  administrador.
+- **Scan Drivers dice "Windows Update did not answer":** la búsqueda de
+  actualizaciones está deshabilitada por directiva o no hay red. El estado es
+  honesto: nunca se muestra "todo al día" sin respuesta de Windows Update.
+- **Un botón queda deshabilitado:** hay otra operación en curso (mirá el badge
+  del header). Se reactivan al terminar; no hace falta reiniciar.
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

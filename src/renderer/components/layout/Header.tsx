@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { PageId, Theme } from '@shared/types';
 import { WindowControls } from './WindowControls';
 import { useOperationStatus } from '../../hooks/useOperationStatus';
+import { useToast } from '../ui/toast-context';
 
 interface HeaderProps {
   theme: Theme;
@@ -62,6 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
 }) => {
   const operation = useOperationStatus();
+  const { notify } = useToast();
   const [ramState, setRamState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const [freedMb, setFreedMb] = useState(0);
   const [ramBeforeMb, setRamBeforeMb] = useState(0);
@@ -85,11 +87,27 @@ export const Header: React.FC<HeaderProps> = ({
         setRamBeforeMb(result.rssBeforeMb);
         setRamAfterMb(result.rssAfterMb);
         setRamState('done');
+        notify({
+          variant: 'success',
+          title: 'RAM freed',
+          message: `Freed ${result.freedMb} MB (this app: ${result.rssBeforeMb} → ${result.rssAfterMb} MB). This is this app's own working set, not system RAM.`,
+          action: { label: 'View in Statistics', onClick: () => onNavigate('statistics') },
+        });
       } else {
         setRamState('error');
+        notify({
+          variant: 'error',
+          title: 'Free RAM failed',
+          message: result.error ?? 'The working set was not trimmed.',
+        });
       }
-    } catch {
+    } catch (error) {
       setRamState('error');
+      notify({
+        variant: 'error',
+        title: 'Free RAM failed',
+        message: `Unexpected error: ${String(error)}`,
+      });
     }
     if (resetRef.current !== null) window.clearTimeout(resetRef.current);
     resetRef.current = window.setTimeout(() => setRamState('idle'), 3000);

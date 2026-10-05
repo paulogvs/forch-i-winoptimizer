@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Progress } from '../components/ui/Progress';
 import { VirtualList } from '../components/ui/VirtualList';
+import { QuickFixBar } from '../components/QuickFixBar';
 import { formatBytes } from '../utils/format';
 import { WINDOWS_TOOLS } from '@shared/windows-tools';
 import type {
@@ -526,6 +527,15 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
               {toolFeedback.message}
             </div>
           )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-fg-secondary mb-3">Quick fixes</h3>
+            <p className="text-xs text-fg-tertiary mb-3">
+              One-click maintenance that runs for real and reports the verified result. Actions are
+              queued through the global operation lock, so they never run two at a time.
+            </p>
+            <QuickFixBar onNavigate={onNavigate} />
+          </div>
 
           <div>
             <h3 className="text-sm font-semibold text-fg-secondary mb-3">In-app utilities</h3>
