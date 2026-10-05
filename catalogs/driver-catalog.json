@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-10-05",
+  "source": "native (was inline in src/main/services/driver-updater.ts)",
+  "manufacturers": [
+    {
+      "id": "NVIDIA",
+      "name": "NVIDIA",
+      "vendorIds": ["10DE"],
+      "namePatterns": ["nvidia", "geforce", "quadro", "rtx", "gtx", "tesla"],
+      "installerArgs": ["-s", "-noreboot", "-clean"],
+      "requiresExtract": true,
+      "signerPatterns": ["NVIDIA Corporation", "NVIDIA"],
+      "sourceKind": "manual-page",
+      "downloadPage": "https://www.nvidia.com/download/index.aspx",
+      "notes": "NVIDIA packages are self-extracting wrappers; -s is silent, -clean removes previous profiles. Never force a reboot."
+    },
+    {
+      "id": "AMD",
+      "name": "AMD",
+      "vendorIds": ["1002"],
+      "namePatterns": ["amd", "radeon", "ati ", "ryzen"],
+      "installerArgs": ["-INSTALL", "-SILENT", "-NOREBOOT"],
+      "requiresExtract": false,
+      "signerPatterns": ["Advanced Micro Devices", "AMD"],
+      "sourceKind": "manual-page",
+      "downloadPage": "https://www.amd.com/en/support",
+      "notes": "AMD Adrenalin installer accepts -INSTALL -SILENT -NOREBOOT; always pair with -NOREBOOT."
+    },
+    {
+      "id": "Intel",
+      "name": "Intel",
+      "vendorIds": ["8086"],
+      "namePatterns": ["intel", "iris", "hd graphics", "uhd graphics", "arc"],
+      "installerArgs": ["-s", "--noreboot"],
+      "requiresExtract": false,
+      "signerPatterns": ["Intel Corporation", "Intel(R) Corporation", "Intel"],
+      "sourceKind": "manual-page",
+      "downloadPage": "https://www.intel.com/content/www/us/en/download-center/home.html",
+      "notes": "Intel DSA/Setup installers use -s --noreboot; Arc and integrated share the same silent flags."
+    },
+    {
+      "id": "Generic",
+      "name": "Generic / Windows Update",
+      "vendorIds": [],
+      "namePatterns": [],
+      "installerArgs": [],
+      "requiresExtract": false,
+      "signerPatterns": [],
+      "sourceKind": "none",
+      "downloadPage": "",
+      "notes": "Handled by Windows Update / PnP (pnputil /scan-devices). No manufacturer download is offered."
+    }
+  ],
+  "windowsUpdate": {
+    "policyRegistryPath": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+    "policyValueName": "ExcludeWUDriversInQualityUpdate",
+    "searchOrderRegistryPath": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DriverSearching",
+    "searchOrderValueName": "SearchOrderConfig",
+    "searchQuery": "IsInstalled=0 AND Type='Driver'"
+  },
+  "notAutomated": [
+    "BIOS/UEFI/firmware updates (no safe, verifiable silent path)",
+    "DDU or any aggressive driver cleanup / removal",
+    "Drivers without a valid WHQL/Authenticode signature",
+    "Forced reboots (the user decides when to restart)",
+    "Disabling driver signature enforcement",
+    "Parallel driver installs (the global operation lock is respected)"
+  ]
+}

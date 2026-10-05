@@ -417,19 +417,43 @@ export async function setupElectronMock(page: Page): Promise<void> {
               totalDevices: 0,
               outdatedCount: 0,
               upToDateCount: 0,
+              unknownCount: 0,
+              wuStatus: 'ok',
+              wuMessage: '',
               scanDate: new Date(),
             }),
           createRestorePoint: () => Promise.resolve({ success: true, message: 'ok' }),
-          install: () =>
-            Promise.resolve({
-              success: false,
-              status: 'manual-action-required',
-              url: 'https://example.com/driver',
-              driverId: 'mock-driver',
-              message:
-                'Manual action required: the manufacturer download page was opened (https://example.com/driver).',
-            }),
-          rollback: () => Promise.resolve({ success: true, message: 'ok' }),
+          install: () => {
+            const w = window as unknown as { __driverInstallResult?: unknown };
+            return Promise.resolve(
+              w.__driverInstallResult ?? {
+                success: false,
+                status: 'manual-action-required',
+                url: 'https://example.com/driver',
+                driverId: 'mock-driver',
+                message:
+                  'Manual action required: the manufacturer download page was opened (https://example.com/driver).',
+              }
+            );
+          },
+          installSilent: () =>
+            Promise.resolve({ success: true, status: 'completed', message: 'ok' }),
+          download: () => Promise.resolve({ success: true, message: 'verified', verified: true }),
+          cancel: () => Promise.resolve({ success: true, message: 'Cancellation requested.' }),
+          rollback: () =>
+            Promise.resolve({ success: false, status: 'blocked', message: 'No receipt.' }),
+          onProgress: (callback: (event: unknown) => void) => {
+            const w = window as unknown as {
+              __driverProgressListeners?: Array<(event: unknown) => void>;
+            };
+            w.__driverProgressListeners = w.__driverProgressListeners ?? [];
+            w.__driverProgressListeners.push(callback);
+            return () => {
+              w.__driverProgressListeners = (w.__driverProgressListeners ?? []).filter(
+                (l) => l !== callback
+              );
+            };
+          },
         },
         network: {
           fix: () =>

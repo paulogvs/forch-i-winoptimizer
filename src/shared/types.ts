@@ -68,19 +68,36 @@ export interface DriverInfo {
   manufacturer: 'NVIDIA' | 'AMD' | 'Intel' | 'Generic';
   currentVersion: string;
   latestVersion: string;
+  /** Back-compat: equals `status === 'up-to-date'`. */
   isUpToDate: boolean;
+  /** Honest state: `unknown` means Windows Update did not answer. */
+  status: 'up-to-date' | 'update-available' | 'unknown';
   deviceClass: string;
   hardwareId: string;
   releaseDate: string;
   downloadUrl: string;
   size: number;
+  /** Where the offered update comes from (null when nothing is offered). */
+  source: 'windows-update' | 'manual' | null;
+  /** Windows Update title of the offered driver, when applicable. */
+  updateTitle: string;
+  /** True when the app can install this update without manual steps. */
+  automatic: boolean;
+  /** Always true for real installs (Windows Update / PnP need admin). */
+  requiresAdmin: boolean;
 }
 
 export interface DriverScanResult {
   drivers: DriverInfo[];
   totalDevices: number;
+  /** Drivers with an update available. */
   outdatedCount: number;
   upToDateCount: number;
+  /** Drivers whose state could not be determined (WU silent/blocked). */
+  unknownCount: number;
+  /** Whether Windows Update answered the driver search. */
+  wuStatus: 'ok' | 'unavailable' | 'excluded';
+  wuMessage: string;
   scanDate: Date;
 }
 

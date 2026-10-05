@@ -6,6 +6,7 @@ import type {
   OperationStatus,
   FreeMemoryResult,
 } from '../shared/electron-api';
+import type { DriverProgressEvent } from '../shared/driver-update';
 import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 import type { AppSettings } from '../shared/settings';
@@ -125,9 +126,16 @@ const winoptimizer: WinOptimizerAPI = {
     scan: (options) => ipcRenderer.invoke('drivers:scan', options),
     createRestorePoint: (description: string) =>
       ipcRenderer.invoke('drivers:create-restore-point', description),
-    install: (driverId: string, downloadUrl: string) =>
-      ipcRenderer.invoke('drivers:install', driverId, downloadUrl),
+    install: (request) => ipcRenderer.invoke('drivers:install', request),
+    installSilent: (request) => ipcRenderer.invoke('drivers:install-silent', request),
+    download: (request) => ipcRenderer.invoke('drivers:download', request),
+    cancel: (driverId: string) => ipcRenderer.invoke('drivers:cancel', driverId),
     rollback: (driverId: string) => ipcRenderer.invoke('drivers:rollback', driverId),
+    onProgress: (callback) => {
+      const handler = (_event: IpcRendererEvent, payload: DriverProgressEvent) => callback(payload);
+      ipcRenderer.on('drivers:progress', handler);
+      return () => ipcRenderer.removeListener('drivers:progress', handler);
+    },
   },
   network: {
     fix: () => ipcRenderer.invoke('network:fix'),

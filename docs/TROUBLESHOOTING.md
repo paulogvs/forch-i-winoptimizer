@@ -231,16 +231,30 @@ un gestor de ventanas que evita eventos `maximize`/`unmaximize` de Electron, rei
 **La caché me muestra datos viejos (≤ TTL):** System Info 60 s, Drivers 5 min, Junk 30 s. Usá
 **Refresh** en el Dashboard (invalida la caché) o volvé a ejecutar el scan del módulo.
 
-**Driver "Update" muestra "Manual action required":** es lo esperado, no un error.
-La app abrió la página oficial del fabricante (la URL está en el mensaje) para que
-descargues e instales el driver a mano; después volvé a **Scan Drivers** para que la
-nueva versión se verifique por re-lectura. Si la página no se abrió, el mensaje dice
-`failed` con el motivo.
+**Driver "Update" muestra "Manual action required":** es lo esperado cuando **no hay
+fuente automática** para ese driver (por ejemplo, un fabricante sin manifiesto
+versionado con hash/firma). La app abrió la página oficial (la URL está en el mensaje)
+para que descargues e instales a mano; después volvé a **Scan Drivers**. Nunca es un
+éxito falso.
 
-**"Restart device" no restaura la versión anterior:** correcto — ese botón reinicia el
-dispositivo (`pnputil /restart-device`) para activar un driver recién instalado, no
-revierte versiones. Para volver atrás usá el **punto de restauración** creado antes
-del cambio (botón **Create Restore Point**).
+**Un driver aparece con "status unknown":** Windows Update **no respondió** (sin red, o
+la GPO "Do not include drivers" está activa) — por eso no se puede afirmar si está al
+día. Verificá la conexión o la política y volvé a escanear. La app **nunca** muestra
+"up to date" cuando la búsqueda no respondió.
+
+**"Update" falla al instalar / requiere admin:** la búsqueda de Windows Update es sin
+admin, pero **instalar** requiere elevación. Si la app no está elevada, el flujo se
+detiene con el motivo y podés relanzarla como administrador (patrón `requires-admin` +
+"Restart as administrator"). Nunca falla en silencio.
+
+**El "Rollback" se deshabilita o dice que no puede revertir:** es correcto — solo
+revierte drivers que **esta app instaló** (necesita el recibo con el `oem#.inf`). Si el
+recibo no existe o no se capturó el `.inf`, el rollback se rechaza en vez de simular
+una reversión. Alternativa: usá el **punto de restauración** (botón **Create Restore
+Point**).
+
+**"A reboot is required" tras actualizar:** Windows pidió reiniciar para completar el
+cambio. La app **nunca reinicia sola**; hacelo vos cuando te convenga.
 
 ---
 

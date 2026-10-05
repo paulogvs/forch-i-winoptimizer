@@ -30,8 +30,11 @@ import {
   scanDrivers,
   createRestorePoint,
   installDriver,
+  downloadDriverUpdate,
   rollbackDriver,
+  cancelDriverOperation,
 } from '../services/driver-updater';
+import type { DriverInstallRequest, DriverProgressEvent } from '@shared/driver-update';
 import { runNetworkFix, testConnectivity, fixError0x00000709 } from '../services/network-fixer';
 import {
   checkForDrift,
@@ -113,7 +116,9 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'services:toggle',
   'services:set-start-type',
   'drivers:create-restore-point',
+  'drivers:download',
   'drivers:install',
+  'drivers:install-silent',
   'drivers:rollback',
   'network:fix',
   'network:fix-0x00000709',
@@ -313,6 +318,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   });
 
   // ===== Driver Updater (TTL 5m) =====
+  const sendDriverProgress = (event: DriverProgressEvent): void => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('drivers:progress', event);
+    }
+  };
+
   handle('drivers:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
     withCache('drivers', () => scanDrivers(createProgressReporter('drivers')), options ?? {})
   );
@@ -322,14 +333,33 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
       return createRestorePoint(description);
     }
   );
+  // Download + verify only (no install): Fase 2.3.
+  handle('drivers:download', async (_event: IpcMainInvokeEvent, request: DriverInstallRequest) => {
+    return downloadDriverUpdate(request);
+  });
+  // Full automatic pipeline: download -> verify -> silent install -> re-verify.
+  handle('drivers:install', async (_event: IpcMainInvokeEvent, request: DriverInstallRequest) => {
+    const result = await installDriver(request, { onProgress: sendDriverProgress });
+    cache.invalidateModule('drivers');
+    return result;
+  });
   handle(
-    'drivers:install',
-    async (_event: IpcMainInvokeEvent, driverId: string, downloadUrl: string) => {
-      const result = await installDriver(driverId, downloadUrl);
+    'drivers:install-silent',
+    async (_event: IpcMainInvokeEvent, request: DriverInstallRequest) => {
+      const result = await installDriver(request, { onProgress: sendDriverProgress });
       cache.invalidateModule('drivers');
       return result;
     }
   );
+  // Cancel is intentionally NOT in MUTATING_CHANNELS: it must run while the
+  // install it targets holds the global lock.
+  handle('drivers:cancel', async (_event: IpcMainInvokeEvent, driverId: string) => {
+    const cancelled = cancelDriverOperation(driverId);
+    return {
+      success: cancelled,
+      message: cancelled ? 'Cancellation requested.' : 'No operation is running for that driver.',
+    };
+  });
   handle('drivers:rollback', async (_event: IpcMainInvokeEvent, driverId: string) => {
     const result = await rollbackDriver(driverId);
     cache.invalidateModule('drivers');

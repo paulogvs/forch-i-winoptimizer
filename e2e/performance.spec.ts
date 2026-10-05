@@ -16,11 +16,16 @@ async function mockManyDrivers(
       currentVersion: '1.0.0.0',
       latestVersion: '1.0.0.0',
       isUpToDate: true,
+      status: 'up-to-date',
       deviceClass: 'System',
       hardwareId: `HW${i}`,
       releaseDate: '2025-01-01',
       downloadUrl: '',
       size: 0,
+      source: null,
+      updateTitle: '',
+      automatic: false,
+      requiresAdmin: false,
     }));
     const target = window as unknown as {
       winoptimizer: { drivers: { scan: () => Promise<unknown> } };
@@ -31,6 +36,9 @@ async function mockManyDrivers(
         totalDevices: n,
         outdatedCount: 0,
         upToDateCount: n,
+        unknownCount: 0,
+        wuStatus: 'ok',
+        wuMessage: '',
         scanDate: new Date(),
       });
   }, count);

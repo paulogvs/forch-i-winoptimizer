@@ -5,6 +5,11 @@ import type { StatsEvent, StatsExportResult } from './stats';
 import type { UpdateStatus } from './updater-status';
 import type { SecurityScanReport } from './security-scan';
 import type { SecurityFixOutcome, SecurityFixPreview } from './security-fix';
+import type {
+  DriverDownloadOutcome,
+  DriverInstallRequest,
+  DriverProgressEvent,
+} from './driver-update';
 
 export interface SystemInfo {
   platform: string;
@@ -138,18 +143,26 @@ export interface UpdateInfo {
 
 // ===== Driver Updater =====
 /**
- * Honest outcome of a driver "update" (Fase 0.2): opening the
+ * Honest outcome of a driver "update" (Fase 0.2 / Fase 2.6): opening the
  * manufacturer's download page is a manual action the USER must finish,
  * never a success. `success` is only true when the app itself verified a
- * real effect (e.g. Windows Update scan completed).
+ * real effect (the new version re-read from the OS + the device reports OK).
  */
-export type DriverInstallStatus = 'manual-action-required' | 'completed' | 'failed';
+export type DriverInstallStatus =
+  'manual-action-required' | 'completed' | 'failed' | 'blocked' | 'cancelled';
 
 export interface DriverInstallResult extends OperationResult {
   status: DriverInstallStatus;
   /** URL that was opened (or that the user must open) for manual installs. */
-  url?: string;
-  driverId?: string;
+  url?: string | undefined;
+  driverId?: string | undefined;
+  rebootRequired?: boolean | undefined;
+  verified?: boolean | undefined;
+  restorePointCreated?: boolean | undefined;
+  rollbackAvailable?: boolean | undefined;
+  downloadedBytes?: number | undefined;
+  sha256?: string | undefined;
+  signature?: string | undefined;
 }
 export interface DriverInfo {
   id: string;
@@ -158,11 +171,16 @@ export interface DriverInfo {
   currentVersion: string;
   latestVersion: string;
   isUpToDate: boolean;
+  status: 'up-to-date' | 'update-available' | 'unknown';
   deviceClass: string;
   hardwareId: string;
   releaseDate: string;
   downloadUrl: string;
   size: number;
+  source: 'windows-update' | 'manual' | null;
+  updateTitle: string;
+  automatic: boolean;
+  requiresAdmin: boolean;
 }
 
 export interface DriverScanResult {
@@ -170,6 +188,9 @@ export interface DriverScanResult {
   totalDevices: number;
   outdatedCount: number;
   upToDateCount: number;
+  unknownCount: number;
+  wuStatus: 'ok' | 'unavailable' | 'excluded';
+  wuMessage: string;
   scanDate: Date;
 }
 
@@ -471,8 +492,18 @@ export interface WinOptimizerAPI {
   drivers: {
     scan: (options?: CacheOptions) => Promise<DriverScanResult>;
     createRestorePoint: (description: string) => Promise<OperationResult>;
-    install: (driverId: string, downloadUrl: string) => Promise<DriverInstallResult>;
-    rollback: (driverId: string) => Promise<OperationResult>;
+    /** Fase 2.6: automatic pipeline (download -> verify -> silent install -> verify). */
+    install: (request: DriverInstallRequest) => Promise<DriverInstallResult>;
+    /** Fase 2.6: explicit silent-install channel (same pipeline, distinct channel). */
+    installSilent: (request: DriverInstallRequest) => Promise<DriverInstallResult>;
+    /** Download + verify only (no install). */
+    download: (request: DriverInstallRequest) => Promise<DriverDownloadOutcome>;
+    /** Cancel an in-flight download/install for a driver id. */
+    cancel: (driverId: string) => Promise<OperationResult>;
+    /** Real rollback (pnputil uninstall + restore point) for what the app installed. */
+    rollback: (driverId: string) => Promise<DriverInstallResult>;
+    /** Subscribe to real driver operation progress. Returns an unsubscribe. */
+    onProgress: (callback: (event: DriverProgressEvent) => void) => () => void;
   };
   network: {
     fix: () => Promise<NetworkFixReport>;

@@ -109,6 +109,18 @@ export async function runPowerShellScript(script: string): Promise<PowerShellRes
   return runScript(script, 120_000);
 }
 
+/**
+ * Run a script with an explicit timeout. Used by the driver installer, whose
+ * real-world silent installs can take minutes (Fase 2.4 uses 600s), and by the
+ * Windows Update driver search, which may block on the network.
+ */
+export async function runPowerShellWithTimeout(
+  script: string,
+  timeoutMs: number
+): Promise<PowerShellResult> {
+  return runScript(script, timeoutMs);
+}
+
 export function parsePowerShellJson<T>(output: string): T | null {
   const trimmed = output.trim();
   if (!trimmed) return null;

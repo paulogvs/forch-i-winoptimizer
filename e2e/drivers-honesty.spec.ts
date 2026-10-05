@@ -10,11 +10,16 @@ const outdatedDriver = {
   currentVersion: '500.0.0',
   latestVersion: '551.86',
   isUpToDate: false,
+  status: 'update-available',
   deviceClass: 'Display',
   hardwareId: 'PCI\\VEN_10DE&DEV_2206',
   releaseDate: '2025-03-15',
-  downloadUrl: 'https://www.nvidia.com/download/index.aspx',
+  downloadUrl: '',
   size: 650_000_000,
+  source: 'windows-update',
+  updateTitle: 'NVIDIA - Display - 551.86',
+  automatic: true,
+  requiresAdmin: true,
 };
 
 async function mockOutdatedDriver(page: Page) {
@@ -30,12 +35,15 @@ async function mockOutdatedDriver(page: Page) {
         totalDevices: 1,
         outdatedCount: 1,
         upToDateCount: 0,
+        unknownCount: 0,
+        wuStatus: 'ok',
+        wuMessage: '',
         scanDate: new Date(),
       });
   }, outdatedDriver);
 }
 
-test.describe('Drivers honesty (Fase 0.2 + 0.4)', () => {
+test.describe('Drivers honesty (Fase 0.2 / Fase 2.6)', () => {
   test.beforeEach(async ({ page }) => {
     await setupElectronMock(page);
     await gotoApp(page);
@@ -53,8 +61,28 @@ test.describe('Drivers honesty (Fase 0.2 + 0.4)', () => {
     await expect(status).toContainText('https://example.com/driver');
   });
 
-  test('device action is honestly labeled Restart device', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Restart device' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Rollback' })).toHaveCount(0);
+  test('offers a real Rollback button, not the old "Restart device" label', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Rollback' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Restart device' })).toHaveCount(0);
+  });
+
+  test('shows the reboot notice and the verified restore point after a completed install', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      (window as unknown as { __driverInstallResult?: unknown }).__driverInstallResult = {
+        success: true,
+        status: 'completed',
+        driverId: 'PCI\\VEN_10DE&DEV_2206',
+        verified: true,
+        restorePointCreated: true,
+        rebootRequired: true,
+        rollbackAvailable: true,
+        message: 'Installed 551.86 and verified (device OK).',
+      };
+    });
+    await page.getByRole('button', { name: 'Update' }).click();
+    await expect(page.getByRole('alert')).toContainText(/reboot is required/i);
+    await expect(page.getByText(/restore point created and verified/i)).toBeVisible();
   });
 });

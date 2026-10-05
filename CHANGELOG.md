@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-05
+
+Fase 2 del `PLAN_MEJORAS.md`: **descargas automáticas de drivers** (minor: nueva
+capacidad visible). Reemplaza la base simulada `LATEST_DRIVERS` (NVIDIA 551.86 /
+AMD 25.3.1 / Intel 31..., fecha 2025-03) y el `shell.openExternal` a una página
+genérica por un pipeline real: **detección vía Windows Update COM**, descarga
+verificada, instalación silenciosa y rollback real.
+
+### Added
+
+- **2.1 - Detección REAL de drivers** (`driver-updater.ts`): se eliminó
+  `LATEST_DRIVERS`. La búsqueda usa la **API COM de Windows Update**
+  (`IsInstalled=0 AND Type='Driver'`) en **un solo proceso PowerShell** junto con la
+  enumeración de dispositivos. Respeta la GPO "Do not include drivers"
+  (`ExcludeWUDriversInQualityUpdate` / `SearchOrderConfig`). Estados honestos:
+  `up-to-date` (WU respondió sin ofertas), `update-available`, `unknown` (WU no
+  respondió o está bloqueado por política) — **nunca** "al día" por resultado vacío
+  (ref. `emptyResult` de Kudu). Verificado en la máquina: WU respondió, 0 updates.
+- **2.2 - Catálogo de drivers como DATOS** (`catalogs/driver-catalog.json` +
+  `driver-catalog.ts`): flags silenciosos por fabricante (`setup.exe -s -noreboot
+-clean`, `-INSTALL -SILENT -NOREBOOT`, `-s --noreboot`), vendor/name patterns,
+  firmantes confiables y claves de la GPO. Sin listas hardcodeadas en `.ts`.
+- **2.3 - Descarga real** (`driver-downloader.ts`): descarga con progreso **real en
+  bytes**, reintentos con backoff (3: 5/15/45 s), verificación de **tamaño + SHA-256
+  - firma Authenticode** (`Get-AuthenticodeSignature`). Si algo no coincide →
+    **aborta y borra el archivo** (nunca se instala algo no verificado).
+- **2.4 - Instalación silenciosa + verificación post** (`driver-installer.ts`):
+  punto de restauración **verificado** (o aborta), flags del catálogo, **siempre
+  `/norestart`**, timeout **600 s**, log a archivo y **re-lectura** de
+  `Win32_PnPSignedDriver.DriverVersion` + `Get-PnpDevice Status == OK`. Si no
+  confirma → **fallo real**. Flag `rebootRequired` (exit 3010/1641) a la UI.
+- **2.5 - Rollback real** (`driver-installer.ts`): recibo persistido (driver id,
+  `oem#.inf`, versión previa), `pnputil /delete-driver <oem#.inf> /uninstall` +
+  punto de restauración + re-verificación. Si no hay recibo o no se capturó el `.inf`
+  → se **rechaza y deshabilita** (honesto).
+- **2.6 - IPC + UI**: canales `drivers:download`, `drivers:install-silent`,
+  `drivers:cancel` (no serializado, para poder cancelar lo que está en curso) y
+  evento `drivers:progress`, en los 4 planos. UI en `Drivers.tsx` con progreso real
+  (paso + bytes/total), **Cancel**, aviso de **reboot requerido** y marcado del
+  **punto de restauración**.
+
+### Changed
+
+- `drivers:install` ahora recibe un `DriverInstallRequest` (orquestador real), no un
+  `(driverId, downloadUrl)`.
+- `DriverInfo`/`DriverScanResult` exponen `status`, `source`, `updateTitle`,
+  `automatic`, `unknownCount`, `wuStatus`, `wuMessage`.
+- `docs/CATALOGS.md`, `docs/USER_GUIDE.md`, `docs/TROUBLESHOOTING.md` y nuevo
+  `docs/DRIVERS_AUTO_UPDATE_DESIGN.md`.
+
+### Not automated (by design)
+
+BIOS/UEFI/firmware, DDU/limpieza agresiva, drivers sin firma WHQL/Authenticode,
+reinicio forzado, deshabilitar la exigencia de firma e instalaciones paralelas.
+
 ## [0.11.0] - 2026-10-05
 
 Fase 1 del `PLAN_MEJORAS.md`: la app deja de sentirse lenta (minor: mejoras

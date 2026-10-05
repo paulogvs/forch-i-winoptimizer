@@ -299,15 +299,35 @@ El módulo Cleaner escanea y elimina archivos basura:
 > Si la limpieza falla, los archivos **siguen visibles** en la lista con el error y
 > un botón **Retry cleaning** — nunca se ocultan como si se hubieran borrado.
 
-### Drivers (actualización honesta)
+### Drivers (actualización automática, v0.12.0)
 
-El módulo Driver Updater compara tus versiones contra su catálogo y, para NVIDIA /
-AMD / Intel, el botón **Update** abre la página oficial de descarga del fabricante.
-Eso es una **acción manual**: la app muestra `Manual action required` con la URL que
-se abrió y lo que tenés que hacer (descargar, instalar, re-escanear) — nunca un
-éxito falso. El botón **Restart device** reinicia el dispositivo (`pnputil
-/restart-device`) para que un driver recién instalado tome efecto; no restaura una
-versión anterior del driver.
+El módulo Driver Updater ya **no usa una base simulada**. Ahora consulta la **API COM
+de Windows Update** (`IsInstalled=0 AND Type='Driver'`) y compara lo que Windows
+ofrece con lo que tenés instalado. Los estados son honestos:
+
+- **up to date** — Windows Update **respondió** y no ofrece nada para ese dispositivo.
+- **update available** — Windows Update ofrece un driver; el botón **Update** hace
+  todo el pipeline automático: punto de restauración **verificado** → descarga/instalación
+  vía Windows Update → **re-lectura** de la versión y del estado del dispositivo.
+- **status unknown** — Windows Update **no respondió** (o la GPO "Do not include
+  drivers" está activa). Nunca se muestra "up to date" por un resultado vacío.
+
+**Progreso real:** durante una actualización verás el paso actual (crear punto de
+restauración, descargar, verificar, instalar, re-verificar), el **porcentaje real** y,
+cuando aplica, **bytes descargados / totales**. Podés **Cancel** en cualquier momento.
+
+**Reboot:** si Windows pide reiniciar, la app muestra un aviso **"A reboot is
+required"** — nunca reinicia sola.
+
+**Rollback:** el botón **Rollback** revierte **de verdad** (`pnputil /delete-driver
+<oem#.inf> /uninstall` + punto de restauración + re-verificación), pero **solo** para
+drivers que **esta app instaló** (guarda un recibo con el `oem#.inf` y la versión
+previa). Si no hay recibo, el rollback se **deshabilita y lo dice** — nunca simula
+haber revertido.
+
+**Qué NO se automatiza (por diseño):** BIOS/UEFI/firmware, DDU o limpieza agresiva,
+drivers sin firma WHQL/Authenticode, reinicio forzado, deshabilitar la exigencia de
+firma de drivers e instalaciones en paralelo. Ver `docs/DRIVERS_AUTO_UPDATE_DESIGN.md`.
 
 ### Boost
 

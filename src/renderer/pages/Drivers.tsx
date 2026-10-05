@@ -8,53 +8,100 @@ import { ScanProgress } from '../components/ui/ScanProgress';
 import { VirtualList } from '../components/ui/VirtualList';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { useChunkedReveal } from '../hooks/useChunkedReveal';
+import { formatBytes } from '../utils/format';
 import type { DriverScanResult, DriverInfo } from '@shared/types';
+import type { DriverInstallRequest, DriverProgressEvent } from '@shared/driver-update';
 
 /** Lists larger than this are virtualized. */
 const VIRTUALIZE_THRESHOLD = 50;
+
+const STAGE_LABEL: Record<DriverProgressEvent['stage'], string> = {
+  'restore-point': 'Creating restore point',
+  download: 'Downloading',
+  verify: 'Verifying',
+  install: 'Installing',
+  reverify: 'Verifying install',
+  done: 'Done',
+  error: 'Failed',
+};
 
 interface DriverRowProps {
   driver: DriverInfo;
   outdated: boolean;
   isInstalling: boolean;
+  progress: DriverProgressEvent | null;
   onInstall: (driver: DriverInfo) => void;
   onRollback: (driver: DriverInfo) => void;
+  onCancel: (driver: DriverInfo) => void;
 }
 
 const DriverRow = React.memo(function DriverRow({
   driver,
   outdated,
   isInstalling,
+  progress,
   onInstall,
   onRollback,
+  onCancel,
 }: DriverRowProps) {
+  const statusVariant =
+    driver.status === 'update-available'
+      ? 'warning'
+      : driver.status === 'up-to-date'
+        ? 'success'
+        : 'info';
+  const statusLabel =
+    driver.status === 'update-available'
+      ? 'update available'
+      : driver.status === 'up-to-date'
+        ? 'up to date'
+        : 'status unknown';
+
   return (
     <div className="driver-row">
       <div className="driver-row-main">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-primary">{driver.name}</span>
           <Badge variant="info">{driver.manufacturer}</Badge>
-          <Badge variant={outdated ? 'warning' : 'success'}>
-            {outdated ? 'outdated' : 'up to date'}
-          </Badge>
+          <Badge variant={statusVariant}>{statusLabel}</Badge>
         </div>
         <div className="text-xs text-tertiary mt-1">
-          {outdated
-            ? `Current: ${driver.currentVersion} → Latest: ${driver.latestVersion}`
-            : `Version: ${driver.currentVersion}`}
+          {driver.status === 'unknown'
+            ? `Version: ${driver.currentVersion} (could not check for updates)`
+            : outdated
+              ? `Current: ${driver.currentVersion} → Latest: ${driver.latestVersion}`
+              : `Version: ${driver.currentVersion}`}
         </div>
       </div>
       {outdated && (
         <div className="flex items-center gap-2">
           {isInstalling ? (
-            <Progress indeterminate label="Working..." className="w-24" />
+            <div className="flex items-center gap-2">
+              <Progress
+                value={progress?.percent ?? 0}
+                showValue
+                label={
+                  progress
+                    ? `${STAGE_LABEL[progress.stage]}${
+                        progress.bytesTotal
+                          ? ` ${formatBytes(progress.bytesReceived ?? 0)} / ${formatBytes(progress.bytesTotal)}`
+                          : ''
+                      }`
+                    : 'Working...'
+                }
+                className="w-40"
+              />
+              <Button variant="secondary" size="sm" onClick={() => onCancel(driver)}>
+                Cancel
+              </Button>
+            </div>
           ) : (
             <>
               <Button variant="primary" size="sm" onClick={() => onInstall(driver)}>
                 Update
               </Button>
               <Button variant="secondary" size="sm" onClick={() => onRollback(driver)}>
-                Restart device
+                Rollback
               </Button>
             </>
           )}
@@ -68,12 +115,22 @@ export const Drivers: React.FC = () => {
   const [scanResult, setScanResult] = useState<DriverScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const [installing, setInstalling] = useState<string | null>(null);
+  const [progress, setProgress] = useState<DriverProgressEvent | null>(null);
   const [restorePoint, setRestorePoint] = useState<string | null>(null);
+  const [rebootRequired, setRebootRequired] = useState(false);
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   const deferredQuery = useDeferredValue(query);
-  const progress = useScanProgress('drivers');
+  const scanProgress = useScanProgress('drivers');
+
+  // Real byte/step progress streamed from main (Fase 2.6).
+  useEffect(() => {
+    const unsubscribe = window.winoptimizer.drivers.onProgress((event) => {
+      setProgress(event);
+    });
+    return unsubscribe;
+  }, []);
 
   const scanDrivers = useCallback(async (force = false) => {
     setScanning(true);
@@ -95,7 +152,7 @@ export const Drivers: React.FC = () => {
     try {
       const result = await window.winoptimizer.drivers.createRestorePoint('Before driver update');
       setRestorePoint(
-        result.success ? 'Restore point created successfully' : `Failed: ${result.message}`
+        result.success ? 'Restore point created and verified' : `Failed: ${result.message}`
       );
     } catch (error) {
       console.error('Failed to create restore point:', error);
@@ -103,36 +160,59 @@ export const Drivers: React.FC = () => {
     }
   }, []);
 
+  const buildRequest = useCallback(
+    (driver: DriverInfo): DriverInstallRequest => ({
+      driverId: driver.id,
+      name: driver.name,
+      manufacturer: driver.manufacturer,
+      currentVersion: driver.currentVersion,
+      expectedVersion: driver.latestVersion,
+      source: driver.source,
+      updateTitle: driver.updateTitle,
+      downloadUrl: driver.downloadUrl || undefined,
+      size: driver.size || undefined,
+    }),
+    []
+  );
+
   const installDriver = useCallback(
     async (driver: DriverInfo) => {
       setInstalling(driver.id);
+      setProgress(null);
+      setRebootRequired(false);
       setFeedback(null);
       try {
-        const result = await window.winoptimizer.drivers.install(driver.id, driver.downloadUrl);
-        // Fase 0.2: the result is never a fake success — surface the honest
-        // state (manual-action-required / completed / failed) inline.
-        setFeedback({
-          ok: result.success,
-          message: result.message,
-        });
+        const result = await window.winoptimizer.drivers.install(buildRequest(driver));
+        setFeedback({ ok: result.success, message: result.message });
+        if (result.rebootRequired) setRebootRequired(true);
+        if (result.restorePointCreated) setRestorePoint('Restore point created and verified');
         await scanDrivers(true);
       } catch (error) {
         console.error('Failed to install driver:', error);
         setFeedback({ ok: false, message: `Driver update failed: ${String(error)}` });
       } finally {
         setInstalling(null);
+        setProgress(null);
       }
     },
-    [scanDrivers]
+    [buildRequest, scanDrivers]
   );
+
+  const cancelDriver = useCallback(async (driver: DriverInfo) => {
+    try {
+      const result = await window.winoptimizer.drivers.cancel(driver.id);
+      setFeedback({ ok: result.success, message: result.message });
+    } catch (error) {
+      console.error('Failed to cancel driver operation:', error);
+    }
+  }, []);
 
   const rollbackDriver = useCallback(
     async (driver: DriverInfo) => {
-      // Fase 0.4: honest label — this restarts the device, it does not
-      // restore a previous driver version.
       if (
         !confirm(
-          `Restart the device for ${driver.name}? This does not restore a previous driver version.`
+          `Roll back ${driver.name} to the previous driver version? ` +
+            'This only works for drivers this app installed (it needs a captured receipt).'
         )
       )
         return;
@@ -142,8 +222,8 @@ export const Drivers: React.FC = () => {
         setFeedback({ ok: result.success, message: result.message });
         await scanDrivers(true);
       } catch (error) {
-        console.error('Failed to restart device:', error);
-        setFeedback({ ok: false, message: `Device restart failed: ${String(error)}` });
+        console.error('Failed to roll back driver:', error);
+        setFeedback({ ok: false, message: `Rollback failed: ${String(error)}` });
       }
     },
     [scanDrivers]
@@ -160,11 +240,11 @@ export const Drivers: React.FC = () => {
   }, [scanResult, deferredQuery]);
 
   const outdatedDrivers = useMemo(
-    () => filteredDrivers.filter((driver) => !driver.isUpToDate),
+    () => filteredDrivers.filter((driver) => driver.status === 'update-available'),
     [filteredDrivers]
   );
   const upToDateDrivers = useMemo(
-    () => filteredDrivers.filter((driver) => driver.isUpToDate),
+    () => filteredDrivers.filter((driver) => driver.status !== 'update-available'),
     [filteredDrivers]
   );
 
@@ -186,8 +266,10 @@ export const Drivers: React.FC = () => {
         driver={driver}
         outdated={outdated}
         isInstalling={installing === driver.id}
+        progress={progress?.driverId === driver.id ? progress : null}
         onInstall={installDriver}
         onRollback={rollbackDriver}
+        onCancel={cancelDriver}
       />
     );
 
@@ -226,8 +308,22 @@ export const Drivers: React.FC = () => {
         </div>
       </div>
 
+      {scanResult && scanResult.wuStatus !== 'ok' && (
+        <div className="mb-4 p-3 rounded-lg bg-secondary text-sm text-warning" role="status">
+          {scanResult.wuMessage}
+        </div>
+      )}
+
       {restorePoint && (
-        <div className="mb-4 p-3 rounded-lg bg-secondary text-sm">{restorePoint}</div>
+        <div className="mb-4 p-3 rounded-lg bg-secondary text-sm text-success" role="status">
+          {restorePoint}
+        </div>
+      )}
+
+      {rebootRequired && (
+        <div className="mb-4 p-3 rounded-lg bg-secondary text-sm text-warning" role="alert">
+          A reboot is required to finish the driver update. Restart when convenient.
+        </div>
       )}
 
       {feedback && (
@@ -240,7 +336,7 @@ export const Drivers: React.FC = () => {
         </div>
       )}
 
-      {scanning && <ScanProgress event={progress} className="mb-4" />}
+      {scanning && <ScanProgress event={scanProgress} className="mb-4" />}
 
       {scanning && !scanResult && <SkeletonList rows={8} />}
 
@@ -250,6 +346,9 @@ export const Drivers: React.FC = () => {
             <Badge variant="info">{scanResult.totalDevices} devices</Badge>
             <Badge variant="warning">{scanResult.outdatedCount} outdated</Badge>
             <Badge variant="success">{scanResult.upToDateCount} up to date</Badge>
+            {scanResult.unknownCount > 0 && (
+              <Badge variant="info">{scanResult.unknownCount} unknown</Badge>
+            )}
             <div className="ml-auto" style={{ maxWidth: 260, width: '100%' }}>
               <input
                 type="search"
@@ -269,7 +368,7 @@ export const Drivers: React.FC = () => {
           )}
 
           {upToDateDrivers.length > 0 && (
-            <Card title={`Up to Date Drivers (${upToDateDrivers.length})`}>
+            <Card title={`Drivers (${upToDateDrivers.length})`}>
               {renderList(visibleUpToDate, false, 'uptodate-drivers')}
             </Card>
           )}
