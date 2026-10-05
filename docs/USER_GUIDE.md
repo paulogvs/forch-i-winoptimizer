@@ -332,6 +332,11 @@ El módulo Cleaner escanea y elimina archivos basura:
 > **Nota:** Los archivos marcados como "caution" requieren confirmación adicional.
 > Si la limpieza falla, los archivos **siguen visibles** en la lista con el error y
 > un botón **Retry cleaning** — nunca se ocultan como si se hubieran borrado.
+>
+> **Por qué falló (v0.14.0):** cada archivo recibe un **recibo** con el motivo real
+> (`in-use`, `permissions`, `not-found`, `not-empty`, `still-present`, `unknown`). La lista
+> de fallos muestra ruta + motivo y el botón **Retry failed files** reintenta **solo** esos
+> archivos (los que ya se borraron no se re-escanean ni se re-intentan).
 
 ### Drivers (actualización automática, v0.12.0)
 
@@ -438,8 +443,35 @@ Las apps **no instaladas** también quedan deshabilitadas ("not installed"). Flu
 > _protected_ se rechazan en Main y los ids desconocidos/duplicados se descartan **sin
 > llegar a PowerShell**.
 
-**Utilities** — accesos a Registry Cleaner, Disk Defragmenter, Privacy Eraser, File
-Shredder, Network Optimizer y System Info.
+**Utilities** — la barra de **Quick fixes** (Free RAM, Clean Temp, Flush DNS, Create
+Restore Point, Scan Drivers), la sección **Disk repair** (reparación real de disco, v0.14.0),
+accesos in-app (Network Optimizer, System Info) y las **Windows utilities** clásicas
+(Task Manager, Disk Cleanup, Device Manager, Services, etc.), cuyo binario se valida antes
+de abrirse.
+
+#### Disk repair (reparación de disco 1-clic, v0.14.0)
+
+Cuatro herramientas reales de Windows, cada una con **salida en vivo**, **resultado real**
+(código de salida + resumen parseado) y **confirmación previa**:
+
+| Herramienta             | Comando                                           | Tiempo estimado | Modifica el sistema | Cancelable |
+| ----------------------- | ------------------------------------------------- | --------------- | ------------------- | :--------: |
+| **DISM RestoreHealth**  | `DISM /Online /Cleanup-Image /RestoreHealth`      | 10–30 min       | Sí                  |     No     |
+| **System File Checker** | `sfc /scannow`                                    | 5–15 min        | Sí                  |     No     |
+| **Check Disk**          | `chkdsk C: /scan` (solo lectura NTFS)             | 1–5 min         | No                  |     Sí     |
+| **Optimize (TRIM)**     | `Optimize-Volume -DriveLetter C -ReTrim -Verbose` | segundos–1 min  | No                  |     Sí     |
+
+- **Requiere administrador** en todas. Si la app no está elevada, la herramienta **no se
+  ejecuta**: verás el aviso y un botón **“Restart as administrator”** (nunca falla en
+  silencio).
+- **Confirmación:** antes de correr, un diálogo explica **qué hace**, cuánto puede tardar y
+  si modifica el sistema.
+- **Progreso honesto:** `sfc` y `DISM` **no** emiten porcentaje; mientras corren se muestra
+  un **indeterminado honesto** (nunca una barra falsa) y el **log en vivo**. Cuando la
+  herramienta sí imprime un `%`, se muestra el número real.
+- **Cancelable** sólo donde es seguro (chkdsk `/scan` y TRIM). SFC y DISM **no** se pueden
+  interrumpir sin riesgo: el diálogo lo avisa.
+- El resultado queda registrado en **Statistics** (tipo `maintenance`).
 
 ### Tweaks
 

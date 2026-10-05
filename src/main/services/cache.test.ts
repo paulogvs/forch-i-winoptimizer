@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TtlCache, withCache, stableKey, cache } from './cache';
+import { TtlCache, withCache, stableKey, cache, CategoryScanCache } from './cache';
 
 describe('stableKey', () => {
   it('is order-independent for object params', () => {
@@ -69,6 +69,81 @@ describe('CACHE_TTL (Fase 1)', () => {
   it('defines a 60s TTL for benchmark:run', async () => {
     const { CACHE_TTL } = await import('./cache');
     expect(CACHE_TTL.benchmark).toBe(60_000);
+  });
+});
+
+describe('CategoryScanCache (Fase 4.3)', () => {
+  interface Item {
+    id: string;
+    category: string;
+    size: number;
+  }
+
+  const item = (id: string, category: string, size = 1): Item => ({ id, category, size });
+
+  let now = 1_000;
+  let scan: CategoryScanCache<Item>;
+
+  beforeEach(() => {
+    now = 1_000;
+    scan = new CategoryScanCache<Item>(() => now, 30_000);
+  });
+
+  it('stores items per category and reads them back', () => {
+    scan.setCategory('temp', [item('a', 'temp'), item('b', 'temp')]);
+    scan.setCategory('logs', [item('c', 'logs')]);
+
+    expect(
+      scan
+        .getCategory('temp')
+        ?.map((i) => i.id)
+        .sort()
+    ).toEqual(['a', 'b']);
+    expect(scan.getCategory('logs')?.map((i) => i.id)).toEqual(['c']);
+    expect(scan.size()).toBe(3);
+    expect(scan.categories().sort()).toEqual(['logs', 'temp']);
+  });
+
+  it('expires after the ttl', () => {
+    scan.setCategory('temp', [item('a', 'temp')]);
+    now += 30_001;
+    expect(scan.isFresh()).toBe(false);
+    expect(scan.getCategory('temp')).toBeNull();
+  });
+
+  it('clearCachedCategory drops only that category', () => {
+    scan.setCategory('temp', [item('a', 'temp'), item('b', 'temp')]);
+    scan.setCategory('logs', [item('c', 'logs')]);
+
+    expect(scan.clearCachedCategory('temp')).toBe(2);
+    expect(scan.getCategory('temp')).toBeNull();
+    expect(scan.getCategory('logs')?.map((i) => i.id)).toEqual(['c']);
+    expect(scan.size()).toBe(1);
+  });
+
+  it('removeCachedItems drops specific ids and updates the category index', () => {
+    scan.setCategory('temp', [item('a', 'temp'), item('b', 'temp'), item('c', 'temp')]);
+
+    expect(scan.removeCachedItems(['a', 'c', 'missing'])).toBe(2);
+    expect(scan.getCategory('temp')?.map((i) => i.id)).toEqual(['b']);
+    expect(scan.has('a')).toBe(false);
+    expect(scan.has('b')).toBe(true);
+  });
+
+  it('a full removal resets freshness so the next read re-scans', () => {
+    scan.setCategory('temp', [item('a', 'temp')]);
+    expect(scan.isFresh()).toBe(true);
+    scan.removeCachedItems(['a']);
+    expect(scan.size()).toBe(0);
+    expect(scan.isFresh()).toBe(false);
+  });
+
+  it('clear() empties everything', () => {
+    scan.setCategory('temp', [item('a', 'temp')]);
+    scan.setCategory('logs', [item('b', 'logs')]);
+    scan.clear();
+    expect(scan.size()).toBe(0);
+    expect(scan.getCategory('temp')).toBeNull();
   });
 });
 

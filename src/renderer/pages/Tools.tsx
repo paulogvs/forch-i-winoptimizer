@@ -7,6 +7,8 @@ import { VirtualList } from '../components/ui/VirtualList';
 import { QuickFixBar } from '../components/QuickFixBar';
 import { formatBytes } from '../utils/format';
 import { WINDOWS_TOOLS } from '@shared/windows-tools';
+import { DISK_REPAIR_TOOLS } from '@shared/disk-repair';
+import type { DiskRepairProgressEvent, DiskRepairResult } from '@shared/disk-repair';
 import type {
   DebloatCandidate,
   DebloatResult,
@@ -181,6 +183,21 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [debloatResult, setDebloatResult] = useState<DebloatResult | null>(null);
   const [launchingTool, setLaunchingTool] = useState<string | null>(null);
   const [toolFeedback, setToolFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  // Disk repair (Fase 4.9): live output + real result.
+  const [repairToolId, setRepairToolId] = useState<string | null>(null);
+  const [repairLines, setRepairLines] = useState<string[]>([]);
+  const [repairPercent, setRepairPercent] = useState<number | null>(null);
+  const [repairResult, setRepairResult] = useState<DiskRepairResult | null>(null);
+  const [repairError, setRepairError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const repairApi = window.electronAPI?.diskRepair;
+    if (!repairApi) return undefined;
+    return repairApi.onProgress((event: DiskRepairProgressEvent) => {
+      setRepairLines((prev) => [...prev.slice(-199), event.line]);
+      if (event.percent !== null) setRepairPercent(event.percent);
+    });
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'apps') {
@@ -327,6 +344,52 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
       setToolFeedback({ ok: false, message: `Failed to open utility: ${String(error)}` });
     } finally {
       setLaunchingTool(null);
+    }
+  };
+
+  const handleDiskRepair = async (id: string) => {
+    const tool = DISK_REPAIR_TOOLS.find((t) => t.id === id);
+    if (!tool) return;
+    const scope = tool.modifiesSystem
+      ? 'This MODIFIES system state.'
+      : 'This is read-only and does not change your files.';
+    const interrupt = tool.cancellable
+      ? 'You can cancel it safely.'
+      : 'It cannot be interrupted safely — do not close the app while it runs.';
+    const confirmed = window.confirm(
+      `Run ${tool.name}?\n\n${tool.whatItDoes}\n\nRequires administrator rights. Estimated time: ${tool.estimatedDuration}. ${scope} ${interrupt}`
+    );
+    if (!confirmed) return;
+
+    setRepairToolId(id);
+    setRepairLines([]);
+    setRepairPercent(null);
+    setRepairResult(null);
+    setRepairError(null);
+    try {
+      const result = await window.electronAPI.diskRepair.run(id);
+      setRepairResult(result);
+    } catch (error) {
+      setRepairError(`Disk repair failed to start: ${String(error)}`);
+    } finally {
+      setRepairToolId(null);
+    }
+  };
+
+  const handleCancelRepair = async () => {
+    try {
+      await window.electronAPI.diskRepair.cancel();
+    } catch (error) {
+      setRepairError(`Could not cancel: ${String(error)}`);
+    }
+  };
+
+  const handleRelaunchElevated = async () => {
+    try {
+      const result = await window.electronAPI.diskRepair.relaunchElevated();
+      setToolFeedback({ ok: result.success, message: result.message });
+    } catch (error) {
+      setToolFeedback({ ok: false, message: `Could not relaunch elevated: ${String(error)}` });
     }
   };
 
@@ -535,6 +598,109 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
               queued through the global operation lock, so they never run two at a time.
             </p>
             <QuickFixBar onNavigate={onNavigate} />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-fg-secondary mb-3">Disk repair</h3>
+            <p className="text-xs text-fg-tertiary mb-3">
+              Real Windows repair tools with live output and real results. Every one requires
+              administrator rights and asks for confirmation first. If the app is not elevated, use
+              “Restart as administrator”.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {DISK_REPAIR_TOOLS.map((tool) => {
+                const running = repairToolId === tool.id;
+                return (
+                  <Card key={tool.id}>
+                    <div className="flex flex-col gap-3 p-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl" aria-hidden="true">
+                          {tool.icon}
+                        </span>
+                        <h4 className="text-md font-semibold text-fg-primary">{tool.name}</h4>
+                      </div>
+                      <p className="text-sm text-fg-secondary">{tool.description}</p>
+                      <p className="text-xs text-fg-tertiary font-mono break-all">{tool.command}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={tool.modifiesSystem ? 'warning' : 'success'}>
+                          {tool.modifiesSystem ? 'modifies system' : 'read-only'}
+                        </Badge>
+                        <Badge variant="neutral">{tool.estimatedDuration}</Badge>
+                        <Badge variant="info">admin</Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleDiskRepair(tool.id)}
+                          loading={running}
+                          disabled={repairToolId !== null}
+                          data-testid={`disk-repair-${tool.id}`}
+                        >
+                          Run
+                        </Button>
+                        {running && tool.cancellable && (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={handleCancelRepair}
+                            data-testid={`disk-repair-cancel-${tool.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {repairError && (
+              <div role="alert" className="mt-4 p-3 rounded-lg text-sm text-error">
+                {repairError}
+              </div>
+            )}
+
+            {(repairToolId !== null || repairResult !== null || repairLines.length > 0) && (
+              <div
+                className="mt-4"
+                role="status"
+                aria-live="polite"
+                data-testid="disk-repair-output"
+              >
+                {repairToolId !== null && (
+                  <Progress
+                    indeterminate={repairPercent === null}
+                    value={repairPercent ?? 0}
+                    label={repairPercent === null ? 'Running...' : `${repairPercent}%`}
+                  />
+                )}
+                {repairResult && (
+                  <div
+                    className={`mt-3 p-3 rounded-lg text-sm ${
+                      repairResult.success ? 'text-success' : 'text-error'
+                    }`}
+                  >
+                    <div data-testid="disk-repair-summary">{repairResult.summary}</div>
+                    {repairResult.status === 'requires-admin' && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="mt-2"
+                        onClick={handleRelaunchElevated}
+                        data-testid="disk-repair-relaunch"
+                      >
+                        Restart as administrator
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <pre className="mt-3 max-h-48 overflow-auto text-xs font-mono text-fg-tertiary whitespace-pre-wrap">
+                  {repairLines.join('\n')}
+                </pre>
+              </div>
+            )}
           </div>
 
           <div>

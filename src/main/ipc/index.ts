@@ -1,7 +1,7 @@
 import type { IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import { ipcMain, dialog } from 'electron';
 import type { BenchmarkReport, CleaningSchedule } from '@shared/types';
-import { getSystemInfo } from '../services/system-info';
+import { getSystemInfoThrottled } from '../services/system-info';
 import { cache, withCache, type CacheOptions } from '../services/cache';
 import { createProgressReporter } from '../services/scan-progress';
 import {
@@ -14,6 +14,7 @@ import {
 } from '../services/tweaks';
 import type { JunkScanResult } from '../services/junk-scanner';
 import { scanForJunkFiles, deleteJunkFiles } from '../services/junk-scanner';
+import { junkSession } from '../services/junk-cache';
 import type { StartupApp } from '../services/startup-apps';
 import { getStartupApps, toggleStartupApp } from '../services/startup-apps';
 import type { InstalledApp } from '../services/installed-apps';
@@ -100,6 +101,9 @@ import {
 } from '../services/stats';
 import { launchWindowsTool } from '../services/tool-launcher';
 import { cleanTempQuick, flushDns } from '../services/quick-fixes';
+import { recordCleanupReceipt, retryLatestFailedDeletions } from '../services/cleanup-receipts';
+import { runDiskRepair, cancelDiskRepair, isDiskRepairAdmin } from '../services/disk-repair';
+import type { DiskRepairProgressEvent } from '@shared/disk-repair';
 import type { AppSettings } from '@shared/settings';
 import type { JunkCategory } from '../services/junk-scanner';
 
@@ -112,6 +116,7 @@ import type { JunkCategory } from '../services/junk-scanner';
  */
 export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'cleaner:delete',
+  'cleaner:retry-failed',
   'startup:toggle',
   'apps:uninstall',
   'services:toggle',
@@ -148,6 +153,8 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'tweaks:restore-many',
   'settings:update',
   'tools:launch',
+  'tools:disk-repair',
+  'tools:relaunch-elevated',
 ]);
 
 export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
@@ -215,51 +222,81 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     return result;
   });
 
-  // System info (TTL 60s; `force` bypasses after an explicit Refresh)
+  // System info (Fase 4.5: TTL 60s + a ~5 s single-flight throttle so the SWR
+  // `force` revalidation never spams a second PowerShell process).
   handle('system:get-info', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
-    withCache('systemInfo', () => getSystemInfo(createProgressReporter('system')), options ?? {})
-  );
-
-  // Junk file scanner (TTL 30s). The scan scope comes from the persisted
-  // settings (Cleaner toggles + exclude paths) so there is a single source of
-  // truth and no duplicated scan logic in the renderer.
-  handle('cleaner:scan', (_event: IpcMainInvokeEvent, options?: CacheOptions) =>
     withCache(
-      'junk',
-      async () => {
-        const prefs = getScanPreferences();
-        const categories: JunkCategory[] = ['cache', 'logs', 'thumbnails', 'windows-update'];
-        if (prefs.scanWindowsTempFiles) categories.push('temp');
-        if (prefs.scanBrowserCache) categories.push('browser-cache');
-        if (prefs.scanRecycleBin) categories.push('recycle-bin');
-
-        const result = await scanForJunkFiles(createProgressReporter('junk'), {
-          categories,
-          excludePaths: prefs.excludePaths,
-        });
-        recordStatsEvent({ type: 'scan', bytes: result.totalSize, files: result.totalCount });
-        return result;
-      },
+      'systemInfo',
+      () =>
+        getSystemInfoThrottled(createProgressReporter('system'), {
+          force: options?.force === true,
+        }),
       options ?? {}
     )
   );
 
+  // Junk file scanner (Fase 4.3: per-category scan cache — a re-clean never
+  // re-scans). The scan scope comes from the persisted settings (Cleaner
+  // toggles + exclude paths) so there is a single source of truth.
+  handle('cleaner:scan', async (_event: IpcMainInvokeEvent, options?: CacheOptions) => {
+    const prefs = getScanPreferences();
+    const categories: JunkCategory[] = ['cache', 'logs', 'thumbnails', 'windows-update'];
+    if (prefs.scanWindowsTempFiles) categories.push('temp');
+    if (prefs.scanBrowserCache) categories.push('browser-cache');
+    if (prefs.scanRecycleBin) categories.push('recycle-bin');
+
+    const scanOptions = { categories, excludePaths: prefs.excludePaths };
+    const wasCached = junkSession.isCached(scanOptions);
+    const result = await junkSession.scan(
+      (reporter, opts) => scanForJunkFiles(reporter, opts),
+      createProgressReporter('junk'),
+      scanOptions,
+      options?.force === true
+    );
+    // Only a real scan is recorded; a cache hit is not a new observation.
+    if (!wasCached) {
+      recordStatsEvent({ type: 'scan', bytes: result.totalSize, files: result.totalCount });
+    }
+    return result;
+  });
+
   handle('cleaner:delete', async (_event: IpcMainInvokeEvent, files: string[]) => {
     const targets = Array.isArray(files) ? files : [];
-    const result = await deleteJunkFiles(targets);
 
-    // Attribute freed bytes using the last scan result (if it is still warm).
-    const lastScan = cache.get<JunkScanResult>('junk');
-    let bytes = 0;
-    if (lastScan) {
-      const wanted = new Set(targets);
-      bytes = lastScan.files.filter((f) => wanted.has(f.path)).reduce((sum, f) => sum + f.size, 0);
-    }
+    // Attribute freed bytes using the session's last scan (if still warm),
+    // captured BEFORE the clean mutates the cached result.
+    const lastScan = junkSession.lastResult;
+    const sizeByPath = new Map<string, number>(
+      (lastScan?.files ?? []).map((f) => [f.path, f.size] as const)
+    );
+
+    // `clean` removes the confirmed paths from the scan cache, so a subsequent
+    // clean of the remaining files is served without re-scanning.
+    const result = await junkSession.clean((paths) => deleteJunkFiles(paths), targets);
+
+    const bytes = (result.removed ?? []).reduce((sum, p) => sum + (sizeByPath.get(p) ?? 0), 0);
     if (result.deleted > 0) {
       recordStatsEvent({ type: 'clean', files: result.deleted, bytes });
     }
+    // Fase 4.6: persist a per-file cleanup receipt so the failure reasons
+    // survive and a retry can target exactly the failed paths.
+    if (result.receipts.length > 0) {
+      await recordCleanupReceipt({
+        deleted: result.deleted,
+        failed: result.failed,
+        receipts: result.receipts,
+      });
+    }
+    return result;
+  });
 
-    cache.invalidateModule('junk');
+  // Fase 4.6: retry only the files that failed in the last cleanup.
+  handle('cleaner:retry-failed', async () => {
+    const result = await retryLatestFailedDeletions();
+    // Drop the now-deleted paths from the scan cache too (a successful retry
+    // must not leave stale entries behind).
+    const removedPaths = result.receipts.filter((r) => r.deleted).map((r) => r.path);
+    if (removedPaths.length > 0) junkSession.removePaths(removedPaths);
     return result;
   });
 
@@ -607,6 +644,32 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
 
   // ===== Windows utilities =====
   handle('tools:launch', (_event: IpcMainInvokeEvent, id: string) => launchWindowsTool(String(id)));
+
+  // ===== Disk repair (Fase 4.9) =====
+  const sendDiskRepairProgress = (event: DiskRepairProgressEvent): void => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tools:disk-repair-progress', event);
+    }
+  };
+  handle('tools:disk-repair-status', () => isDiskRepairAdmin());
+  handle('tools:disk-repair', async (_event: IpcMainInvokeEvent, toolId: string) => {
+    const result = await runDiskRepair(String(toolId), { onProgress: sendDiskRepairProgress });
+    // Record the attempt when the tool actually ran to completion.
+    if (result.status === 'completed') {
+      recordStatsEvent({ type: 'maintenance', files: 1 });
+    }
+    return result;
+  });
+  // Cancel is intentionally NOT in MUTATING_CHANNELS: it must run while the
+  // repair it targets holds the global lock.
+  handle('tools:disk-repair-cancel', () => {
+    const cancelled = cancelDiskRepair();
+    return {
+      success: cancelled,
+      message: cancelled ? 'Cancellation requested.' : 'No repair is running.',
+    };
+  });
+  handle('tools:relaunch-elevated', () => relaunchElevated());
 
   // ===== Safe Tweaks (P2) =====
   handle('tweaks:get', () => getTweaks());

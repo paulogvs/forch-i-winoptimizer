@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-05
+
+Fase 4A del `PLAN_MEJORAS.md`: **adopciones de Kudu (rendimiento) + Disk repair**
+(minor: nueva capacidad visible). Trae un scheduler cooperativo que evita que la
+UI se congele en scans grandes, caché de scan por categoría para **re-limpiar sin
+re-escanear**, un monitor de rendimiento con doble timer y throttle, borrado
+granular con **recibos** y una utilidad de **reparación de disco 1-clic**.
+
+### Added
+
+- **4.2 — `CooperativeScheduler`.** Helper que cede el event loop (`setImmediate`)
+  cada ~12 ms dentro de loops largos; aplicado al loop de normalización del
+  `junk-scanner`. Evita que la UI de Electron se congele al procesar miles de
+  archivos.
+- **4.3 — Caché de scan por categoría (`CategoryScanCache`).** Caché de los ítems
+  escaneados por `id`/categoría con `Map`, `clearCachedCategory()` y
+  `removeCachedItems(ids)`. `JunkScanSession` la integra: tras limpiar por IDs,
+  **re-limpiar no vuelve a escanear** (0 escaneos) e invalida correctamente.
+- **4.5 — Monitor de rendimiento (`perf-monitor.ts`).** Muestreo rápido vs lento
+  separados (`PerfMonitor` con dos timers), `ThrottledSampler` con ventana de ~5 s
+  y guarda de solapamiento (`isRunning`), y `cachedSystemInfo` vía
+  `getSystemInfoThrottled`. Dos llamadas dentro del throttle producen **una sola**
+  consulta a PowerShell.
+- **4.6 — Borrado granular + recibos.** `classifyDeleteFailure()` mapea el fallo
+  real (`EBUSY`/`EPERM` → `in-use`, `EACCES` → `permissions`, etc.) y
+  `deleteJunkFiles()` devuelve un **recibo por archivo** (ruta + motivo). Los
+  recibos se persisten en `junk-receipts.json` (patrón de `driver-receipts.json`)
+  y la UI del Cleaner muestra el motivo y ofrece **Retry failed files**.
+- **4.9 — Disk repair 1-clic.** Nueva sección en **Tools → Utilities** con cuatro
+  herramientas reales: `DISM /Online /Cleanup-Image /RestoreHealth`, `sfc /scannow`,
+  `chkdsk C: /scan` (solo lectura) y `Optimize-Volume -ReTrim`. Requiere
+  administrador (con **“Restart as administrator”**), pide **confirmación**,
+  muestra **salida en vivo** con **progreso indeterminado honesto** (nunca una
+  barra falsa), es **cancelable** donde es seguro y devuelve **resultado real**
+  (código de salida + resumen parseado), registrado en **Statistics**.
+
+### Changed
+
+- `cleaner:delete` persiste un recibo de limpieza por operación; nuevo canal
+  `cleaner:retry-failed` para reintentar solo los archivos fallidos.
+- `system:get-info` pasa por el throttle single-flight (~5 s) además del TTL de 60 s.
+
+### Notes
+
+- Validado con TDD y mocks: **nunca** se ejecutan reparaciones de disco reales en
+  los tests (se inyecta el spawner de procesos).
+
 ## [0.13.0] - 2026-10-05
 
 Fase 3 del `PLAN_MEJORAS.md`: **botones rápidos de RAM y utilidades 1-clic**

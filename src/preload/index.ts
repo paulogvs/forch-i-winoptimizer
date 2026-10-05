@@ -11,6 +11,7 @@ import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 import type { AppSettings } from '../shared/settings';
 import type { UpdateStatus } from '../shared/updater-status';
+import type { DiskRepairProgressEvent } from '../shared/disk-repair';
 
 const api: ElectronAPI = {
   // System
@@ -19,6 +20,7 @@ const api: ElectronAPI = {
   // Cleaner
   scanForJunkFiles: (options) => ipcRenderer.invoke('cleaner:scan', options),
   deleteFiles: (files: string[]) => ipcRenderer.invoke('cleaner:delete', files),
+  retryFailedFiles: () => ipcRenderer.invoke('cleaner:retry-failed'),
 
   // Startup apps
   getStartupApps: (options) => ipcRenderer.invoke('startup:get-apps', options),
@@ -61,6 +63,20 @@ const api: ElectronAPI = {
 
   // Windows utilities
   launchTool: (id: string) => ipcRenderer.invoke('tools:launch', id),
+
+  // Disk repair (Fase 4.9)
+  diskRepair: {
+    isAdmin: () => ipcRenderer.invoke('tools:disk-repair-status'),
+    run: (toolId: string) => ipcRenderer.invoke('tools:disk-repair', toolId),
+    cancel: () => ipcRenderer.invoke('tools:disk-repair-cancel'),
+    relaunchElevated: () => ipcRenderer.invoke('tools:relaunch-elevated'),
+    onProgress: (callback: (event: DiskRepairProgressEvent) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: DiskRepairProgressEvent) =>
+        callback(payload);
+      ipcRenderer.on('tools:disk-repair-progress', handler);
+      return () => ipcRenderer.removeListener('tools:disk-repair-progress', handler);
+    },
+  },
 
   // Window controls (P0.1)
   window: {

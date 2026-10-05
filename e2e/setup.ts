@@ -172,7 +172,16 @@ export async function setupElectronMock(page: Page): Promise<void> {
             deleted: files.length,
             failed: 0,
             errors: [],
+            receipts: files.map((path) => ({
+              path,
+              deleted: true,
+              reason: null,
+              message: 'Deleted.',
+              at: new Date().toISOString(),
+            })),
           }),
+        retryFailedFiles: () =>
+          Promise.resolve({ attempted: 0, deleted: 0, failed: 0, receipts: [] }),
         getStartupApps: () => Promise.resolve(startupApps),
         toggleStartupApp: (appId: string, enabled: boolean) =>
           Promise.resolve({ success: true, message: `App ${enabled ? 'enabled' : 'disabled'}` }),
@@ -382,6 +391,43 @@ export async function setupElectronMock(page: Page): Promise<void> {
           return Promise.resolve(
             w.__toolLaunchResult ?? { success: true, message: `Opened ${id}.` }
           );
+        },
+        // Disk repair (Fase 4.9): success fixture by default; tests can seed
+        // `window.__diskRepairResult` to assert the requires-admin path.
+        diskRepair: {
+          isAdmin: () => Promise.resolve(true),
+          run: (toolId: string) => {
+            const w = window as unknown as { __diskRepairResult?: unknown };
+            return Promise.resolve(
+              w.__diskRepairResult ?? {
+                toolId,
+                toolName: toolId,
+                success: true,
+                status: 'completed',
+                exitCode: 0,
+                summary: 'No integrity violations found.',
+                lines: ['Windows Resource Protection did not find any integrity violations.'],
+                durationMs: 12,
+                requiresAdmin: true,
+                repairNeeded: false,
+              }
+            );
+          },
+          cancel: () => Promise.resolve({ success: true, message: 'Cancellation requested.' }),
+          relaunchElevated: () =>
+            Promise.resolve({ success: true, message: 'A new elevated instance was requested.' }),
+          onProgress: (callback: (event: unknown) => void) => {
+            const w = window as unknown as {
+              __diskRepairListeners?: Array<(event: unknown) => void>;
+            };
+            w.__diskRepairListeners = w.__diskRepairListeners ?? [];
+            w.__diskRepairListeners.push(callback);
+            return () => {
+              w.__diskRepairListeners = (w.__diskRepairListeners ?? []).filter(
+                (l) => l !== callback
+              );
+            };
+          },
         },
         // Quick "Free RAM" (P1.1): success by default; E2E can override through
         // `window.__freeMemoryResult` to assert the failure path.

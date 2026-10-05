@@ -10,6 +10,8 @@ import type {
   DriverInstallRequest,
   DriverProgressEvent,
 } from './driver-update';
+import type { DeleteReceipt, RetryFailedResult } from './cleanup';
+import type { DiskRepairProgressEvent, DiskRepairResult } from './disk-repair';
 
 export interface SystemInfo {
   platform: string;
@@ -439,7 +441,11 @@ export interface ElectronAPI {
     failed: number;
     errors: string[];
     removed?: string[];
+    /** Fase 4.6: per-file outcome (why a delete failed) for the UI. */
+    receipts?: DeleteReceipt[];
   }>;
+  /** Fase 4.6: retry only the files that failed in the last cleanup. */
+  retryFailedFiles: () => Promise<RetryFailedResult>;
   getStartupApps: (options?: CacheOptions) => Promise<StartupApp[]>;
   toggleStartupApp: (
     appId: string,
@@ -480,6 +486,14 @@ export interface ElectronAPI {
   installUpdateNow: () => Promise<OperationResult>;
   // Windows utilities (validated before launch)
   launchTool: (id: string) => Promise<OperationResult>;
+  // Disk repair (Fase 4.9): real Windows repair tools, admin-gated + streamed.
+  diskRepair: {
+    isAdmin: () => Promise<boolean>;
+    run: (toolId: string) => Promise<DiskRepairResult>;
+    cancel: () => Promise<OperationResult>;
+    relaunchElevated: () => Promise<OperationResult>;
+    onProgress: (callback: (event: DiskRepairProgressEvent) => void) => () => void;
+  };
   // Window controls
   window: WindowControlsAPI;
   // Scan progress (P0.3)

@@ -1,6 +1,10 @@
 import * as path from 'path';
 import { runPowerShell, parsePowerShellJson } from './powershell';
 import { createNoopReporter, type ScanProgressReporter } from './scan-progress';
+import { CooperativeScheduler } from './cooperative-scheduler';
+import type { DeleteFailureReason, DeleteReceipt } from '@shared/cleanup';
+
+export type { DeleteFailureReason, DeleteReceipt } from '@shared/cleanup';
 
 export interface JunkFile {
   id: string;
@@ -241,7 +245,12 @@ export async function scanForJunkFiles(
 
     progress.report('normalize', 90, 'Aggregating sizes...');
 
+    // Fase 4.2: normalize can iterate tens of thousands of entries. Yield to
+    // the event loop every ~12 ms so the Electron main process (and the UI it
+    // serves) never freezes during a large scan.
+    const scheduler = new CooperativeScheduler();
     for (const file of list) {
+      await scheduler.yieldIfNeeded();
       if (!file || !file.FullName) continue;
       if (isExcludedPath(file.FullName, excludePaths)) continue;
 
@@ -282,27 +291,67 @@ export async function scanForJunkFiles(
 interface DeleteRow {
   Path: string;
   Status: string;
+  /** Structured exception message emitted by the PowerShell script (new). */
+  Error?: string;
 }
 
-export async function deleteJunkFiles(files: string[]): Promise<{
+const FAILURE_PATTERNS: ReadonlyArray<readonly [DeleteFailureReason, RegExp]> = [
+  // EBUSY/EPERM + the Windows sharing-violation wording + HRESULTs 0x20/0x21.
+  [
+    'in-use',
+    /being used by another process|used by another process|sharing violation|EBUSY|EPERM|is in use|locked|0x80070020|0x80070021/i,
+  ],
+  // EACCES + Windows "Access to the path ... is denied" + HRESULT 0x05.
+  ['permissions', /access .*denied|EACCES|permission|unauthorized|0x80070005/i],
+  ['not-empty', /directory is not empty|ENOTEMPTY|not empty/i],
+  ['still-present', /still present after removal/i],
+  ['not-found', /could not find|cannot find|does not exist|ENOENT|not found/i],
+];
+
+/** Map a raw delete error/status string to a stable reason code. */
+export function classifyDeleteFailure(raw: string | null | undefined): DeleteFailureReason {
+  const text = (raw ?? '').toString();
+  for (const [reason, pattern] of FAILURE_PATTERNS) {
+    if (pattern.test(text)) return reason;
+  }
+  return 'unknown';
+}
+
+export interface JunkDeleteResult {
   success: boolean;
   deleted: number;
   failed: number;
   errors: string[];
   /** Paths the OS confirmed gone (Test-Path false after removal). */
   removed: string[];
-}> {
+  /** Per-file receipt: what happened and, on failure, why. */
+  receipts: DeleteReceipt[];
+}
+
+function makeReceipt(
+  filePath: string,
+  deleted: boolean,
+  reason: DeleteFailureReason | null,
+  message: string
+): DeleteReceipt {
+  return { path: filePath, deleted, reason, message, at: new Date().toISOString() };
+}
+
+export async function deleteJunkFiles(files: string[]): Promise<JunkDeleteResult> {
   let deleted = 0;
   let failed = 0;
   const errors: string[] = [];
   const removed: string[] = [];
+  const receipts: DeleteReceipt[] = [];
 
-  if (files.length === 0) return { success: true, deleted, failed, errors, removed };
+  if (files.length === 0) return { success: true, deleted, failed, errors, removed, receipts };
 
   // Fase 1.6: ONE spawn for the whole list (was 1 spawn per file). Every path
   // is still verified individually — `DELETED` is only emitted after
   // Remove-Item re-verifies the path is gone, exactly like the per-file loop
   // did. A path that never existed ("NOT_FOUND") stays an honest no-op.
+  // Fase 4.6: the script also emits the raw exception message so the caller
+  // can classify the real reason (in-use, permissions, ...).
   // Long lists ride the `-File` fallback in `powershell.ts`, so there is no
   // command-line length cliff.
   const pathLiterals = files.map((f) => psQuote(f)).join(', ');
@@ -311,14 +360,14 @@ export async function deleteJunkFiles(files: string[]): Promise<{
     $out = @();
     foreach ($path in $targets) {
       if (-not (Test-Path -LiteralPath $path)) {
-        $out += @{ Path = $path; Status = 'NOT_FOUND' };
+        $out += @{ Path = $path; Status = 'NOT_FOUND'; Error = '' };
       } else {
         try {
           Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;
-          if (Test-Path -LiteralPath $path) { $out += @{ Path = $path; Status = 'FAILED: still present after removal' } }
-          else { $out += @{ Path = $path; Status = 'DELETED' } }
+          if (Test-Path -LiteralPath $path) { $out += @{ Path = $path; Status = 'FAILED'; Error = 'still present after removal' } }
+          else { $out += @{ Path = $path; Status = 'DELETED'; Error = '' } }
         } catch {
-          $out += @{ Path = $path; Status = ('FAILED: ' + $_.Exception.Message) }
+          $out += @{ Path = $path; Status = 'FAILED'; Error = $_.Exception.Message }
         }
       }
     };
@@ -328,35 +377,68 @@ export async function deleteJunkFiles(files: string[]): Promise<{
   try {
     const result = await runPowerShell(psCommand);
     if (!result.success || !result.stdout) {
+      const detail = result.stderr ? ` (${result.stderr})` : '';
       for (const filePath of files) {
         failed++;
-        errors.push(`Failed to delete: ${filePath}${result.stderr ? ` (${result.stderr})` : ''}`);
+        errors.push(`Failed to delete: ${filePath}${detail}`);
+        receipts.push(
+          makeReceipt(
+            filePath,
+            false,
+            classifyDeleteFailure(result.stderr),
+            result.stderr || 'unknown'
+          )
+        );
       }
-      return { success: false, deleted, failed, errors, removed };
+      return { success: false, deleted, failed, errors, removed, receipts };
     }
 
     const rows = toArrayShim(parsePowerShellJson<DeleteRow[] | DeleteRow>(result.stdout));
-    const byPath = new Map(rows.map((r) => [r.Path, r.Status]));
+    const byPath = new Map(rows.map((r) => [r.Path, r]));
     for (const filePath of files) {
-      const status = byPath.get(filePath);
+      const row = byPath.get(filePath);
+      const status = row?.Status ?? null;
       if (status === 'DELETED') {
         deleted++;
         removed.push(filePath);
+        receipts.push(makeReceipt(filePath, true, null, 'Deleted.'));
       } else if (status === 'NOT_FOUND') {
         // Nothing to delete; honest no-op, not a success and not a failure.
+        receipts.push(
+          makeReceipt(
+            filePath,
+            false,
+            'not-found',
+            'The file no longer exists (nothing to delete).'
+          )
+        );
       } else if (status == null) {
         // A row missing from the report is never a silent success: it fails
         // loudly so a truncated report cannot masquerade as a clean run.
         failed++;
-        errors.push(`No report for: ${filePath} (treated as not deleted)`);
+        const message = `No report for: ${filePath} (treated as not deleted)`;
+        errors.push(message);
+        receipts.push(makeReceipt(filePath, false, 'unknown', message));
       } else {
         failed++;
+        // Accept both the structured (`Status='FAILED'`, `Error=...`) form and
+        // the legacy `Status='FAILED: <message>'` form.
+        const raw = (
+          row?.Error || (status.startsWith('FAILED:') ? status.slice(7) : status)
+        ).trim();
+        const reason = classifyDeleteFailure(raw);
         errors.push(`Failed to delete: ${filePath} (${status})`);
+        receipts.push(makeReceipt(filePath, false, reason, raw || status));
       }
     }
   } catch {
     failed = files.length - deleted;
     errors.push(`Error deleting ${files.length} file(s)`);
+    for (const filePath of files) {
+      if (!removed.includes(filePath)) {
+        receipts.push(makeReceipt(filePath, false, 'unknown', 'Unexpected error while deleting.'));
+      }
+    }
   }
 
   return {
@@ -365,7 +447,23 @@ export async function deleteJunkFiles(files: string[]): Promise<{
     failed,
     errors,
     removed,
+    receipts,
   };
+}
+
+/**
+ * Retry only the files that failed in a previous cleanup (Fase 4.6). The
+ * caller passes the receipts; paths already gone are skipped as no-ops by
+ * `deleteJunkFiles` (NOT_FOUND), so this is safe to re-run.
+ */
+export async function retryFailedDeletions(
+  receipts: readonly DeleteReceipt[]
+): Promise<JunkDeleteResult> {
+  const failedPaths = receipts.filter((r) => !r.deleted).map((r) => r.path);
+  if (failedPaths.length === 0) {
+    return { success: true, deleted: 0, failed: 0, errors: [], removed: [], receipts: [] };
+  }
+  return deleteJunkFiles(failedPaths);
 }
 
 /** Local `toArray` (avoids importing `powershell.ts` helpers here). */

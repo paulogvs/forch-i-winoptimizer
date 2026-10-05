@@ -412,6 +412,30 @@ inventan valores. El **Export CSV** funciona igualmente (exporta el encabezado).
 - **Un botón queda deshabilitado:** hay otra operación en curso (mirá el badge
   del header). Se reactivan al terminar; no hace falta reiniciar.
 
+---
+
+### 22. Disk repair: la reparación no corre o tarda (v0.14.0)
+
+- **"requires administrator" / el botón Run no hace nada:** las cuatro
+  herramientas (DISM, SFC, chkdsk, TRIM) requieren administrador. La app **no
+  ejecuta nada** en ese caso: usá **“Restart as administrator”** y reintentá.
+- **La barra de progreso queda en “indeterminado”:** es lo honesto. `sfc` y
+  `DISM` **no** emiten un porcentaje; sólo mostramos un `%` cuando la herramienta
+  realmente lo imprime. Verás el **log en vivo** mientras corre.
+- **Tarda mucho:** DISM RestoreHealth puede tardar 10–30 min y SFC 5–15 min,
+  según el disco. **No cierres la app** mientras corren: no se pueden
+  interrumpir de forma segura (el diálogo lo avisa). `chkdsk C: /scan` y TRIM sí
+  tienen **Cancel**.
+- **El resumen dice “No recognizable summary”:** la herramienta terminó pero no
+  imprimió una frase que la app reconozca. Mirá el log en vivo y el **código de
+  salida**; no se inventa un veredicto.
+- **Quiero hacer un scan de solo lectura primero:** usá **Check Disk** (corre
+  `chkdsk C: /scan`, que **no** modifica el sistema) antes de las reparaciones que
+  sí escriben (DISM/SFC).
+- **Un archivo no se pudo borrar desde el Cleaner:** desde v0.14.0 cada fallo
+  trae el **motivo** (`in-use`, `permissions`, …). Cerrá el programa que lo usa y
+  usá **Retry failed files**; sólo se reintentan los fallidos.
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:

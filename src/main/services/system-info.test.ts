@@ -9,6 +9,8 @@ import {
   SYSTEM_INFO_BATCH_SCRIPT,
   setCpuSampleWindowMs,
   CPU_SAMPLE_WINDOW_DEFAULT_MS,
+  getSystemInfoThrottled,
+  resetSystemInfoThrottle,
 } from './system-info';
 import { ScanProgressReporter } from './scan-progress';
 import type { ScanProgressEvent } from '@shared/scan-progress';
@@ -49,11 +51,13 @@ describe('system-info', () => {
     vi.clearAllMocks();
     setSystemInfoBatchEnabled(true);
     setCpuSampleWindowMs(0);
+    resetSystemInfoThrottle();
   });
 
   afterEach(() => {
     setSystemInfoBatchEnabled(true);
     setCpuSampleWindowMs(CPU_SAMPLE_WINDOW_DEFAULT_MS);
+    resetSystemInfoThrottle();
   });
 
   it('defaults to the batched strategy', () => {
@@ -140,6 +144,39 @@ describe('system-info', () => {
     expect(result.platform).toBeDefined();
     expect(result.cpu).toBeDefined();
     expect(result.memory).toBeDefined();
+  });
+
+  // --- Fase 4.5: throttled telemetry read ---
+
+  it('throttles repeated telemetry reads to a single PowerShell query', async () => {
+    vi.mocked(runPowerShell).mockResolvedValue(ok(JSON.stringify(BATCH)));
+
+    const first = await getSystemInfoThrottled();
+    const second = await getSystemInfoThrottled();
+
+    expect(runPowerShell).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+  });
+
+  it('coalesces concurrent throttled reads into one in-flight query', async () => {
+    let release!: (value: {
+      success: boolean;
+      stdout: string;
+      stderr: string;
+      exitCode: number;
+    }) => void;
+    vi.mocked(runPowerShell).mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
+
+    const first = getSystemInfoThrottled();
+    const second = getSystemInfoThrottled();
+    release(ok(JSON.stringify(BATCH)));
+
+    await Promise.all([first, second]);
+    expect(runPowerShell).toHaveBeenCalledTimes(1);
   });
 
   // --- P0.4: CPU usage without Win32_Processor (the 1.1s CIM bottleneck) ---

@@ -2,6 +2,7 @@ import os from 'node:os';
 import type { CpuInfo } from 'node:os';
 import { runPowerShell, parsePowerShellJson, type PowerShellResult } from './powershell';
 import { createNoopReporter, type ScanProgressReporter } from './scan-progress';
+import { ThrottledSampler } from './perf-monitor';
 
 export interface SystemInfo {
   platform: string;
@@ -211,6 +212,40 @@ async function gatherProbes(): Promise<{ disk?: unknown; gpu?: unknown; win?: un
         ? parsePowerShellJson<WindowsInfo>(winResult.stdout)
         : undefined,
   };
+}
+
+// --- Throttled telemetry read (Fase 4.5) ----------------------------------
+//
+// The Dashboard/Boost pages poll system info (SWR cache-first, then a silent
+// `force` revalidation). Without a guard each force call spawns PowerShell for
+// disk/GPU/OS. `cachedSystemInfo` holds the last REAL read, the sampler throttles
+// the network/Process spawn to ~5 s and coalesces concurrent callers, so the
+// telemetry never spams PowerShell.
+
+export const SYSTEM_INFO_THROTTLE_MS = 5_000;
+const systemInfoSampler = new ThrottledSampler<SystemInfo>(SYSTEM_INFO_THROTTLE_MS);
+
+/** Last system info actually read (never synthesized). */
+export function getCachedSystemInfo(): SystemInfo | null {
+  return systemInfoSampler.last;
+}
+
+/** Test seam: drop the cached/throttled system info. */
+export function resetSystemInfoThrottle(): void {
+  systemInfoSampler.reset();
+}
+
+/**
+ * Throttled, single-flight system-info read. Repeated calls inside the window
+ * (or while a read is already in flight) reuse one PowerShell query; `force`
+ * is honored only after the window elapsed (a manual refresh is not lost, it
+ * just cannot outrun the throttle faster than every 5 s).
+ */
+export async function getSystemInfoThrottled(
+  reporter?: ScanProgressReporter,
+  options: { force?: boolean } = {}
+): Promise<SystemInfo> {
+  return systemInfoSampler.sample(() => getSystemInfo(reporter), options);
 }
 
 export async function getSystemInfo(reporter?: ScanProgressReporter): Promise<SystemInfo> {

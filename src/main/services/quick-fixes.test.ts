@@ -71,6 +71,7 @@ describe('quick-fixes: Clean Temp (Fase 3.2)', () => {
       failed: 0,
       errors: [],
       removed: ['C:\\Temp\\a.tmp'],
+      receipts: [],
     });
 
     const result = await cleanTempQuick();
@@ -97,6 +98,7 @@ describe('quick-fixes: Clean Temp (Fase 3.2)', () => {
       failed: 1,
       errors: ['Failed to delete: C:\\Temp\\locked.tmp (in use)'],
       removed: [],
+      receipts: [],
     });
 
     const result = await cleanTempQuick();
@@ -137,6 +139,7 @@ describe('quick-fixes: Clean Temp (Fase 3.2)', () => {
       failed: 1,
       errors: ['Failed to delete: C:\\Temp\\b.tmp'],
       removed: ['C:\\Temp\\a.tmp'],
+      receipts: [],
     });
 
     const result = await cleanTempQuick();

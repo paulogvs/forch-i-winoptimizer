@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { scanForJunkFiles, deleteJunkFiles, isExcludedPath } from './junk-scanner';
+import {
+  scanForJunkFiles,
+  deleteJunkFiles,
+  isExcludedPath,
+  classifyDeleteFailure,
+  retryFailedDeletions,
+} from './junk-scanner';
 
 // Mock powershell module
 vi.mock('./powershell', () => ({
@@ -336,6 +342,116 @@ describe('junk-scanner', () => {
       expect(result.success).toBe(false);
       expect(result.failed).toBe(1);
       expect(result.errors.length).toBe(1);
+    });
+  });
+
+  describe('delete receipt classification (Fase 4.6)', () => {
+    it('maps each real failure cause to a stable reason', () => {
+      expect(classifyDeleteFailure('EBUSY: resource busy or locked')).toBe('in-use');
+      expect(classifyDeleteFailure('EPERM: operation not permitted')).toBe('in-use');
+      expect(
+        classifyDeleteFailure(
+          'The process cannot access the file because it is being used by another process'
+        )
+      ).toBe('in-use');
+      expect(classifyDeleteFailure('EACCES: permission denied')).toBe('permissions');
+      expect(classifyDeleteFailure('Access to the path is denied.')).toBe('permissions');
+      expect(classifyDeleteFailure('ENOTEMPTY: directory not empty')).toBe('not-empty');
+      expect(classifyDeleteFailure('still present after removal')).toBe('still-present');
+      expect(classifyDeleteFailure('ENOENT: no such file')).toBe('not-found');
+      expect(classifyDeleteFailure('something bizarre happened')).toBe('unknown');
+      expect(classifyDeleteFailure(null)).toBe('unknown');
+    });
+
+    it('returns a per-file receipt for successes, no-ops and failures', async () => {
+      vi.mocked(parsePowerShellJson).mockImplementation((output: string) => {
+        try {
+          return JSON.parse(output);
+        } catch {
+          return null;
+        }
+      });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify([
+          { Path: 'C:\\Temp\\a.tmp', Status: 'DELETED', Error: '' },
+          { Path: 'C:\\Temp\\gone.tmp', Status: 'NOT_FOUND', Error: '' },
+          { Path: 'C:\\Temp\\busy.tmp', Status: 'FAILED', Error: 'being used by another process' },
+          { Path: 'C:\\Temp\\denied.tmp', Status: 'FAILED', Error: 'Access to the path is denied' },
+        ]),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await deleteJunkFiles([
+        'C:\\Temp\\a.tmp',
+        'C:\\Temp\\gone.tmp',
+        'C:\\Temp\\busy.tmp',
+        'C:\\Temp\\denied.tmp',
+      ]);
+
+      const byPath = new Map(result.receipts.map((r) => [r.path, r]));
+      expect(byPath.get('C:\\Temp\\a.tmp')).toMatchObject({ deleted: true, reason: null });
+      expect(byPath.get('C:\\Temp\\gone.tmp')).toMatchObject({
+        deleted: false,
+        reason: 'not-found',
+      });
+      expect(byPath.get('C:\\Temp\\busy.tmp')).toMatchObject({ deleted: false, reason: 'in-use' });
+      expect(byPath.get('C:\\Temp\\denied.tmp')).toMatchObject({
+        deleted: false,
+        reason: 'permissions',
+      });
+      expect(result.deleted).toBe(1);
+      expect(result.failed).toBe(2);
+      // Every requested path got exactly one receipt.
+      expect(result.receipts).toHaveLength(4);
+    });
+
+    it('accepts the legacy "FAILED: <message>" status form', async () => {
+      vi.mocked(parsePowerShellJson).mockImplementation((output: string) => {
+        try {
+          return JSON.parse(output);
+        } catch {
+          return null;
+        }
+      });
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify([
+          { Path: 'C:\\Temp\\x.tmp', Status: 'FAILED: Access to the path is denied' },
+        ]),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await deleteJunkFiles(['C:\\Temp\\x.tmp']);
+      expect(result.receipts[0]).toMatchObject({ deleted: false, reason: 'permissions' });
+    });
+
+    it('retries only the previously-failed paths', async () => {
+      vi.mocked(runPowerShell).mockResolvedValue({
+        success: true,
+        stdout: JSON.stringify([{ Path: 'C:\\Temp\\busy.tmp', Status: 'DELETED', Error: '' }]),
+        stderr: '',
+        exitCode: 0,
+      });
+      vi.mocked(parsePowerShellJson).mockImplementation((output: string) => {
+        try {
+          return JSON.parse(output);
+        } catch {
+          return null;
+        }
+      });
+
+      const result = await retryFailedDeletions([
+        { path: 'C:\\Temp\\ok.tmp', deleted: true, reason: null, message: '', at: '' },
+        { path: 'C:\\Temp\\busy.tmp', deleted: false, reason: 'in-use', message: '', at: '' },
+      ]);
+
+      expect(result.deleted).toBe(1);
+      const script = String(vi.mocked(runPowerShell).mock.calls.at(-1)?.[0] ?? '');
+      expect(script).toContain('busy.tmp');
+      expect(script).not.toContain('ok.tmp');
     });
   });
 });

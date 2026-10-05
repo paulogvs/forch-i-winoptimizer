@@ -9,6 +9,7 @@ import { VirtualList } from '../components/ui/VirtualList';
 import { useScanProgress } from '../hooks/useScanProgress';
 import { formatBytes } from '../utils/format';
 import type { JunkScanResult } from '@shared/electron-api';
+import type { DeleteReceipt } from '@shared/cleanup';
 
 interface JunkFileWithSelection {
   id: string;
@@ -55,6 +56,7 @@ export const Cleaner: React.FC = () => {
   const [files, setFiles] = useState<JunkFileWithSelection[]>([]);
   const [scanned, setScanned] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failedReceipts, setFailedReceipts] = useState<DeleteReceipt[]>([]);
   const progress = useScanProgress('junk');
 
   const handleScan = useCallback(async () => {
@@ -80,6 +82,9 @@ export const Cleaner: React.FC = () => {
       const selectedFiles = files.filter((f) => f.selected);
       if (selectedFiles.length === 0) return;
       const result = await window.electronAPI.deleteFiles(selectedFiles.map((f) => f.path));
+      // Fase 4.6: keep the per-file receipts so the UI can explain WHY a
+      // delete failed (in-use, permissions, ...) instead of an opaque count.
+      setFailedReceipts((result.receipts ?? []).filter((r) => !r.deleted));
       if (result.success) {
         setFiles((prev) => prev.filter((f) => !f.selected));
       } else {
@@ -97,6 +102,28 @@ export const Cleaner: React.FC = () => {
       setCleaning(false);
     }
   }, [files]);
+
+  const handleRetryFailed = useCallback(async () => {
+    setCleaning(true);
+    setError(null);
+    try {
+      const result = await window.electronAPI.retryFailedFiles();
+      const stillFailed = result.receipts.filter((r) => !r.deleted);
+      setFailedReceipts(stillFailed);
+      const removedPaths = new Set(result.receipts.filter((r) => r.deleted).map((r) => r.path));
+      if (removedPaths.size > 0) {
+        setFiles((prev) => prev.filter((f) => !removedPaths.has(f.path)));
+      }
+      if (stillFailed.length > 0) {
+        setError(`Still ${stillFailed.length} file(s) could not be removed.`);
+      }
+    } catch (retryError) {
+      console.error('Retry failed:', retryError);
+      setError('Retry failed. The files are still listed below — please try again.');
+    } finally {
+      setCleaning(false);
+    }
+  }, []);
 
   const toggleFile = useCallback((id: string) => {
     setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, selected: !f.selected } : f)));
@@ -132,14 +159,24 @@ export const Cleaner: React.FC = () => {
       {error && (
         <div className="mb-4 p-3 rounded-lg text-sm text-error" role="alert">
           <span>{error}</span>
+          {failedReceipts.length > 0 && (
+            <ul className="mt-2 text-xs" data-testid="cleaner-failures">
+              {failedReceipts.map((receipt) => (
+                <li key={receipt.path} className="truncate">
+                  {receipt.path} — <strong>{receipt.reason ?? 'unknown'}</strong>
+                  {receipt.message ? `: ${receipt.message}` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleClean}
+            onClick={failedReceipts.length > 0 ? handleRetryFailed : handleClean}
             loading={cleaning}
             disabled={files.length === 0}
           >
-            Retry cleaning
+            {failedReceipts.length > 0 ? 'Retry failed files' : 'Retry cleaning'}
           </Button>
         </div>
       )}
