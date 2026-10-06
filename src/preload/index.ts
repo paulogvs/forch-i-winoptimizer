@@ -207,6 +207,13 @@ const winoptimizer: WinOptimizerAPI = {
     revertFix: (checkId: string) => ipcRenderer.invoke('security:fix-revert', checkId),
     relaunchElevated: () => ipcRenderer.invoke('security:relaunch-elevated'),
   },
+  malware: {
+    scan: (request) => ipcRenderer.invoke('malware:scan', request),
+    scanBuffer: (base64: string, filename: string) =>
+      ipcRenderer.invoke('malware:scan-buffer', base64, filename),
+    cancel: () => ipcRenderer.invoke('malware:cancel'),
+    scopes: () => ipcRenderer.invoke('malware:scopes'),
+  },
   dns: {
     benchmark: (options) => ipcRenderer.invoke('dns:benchmark', options),
     set: (primaryDNS: string, secondaryDNS: string) =>

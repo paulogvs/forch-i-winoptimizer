@@ -867,3 +867,20 @@ versiones. Es honesto por diseño: si winget **no responde**, NO dice "al día";
 si responde que no hay nada, dice **up-to-date**. El botón **Update** ejecuta
 `winget upgrade --id …` y vuelve a verificar que la app ya no figure con
 actualización pendiente antes de reportar éxito.
+
+## Malware scan (YARA) (v0.17.0)
+
+En **Security → Malware scan (YARA)**, la app compara archivos contra reglas
+YARA propias (v1.0.0: el string de prueba **EICAR** + dos indicadores
+heurísticos conservadores) usando el motor nativo **YARA-X en un worker
+dedicado** — la interfaz nunca se congela. Es **solo lectura**: informa
+regla+archivo, nunca borra ni pone en cuarentena.
+
+- **Alcances rápidos**: botones **Scan Temp** / **Scan Downloads**, o escribí
+  cualquier archivo o carpeta + **Scan** (con **Cancel** para interrumpir).
+- **Estados honestos**: `Clean` solo si el archivo se escaneó de verdad;
+  `Unknown` si no se pudo leer (faltante, más de 64 MB, timeout, o bloqueado
+  por tu antivirus); `Match` con las reglas que coincidieron.
+- **Un `Match` heurístico es sospechoso, no un veredicto**: revisá el archivo
+  manualmente. Esto **no es un antivirus** ni reemplaza la protección en tiempo
+  real de Windows Security. Detalle técnico en `docs/YARA_MALWARE_SCAN.md`.

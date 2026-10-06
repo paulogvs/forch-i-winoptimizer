@@ -7,6 +7,12 @@ import type { UpdateStatus } from './updater-status';
 import type { SecurityScanReport } from './security-scan';
 import type { SecurityFixOutcome, SecurityFixPreview } from './security-fix';
 import type {
+  MalwareFileResult,
+  MalwareScanReport,
+  MalwareScanRequest,
+  MalwareScanScope,
+} from './malware-scan';
+import type {
   DriverDownloadOutcome,
   DriverInstallRequest,
   DriverProgressEvent,
@@ -626,6 +632,16 @@ export interface WinOptimizerAPI {
     revertFix: (checkId: string) => Promise<SecurityFixOutcome>;
     /** Relaunch the app with elevation (used when a fix requires admin). */
     relaunchElevated: () => Promise<OperationResult>;
+  };
+  malware: {
+    /** YARA scan of files/directories in a worker_thread (v0.17.0, read-only). */
+    scan: (request: MalwareScanRequest) => Promise<MalwareScanReport>;
+    /** YARA scan of an in-memory buffer (base64), e.g. pasted content. */
+    scanBuffer: (base64: string, filename: string) => Promise<MalwareFileResult>;
+    /** Preempt an in-flight scan (terminates the worker; never queued). */
+    cancel: () => Promise<OperationResult>;
+    /** Preset scopes resolved live in main (Temp, Downloads). */
+    scopes: () => Promise<MalwareScanScope[]>;
   };
   dns: {
     benchmark: (options?: CacheOptions) => Promise<DNSBenchmarkResult[]>;

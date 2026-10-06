@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-06
+
+Fase 4.4 del `PLAN_MEJORAS.md`: **motor YARA real en `worker_thread`, nunca en
+el main thread**. Escaneo de archivos/buffers con reglas propias versionadas,
+integrado como "Malware scan" en Security. Desbloqueado por la red npm
+(`@litko/yara-x@0.7.5`, binario `win32-x64-msvc`, cero dependencias).
+
+### Added
+
+- **Motor YARA (`yara-engine.ts` + `yara-worker.ts`, `worker_threads`).**
+  El único archivo que importa `@litko/yara-x` es el worker; el engine del main
+  thread compila las reglas **una vez** por vida del worker, escanea
+  archivos/buffers por mensajes, con **timeout por archivo** (30 s), **límite
+  de tamaño** (64 MiB → `unknown`, nunca se lee de más) y **cancelación** que
+  termina el worker (el test de aislamiento de hilos falla el build si el
+  import nativo se fuga del worker).
+- **Reglas propias versionadas (`catalogs/yara-rules/`, v1.0.0).**
+  `Forchi_Eicar_Test_File` (string EICAR de 68 bytes) + dos heurísticas
+  conservadoras (`Certutil_Download`, `PowerShell_Encoded_Command`, ambas
+  `confidence = "heuristic"` y techo de 10 MB). Viajan en el paquete vía
+  `build.files` y se resuelven con `resolveBundledPath` (mismo patrón que
+  `catalog-data.ts`).
+- **Integración honesta "Malware scan" (Security).** Canales
+  `malware:scan`/`malware:scan-buffer` (serializados por el lock FIFO),
+  `malware:cancel` (fuera del lock: siempre prevalece) y `malware:scopes`
+  (Temp/Downloads leídos en vivo): 4 planos por canal (tipos compartidos +
+  preload + IPC + UI), toast, `useOperationStatus` (disabled+queued), evento
+  `maintenance` en Statistics. Muestra regla+archivo reales; `clean` solo tras
+  escaneo real, `unknown` si no se pudo leer. Alcance y límites documentados en
+  `docs/YARA_MALWARE_SCAN.md`. **No promete "antivirus".**
+- **Empaquetado nativo verificado.** `build.asarUnpack` incluye
+  `yara-worker.js` (los workers no arrancan dentro del asar) y el
+  `yara-x.win32-x64-msvc.node` (los `.node` no hacen `dlopen` desde el asar);
+  el worker resuelve el paquete con fallback desempaquetado.
+
+### Verified
+
+- **EICAR obligatorio (doble vía):** en dev, archivo EICAR 68 B → `infected`
+  y `.txt` limpio → `clean`; en el **binario empaquetado**
+  (`release/win-unpacked`), buffer EICAR → `infected`, limpio → `clean`, y el
+  archivo EICAR → `unknown` honesto porque **Defender bloqueó la lectura en
+  vivo (os error 225)** — evidencia de que `unknown` nunca miente como
+  `clean`. Scratch limpio en todos los casos. Sin malware real.
+
 ## [0.16.0] - 2026-10-05
 
 Fase 5 del `PLAN_MEJORAS.md`: **estructural** (la última). Trae un pool de

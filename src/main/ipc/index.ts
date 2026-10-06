@@ -4,6 +4,7 @@ import type { BenchmarkReport, CleaningSchedule } from '@shared/types';
 import { getSystemInfoThrottled } from '../services/system-info';
 import { cache, withCache, type CacheOptions } from '../services/cache';
 import type { AuditRunOptions } from '@shared/electron-api';
+import type { MalwareScanRequest } from '@shared/malware-scan';
 import { createProgressReporter } from '../services/scan-progress';
 import {
   getTweaks,
@@ -146,6 +147,11 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'security:fix-apply',
   'security:fix-revert',
   'security:relaunch-elevated',
+  // Fase 4.4: YARA scans are READ-ONLY, but each one walks real disk I/O in
+  // a worker_thread — serialized here so two full scans never thrash the
+  // disk at once. `malware:cancel` stays OUT (it must preempt the lock).
+  'malware:scan',
+  'malware:scan-buffer',
   'dns:set',
   'bundles:install',
   'bundles:install-multiple',
@@ -575,6 +581,44 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     return result;
   });
   handle('security:relaunch-elevated', () => relaunchElevated());
+
+  // YARA malware scan (Fase 4.4, v0.17.0): real rule matching in a
+  // worker_thread, READ-ONLY (reports rule+file, never quarantines).
+  // Serialized by the global lock (see MUTATING_CHANNELS); `malware:cancel`
+  // is deliberately lock-free so Cancel always preempts an in-flight scan.
+  handle('malware:scan', async (_event: IpcMainInvokeEvent, request: MalwareScanRequest) => {
+    const { getYaraEngine } = await import('../services/yara-engine');
+    const paths = Array.isArray(request?.paths) ? request.paths.map(String).slice(0, 50) : [];
+    if (paths.length === 0) throw new Error('malware:scan needs at least one path.');
+    const report = await getYaraEngine().scanPaths(
+      paths,
+      request?.timeoutMsPerFile ? { timeoutMsPerFile: Number(request.timeoutMsPerFile) } : undefined
+    );
+    recordStatsEvent({ type: 'maintenance', files: report.summary.total });
+    return report;
+  });
+  handle(
+    'malware:scan-buffer',
+    async (_event: IpcMainInvokeEvent, base64: string, filename: string) => {
+      const { getYaraEngine } = await import('../services/yara-engine');
+      if (typeof base64 !== 'string' || base64.length === 0) {
+        throw new Error('malware:scan-buffer needs base64 content.');
+      }
+      return getYaraEngine().scanBuffer(
+        Buffer.from(String(base64), 'base64'),
+        String(filename || 'buffer.bin')
+      );
+    }
+  );
+  handle('malware:cancel', async () => {
+    const { getYaraEngine } = await import('../services/yara-engine');
+    await getYaraEngine().cancel();
+    return { success: true, message: 'Malware scan cancelled.' };
+  });
+  handle('malware:scopes', async () => {
+    const { getMalwareScanScopes } = await import('../services/yara-engine');
+    return getMalwareScanScopes();
+  });
 
   // Fase 1.1: TTL 90s; the renderer also loads the DNS tab on demand so
   // visiting Security no longer pays the ~12s cold benchmark.

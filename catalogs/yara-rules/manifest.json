@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "description": "FORCH.iA WinOptimizer bundled YARA rules (Fase 4.4). Conservative set: the harmless EICAR test string plus two low-noise heuristic indicators. Suspicious hits always require manual review — this is not an antivirus verdict.",
+  "files": ["forchi-malware-v1.yar"]
+}

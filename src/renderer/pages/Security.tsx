@@ -2,13 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { Input } from '../components/ui/Input';
 import { Progress } from '../components/ui/Progress';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../components/ui/toast-context';
 import { useAppStore } from '../stores/useAppStore';
+import { useOperationStatus } from '../hooks/useOperationStatus';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
 import type { SecurityFixOutcome, SecurityFixPreview } from '@shared/security-fix';
+import type { MalwareFileResult, MalwareScanReport, MalwareScanScope } from '@shared/malware-scan';
 import {
   SECURITY_CHECK_BY_ID,
   SECURITY_SCORE_FORMULA,
@@ -54,6 +57,21 @@ const SEVERITY_BADGE: Record<string, 'error' | 'warning' | 'info' | 'neutral'> =
   low: 'neutral',
 };
 
+const MALWARE_BADGE: Record<MalwareFileResult['status'], 'success' | 'error' | 'neutral'> = {
+  clean: 'success',
+  infected: 'error',
+  unknown: 'neutral',
+};
+
+const MALWARE_LABEL: Record<MalwareFileResult['status'], string> = {
+  clean: 'Clean',
+  infected: 'Match',
+  unknown: 'Unknown',
+};
+
+/** Files shown per report before truncating the list (the report keeps them all). */
+const MALWARE_VISIBLE_FILES = 100;
+
 export const Security: React.FC = () => {
   // Tab is shared through the store so cross-page "Fix" actions (e.g. Audit)
   // can land directly on Privacy.
@@ -76,6 +94,14 @@ export const Security: React.FC = () => {
 
   const [dnsLoading, setDnsLoading] = useState(false);
 
+  // YARA malware scan (v0.17.0): real rule matching in a worker_thread.
+  const operation = useOperationStatus();
+  const [malwareScopes, setMalwareScopes] = useState<MalwareScanScope[]>([]);
+  const [malwarePath, setMalwarePath] = useState('');
+  const [malwareReport, setMalwareReport] = useState<MalwareScanReport | null>(null);
+  const [malwareScanning, setMalwareScanning] = useState(false);
+  const [malwareError, setMalwareError] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -92,6 +118,11 @@ export const Security: React.FC = () => {
       ]);
       setPrivacySettings(privacyResult);
       setSecurityActions(actionsResult);
+      try {
+        setMalwareScopes(await window.winoptimizer.malware.scopes());
+      } catch {
+        setMalwareScopes([]);
+      }
     } catch (error) {
       console.error('Failed to load security data:', error);
     }
@@ -260,6 +291,49 @@ export const Security: React.FC = () => {
       setFixBusy(false);
     }
   };
+
+  // ===== YARA malware scan (v0.17.0, read-only) =====
+  const runMalwareScan = useCallback(
+    async (paths: string[]) => {
+      const targets = paths.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+      if (targets.length === 0) {
+        setMalwareError('Type or pick a file or folder to scan.');
+        return;
+      }
+      setMalwareScanning(true);
+      setMalwareError(null);
+      try {
+        const result = await window.winoptimizer.malware.scan({ paths: targets });
+        setMalwareReport(result);
+        const { infected, unknown, total } = result.summary;
+        notify({
+          variant: infected > 0 ? 'error' : 'success',
+          title:
+            infected > 0
+              ? `Malware scan: ${infected} match(es) need review`
+              : `Malware scan: ${total} file(s) checked`,
+          message:
+            infected > 0
+              ? `${infected} of ${total} file(s) matched bundled YARA rules${unknown > 0 ? `, ${unknown} could not be read` : ''}.`
+              : `${total} file(s) scanned, no rule matched${unknown > 0 ? `, ${unknown} could not be read` : ''}.`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The malware scan failed.';
+        setMalwareError(/cancel/i.test(message) ? 'Scan cancelled.' : message);
+      } finally {
+        setMalwareScanning(false);
+      }
+    },
+    [notify]
+  );
+
+  const cancelMalwareScan = useCallback(async () => {
+    try {
+      await window.winoptimizer.malware.cancel();
+    } catch {
+      /* the engine already settled: the scan handler reports the outcome */
+    }
+  }, []);
 
   const summary = report?.summary ?? {
     pass: 0,
@@ -454,6 +528,145 @@ export const Security: React.FC = () => {
               </p>
             </div>
           )}
+
+          <Card title="Malware scan (YARA)" className="mt-6">
+            <p className="text-xs text-fg-tertiary mb-3">
+              Read-only file matching with bundled YARA rules (
+              {malwareReport
+                ? `rules v${malwareReport.rulesVersion}, ${malwareReport.engine}`
+                : 'rules load on first scan'}
+              ) running in a background worker — the app stays responsive. A match is a{' '}
+              <strong>report</strong> (rule + file), not an antivirus verdict: heuristic hits need
+              manual review. This does not replace real-time antivirus protection.
+            </p>
+            <div className="flex gap-2 flex-wrap mb-3">
+              {malwareScopes.map((scope) => (
+                <Button
+                  key={scope.id}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setMalwarePath(scope.path);
+                    void runMalwareScan([scope.path]);
+                  }}
+                  disabled={malwareScanning || operation.busy}
+                  title={`Scan ${scope.path}`}
+                  data-testid={`malware-scan-scope-${scope.id}`}
+                >
+                  Scan {scope.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex-1 min-w-52">
+                <Input
+                  label="File or folder to scan"
+                  placeholder="C:\Users\you\Downloads"
+                  value={malwarePath}
+                  onChange={(event) => setMalwarePath(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void runMalwareScan([malwarePath]);
+                  }}
+                  disabled={malwareScanning}
+                  data-testid="malware-path-input"
+                />
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => void runMalwareScan([malwarePath])}
+                loading={malwareScanning}
+                disabled={operation.busy && !malwareScanning}
+                title={
+                  operation.busy && !malwareScanning
+                    ? `Queued behind ${operation.current ?? 'another operation'}`
+                    : 'Scan with bundled YARA rules'
+                }
+                data-testid="malware-scan-button"
+              >
+                {malwareScanning ? 'Scanning...' : 'Scan'}
+              </Button>
+              {malwareScanning && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void cancelMalwareScan()}
+                  data-testid="malware-cancel-button"
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+            {operation.busy && !malwareScanning && (
+              <p className="text-xs text-fg-tertiary mt-2">
+                Another operation ({operation.current ?? 'unknown'}) is running
+                {operation.queued > 0 ? `, ${operation.queued} queued` : ''} — the scan will queue
+                behind it.
+              </p>
+            )}
+
+            {malwareError && (
+              <p className="text-sm text-fg-secondary mt-3" data-testid="malware-error">
+                {malwareError}
+              </p>
+            )}
+
+            {malwareReport && !malwareScanning && (
+              <div className="mt-4" data-testid="malware-report">
+                <div className="flex gap-2 flex-wrap mb-3">
+                  <Badge variant="success">{malwareReport.summary.clean} Clean</Badge>
+                  <Badge variant="error">{malwareReport.summary.infected} Matches</Badge>
+                  {malwareReport.summary.unknown > 0 && (
+                    <Badge variant="neutral">{malwareReport.summary.unknown} Unknown</Badge>
+                  )}
+                  <span className="text-xs text-fg-tertiary">
+                    {malwareReport.summary.total} file(s) in{' '}
+                    {(malwareReport.durationMs / 1000).toFixed(1)}s · rules v
+                    {malwareReport.rulesVersion} · {malwareReport.engine}
+                  </span>
+                </div>
+                {malwareReport.note && (
+                  <p className="text-xs text-fg-tertiary mb-2">{malwareReport.note}</p>
+                )}
+                <div className="flex flex-col gap-2">
+                  {malwareReport.files.slice(0, MALWARE_VISIBLE_FILES).map((file) => (
+                    <div
+                      key={file.path}
+                      data-testid={`malware-file-${file.status}`}
+                      className="flex items-start justify-between gap-4 p-3 rounded-lg hover:bg-bg-hover"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-medium text-fg-primary break-all">
+                            {file.path}
+                          </span>
+                          <Badge variant={MALWARE_BADGE[file.status]}>
+                            {MALWARE_LABEL[file.status]}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-fg-tertiary break-words">{file.reason}</p>
+                        {file.matches.length > 0 && (
+                          <p className="text-xs text-fg-secondary mt-1 font-mono break-words">
+                            {file.matches
+                              .map(
+                                (match) =>
+                                  `${match.rule}${match.description ? ` — ${match.description}` : ''}`
+                              )
+                              .join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {malwareReport.files.length > MALWARE_VISIBLE_FILES && (
+                  <p className="text-xs text-fg-tertiary mt-2">
+                    Showing {MALWARE_VISIBLE_FILES} of {malwareReport.files.length} files.
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
 
           <Card title="Security Actions" className="mt-6">
             <div className="flex flex-col gap-3">

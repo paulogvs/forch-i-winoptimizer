@@ -66,8 +66,14 @@ vi.mock('../services/stats', () => ({
   exportStatsCsv: vi.fn(),
 }));
 
+vi.mock('../services/yara-engine', () => ({
+  getYaraEngine: vi.fn(),
+  getMalwareScanScopes: vi.fn(() => []),
+}));
+
 import { registerIpcHandlers, MUTATING_CHANNELS } from './index';
 import { withOperationLock, setOperationNotifier } from '../services/operation-lock';
+import { getMalwareScanScopes, getYaraEngine } from '../services/yara-engine';
 import { runSystemAudit } from '../services/system-audit';
 import { getPrivacySettings } from '../services/security-privacy';
 import { cleanTempQuick, flushDns } from '../services/quick-fixes';
@@ -268,5 +274,71 @@ describe('cache module isolation between channels', () => {
     await handlers.get('privacy:get-settings')?.({});
 
     expect(vi.mocked(getPrivacySettings)).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Malware scan IPC (Fase 4.4)', () => {
+  const report = {
+    scope: ['C:\\scan'],
+    files: [],
+    summary: { clean: 1, infected: 0, unknown: 0, total: 1 },
+    rulesVersion: '1.0.0',
+    engine: 'yara-x 0.7.5 (worker_thread)',
+    scannedAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
+    durationMs: 12,
+    note: null,
+  };
+
+  beforeEach(() => {
+    handlers.clear();
+    vi.mocked(withOperationLock).mockClear();
+    vi.mocked(getYaraEngine).mockReset();
+    vi.mocked(getMalwareScanScopes).mockReset();
+    registerIpcHandlers(null);
+  });
+
+  it('serializes malware scans through the global lock', async () => {
+    const scanPaths = vi.fn(async () => report);
+    vi.mocked(getYaraEngine).mockReturnValue({ scanPaths } as unknown as ReturnType<
+      typeof getYaraEngine
+    >);
+
+    const result = await handlers.get('malware:scan')?.({}, { paths: ['C:\\scan'] });
+
+    expect(vi.mocked(withOperationLock)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(withOperationLock).mock.calls[0]?.[0]).toBe('malware:scan');
+    expect(scanPaths).toHaveBeenCalledWith(['C:\\scan'], undefined);
+    expect(result).toEqual(report);
+    expect(recordStatsEvent).toHaveBeenCalledWith({ type: 'maintenance', files: 1 });
+  });
+
+  it('rejects empty malware scan scopes without touching the engine', async () => {
+    await expect(handlers.get('malware:scan')?.({}, { paths: [] })).rejects.toThrow(
+      /at least one path/i
+    );
+    expect(vi.mocked(getYaraEngine)).not.toHaveBeenCalled();
+  });
+
+  it('keeps malware:cancel out of the lock so it always preempts', async () => {
+    const cancel = vi.fn(async () => undefined);
+    vi.mocked(getYaraEngine).mockReturnValue({ cancel } as unknown as ReturnType<
+      typeof getYaraEngine
+    >);
+
+    const result = await handlers.get('malware:cancel')?.({});
+
+    expect(vi.mocked(withOperationLock)).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ success: true, message: 'Malware scan cancelled.' });
+  });
+
+  it('serves live preset scopes without the lock', async () => {
+    const scopes = [{ id: 'temp', label: 'Windows Temp folder', path: 'C:\\Temp' }];
+    vi.mocked(getMalwareScanScopes).mockReturnValue(scopes);
+
+    const result = await handlers.get('malware:scopes')?.({});
+
+    expect(vi.mocked(withOperationLock)).not.toHaveBeenCalled();
+    expect(result).toEqual(scopes);
   });
 });

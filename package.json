@@ -1,6 +1,6 @@
 {
   "name": "forch-i-winoptimizer",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Windows optimizer built with FORCH.iA ecosystem",
   "author": "Paulo Velasco",
   "license": "MIT",
@@ -28,6 +28,7 @@
     "predev": "npm run heartbeat"
   },
   "dependencies": {
+    "@litko/yara-x": "0.7.5",
     "@tanstack/react-virtual": "^3.14.13",
     "electron-updater": "^6.1.7",
     "react": "^18.3.1",
@@ -72,6 +73,10 @@
       "assets/**/*",
       "catalogs/**/*",
       "sources/**/*"
+    ],
+    "asarUnpack": [
+      "dist/main/services/yara-worker.js",
+      "node_modules/@litko/yara-x-win32-x64-msvc/**/*"
     ],
     "win": {
       "target": [

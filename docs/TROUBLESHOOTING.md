@@ -466,6 +466,27 @@ inventan valores. El **Export CSV** funciona igualmente (exporta el encabezado).
   operaciones mutantes pasan por un **mutex FIFO**; esperá a que termine o
   encolá la acción.
 
+### 25. Malware scan (YARA): EICAR, Defender y límites (v0.17.0)
+
+- **Quiero probar que detecta algo:** el set de reglas incluye el string de
+  prueba **EICAR** (68 bytes, inofensivo). Escribilo en un `.com` en `%TEMP%`
+  y escanealo: debe dar `Match` con `Forchi_Eicar_Test_File`. Un `.txt` normal
+  debe dar `Clean`. **Nunca uses malware real.**
+- **EICAR da `Unknown` con "os error 225":** la protección en tiempo real de
+  **Defender bloqueó la lectura** ("el archivo contiene un virus"). Es el
+  comportamiento honesto: si no se pudo leer, el estado es `Unknown`, nunca
+  `Clean`. El escaneo en memoria (`scanBuffer`) no pasa por disco y sí detecta
+  EICAR aunque Defender vigile la carpeta.
+- **Un `Match` heurístico (`Certutil`, `PowerShell_Encoded`):** es
+  **sospechoso, no un veredicto**. Scripts legítimos de administración pueden
+  contener esos patrones: revisá el archivo manualmente antes de hacer nada.
+- **Archivos grandes dan `Unknown`:** por defecto no se leen archivos de más de
+  **64 MB** ni se escanean más de **5000 archivos** por pedido; cada archivo
+  tiene **30 s** de timeout. Son límites de seguridad documentados en
+  `src/shared/malware-scan.ts` (`MALWARE_LIMITS`).
+- **"Esto no es un antivirus":** correcto. No hay protección en tiempo real, ni
+  cuarentena, ni remoción. Es coincidencia de firmas bajo demanda, solo lectura.
+
 ## Obtener Ayuda
 
 Si ninguna de estas soluciones funciona:
