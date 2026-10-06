@@ -464,6 +464,9 @@ describe('security-scan engine', () => {
           'firewall-inbound-rules': '{"kind":"fwrules","count":120,"sample":["Core Networking"]}',
           'winrm-exposure':
             '{"kind":"winrm","service":"Stopped","startType":"Manual","listeners":0}',
+          'smart-app-control': '{"kind":"sac","state":1}',
+          'powershell-exec-policy': '{"kind":"exec","policy":"RemoteSigned"}',
+          'bitlocker-guard': '{"kind":"blg","protection":"On"}',
         }),
         machine()
       );
@@ -577,6 +580,9 @@ describe('security-scan engine', () => {
         'admin-accounts': '{"kind":"admins","adminCount":1,"total":5,"neverExpire":0}',
         'firewall-inbound-rules': '{"kind":"fwrules","count":120,"sample":["Core Networking"]}',
         'winrm-exposure': '{"kind":"winrm","service":"Stopped","startType":"Manual","listeners":0}',
+        'smart-app-control': '{"kind":"sac","state":1}',
+        'powershell-exec-policy': '{"kind":"exec","policy":"RemoteSigned"}',
+        'bitlocker-guard': '{"kind":"blg","protection":"On"}',
       });
       const stdout = [`@@FENV@@\n${env}`]
         .concat(blocks.map((block, index) => `@@FSEC_${index}@@\n${block}`))
@@ -644,9 +650,17 @@ describe('security-scan engine', () => {
         }
         expect((def?.reads ?? '').length).toBeGreaterThan(0);
       }
-      // The four reversible auto-fixes (v0.10.0 adds smb-signing).
+      // The reversible auto-fixes (v0.10.0 adds smb-signing, v0.18.0 adds
+      // smart-app-control + powershell-exec-policy).
       const fixable = SECURITY_CHECK_CATALOG.filter((d) => d.autoFixable).map((d) => d.id);
-      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb-signing', 'smb1']);
+      expect(fixable.sort()).toEqual([
+        'guest-account',
+        'powershell-exec-policy',
+        'remote-desktop',
+        'smart-app-control',
+        'smb-signing',
+        'smb1',
+      ]);
     });
 
     it('keeps every script wired (no check falls through to a stub)', () => {
@@ -841,9 +855,17 @@ describe('security-scan engine', () => {
         expect((def?.reads ?? '').length).toBeGreaterThan(0);
         expect(def?.possibleStatuses).toContain('requires-admin');
       }
-      // The four reversible auto-fixes are still the only ones.
+      // The reversible auto-fixes (v0.18.0 adds smart-app-control +
+      // powershell-exec-policy; the v0.9.0 controls stay read-only).
       const fixable = SECURITY_CHECK_CATALOG.filter((d) => d.autoFixable).map((d) => d.id);
-      expect(fixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb-signing', 'smb1']);
+      expect(fixable.sort()).toEqual([
+        'guest-account',
+        'powershell-exec-policy',
+        'remote-desktop',
+        'smart-app-control',
+        'smb-signing',
+        'smb1',
+      ]);
     });
 
     it('has a live query wired for every new id', () => {

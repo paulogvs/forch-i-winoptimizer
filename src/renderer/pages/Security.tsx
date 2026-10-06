@@ -11,6 +11,11 @@ import { useAppStore } from '../stores/useAppStore';
 import { useOperationStatus } from '../hooks/useOperationStatus';
 import type { PrivacySetting, SecurityAction, DNSBenchmarkResult } from '@shared/types';
 import type { SecurityFixOutcome, SecurityFixPreview } from '@shared/security-fix';
+import {
+  SECURITY_FIX_DESCRIPTIONS,
+  UAC_LEVEL_FIX_IDS,
+  UAC_LEVEL_LABELS,
+} from '@shared/security-fix';
 import type { MalwareFileResult, MalwareScanReport, MalwareScanScope } from '@shared/malware-scan';
 import {
   SECURITY_CHECK_BY_ID,
@@ -257,6 +262,14 @@ export const Security: React.FC = () => {
 
   const runFix = async (action: 'apply' | 'revert') => {
     if (!fixCheckId) return;
+    // UAC Never notify is offered but never silent: an explicit confirmation
+    // restates the risk before anything runs.
+    if (fixCheckId === 'uac-never' && action === 'apply') {
+      const ok = confirm(
+        'Set UAC to Never notify? This is the least secure setting: programs will be able to make changes to the computer without asking. Only continue if you understand the risk.'
+      );
+      if (!ok) return;
+    }
     setFixBusy(true);
     setFixMessage(null);
     try {
@@ -515,6 +528,30 @@ export const Security: React.FC = () => {
                           >
                             Auto-fix
                           </Button>
+                        )}
+                        {check.id === 'uac' && (
+                          <div
+                            className="flex gap-1 flex-wrap"
+                            role="group"
+                            aria-label="UAC level fixes"
+                          >
+                            {UAC_LEVEL_FIX_IDS.map((fixId) => (
+                              <Button
+                                key={fixId}
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => openFixPreview(fixId)}
+                                title={
+                                  fixId === 'uac-never'
+                                    ? SECURITY_FIX_DESCRIPTIONS['uac-never']
+                                    : `Preview setting UAC to ${UAC_LEVEL_LABELS[fixId]} (reversible, requires admin).`
+                                }
+                                data-testid={`security-uac-${fixId}`}
+                              >
+                                {fixId === 'uac-never' ? '⚠ Never notify' : UAC_LEVEL_LABELS[fixId]}
+                              </Button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </Card>

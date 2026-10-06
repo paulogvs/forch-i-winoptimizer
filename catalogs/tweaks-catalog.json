@@ -769,6 +769,212 @@
       "safetyNote": "Windows 11 only; registry-only, the Widgets service is untouched."
     },
     {
+      "id": "taskbar-badges-off",
+      "name": "Hide badges on taskbar apps",
+      "description": "Hides the notification badges (counts/dots) on taskbar app icons for the current user. Notifications themselves keep working.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22000,
+      "note": "Windows 11 only (build 22000+). Restart Explorer (Task Manager > Windows Explorer > Restart) or sign out/in to apply. WinOptimizer never restarts Explorer for you.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarBadges",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarBadges",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Taskbar display preference only; notifications keep working."
+    },
+    {
+      "id": "taskbar-never-combine",
+      "name": "Never combine taskbar buttons",
+      "description": "Shows every window separately with its label instead of combining taskbar buttons (Windows 11 style ungrouping).",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22000,
+      "note": "Windows 11 only (build 22000+). Restart Explorer (Task Manager > Windows Explorer > Restart) or sign out/in to apply. WinOptimizer never restarts Explorer for you. Restore removes the value, back to the default always-combine.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarGlomLevel",
+          "type": "DWORD",
+          "value": 2
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "TaskbarGlomLevel",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Taskbar grouping preference only."
+    },
+    {
+      "id": "taskbar-end-task-on",
+      "name": "End Task in the taskbar menu",
+      "description": "Adds an End task entry to the taskbar right-click menu so hung apps can be force-closed without opening Task Manager.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22631,
+      "note": "Windows 11 23H2+ (build 22631+). Applies instantly, no restart needed. Also available in Settings > System > For developers > End Task.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings",
+          "name": "TaskbarEndTask",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings",
+          "name": "TaskbarEndTask",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Adds a context-menu entry; force-closing apps may lose unsaved work."
+    },
+    {
+      "id": "desktop-icons-show",
+      "name": "Show desktop icons",
+      "description": "Makes sure the classic desktop icons (This PC, files, shortcuts) stay visible for the current user.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Restart Explorer (Task Manager > Windows Explorer > Restart) or sign out/in to apply. WinOptimizer never restarts Explorer for you. Restore removes the value, back to the Windows default.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "HideIcons",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "HideIcons",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Desktop display preference only; no file is touched."
+    },
+    {
+      "id": "shortcut-arrow-blank",
+      "name": "Hide shortcut arrows (blank overlay)",
+      "description": "Replaces the shortcut arrow overlay with a built-in transparent icon, so desktop shortcuts render without arrows.",
+      "category": "explorer",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Points Shell Icons 29 at a transparent icon that already ships with Windows (imageres.dll,197): no file is copied. Restart Explorer (Task Manager > Windows Explorer > Restart) or sign out/in to apply. WinOptimizer never restarts Explorer for you. Restore deletes the value and the arrow comes back.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Icons",
+          "name": "29",
+          "type": "String",
+          "value": "%systemroot%\\system32\\imageres.dll,197"
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Icons",
+          "name": "29",
+          "type": "String",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Cosmetic overlay only; shortcuts keep working exactly the same."
+    },
+    {
+      "id": "dynamic-lighting-off",
+      "name": "Turn off Dynamic Lighting",
+      "description": "Stops Windows from centrally controlling RGB/LED devices so vendor apps (G Hub, Armoury Crate, Synapse) stay in charge.",
+      "category": "system",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22631,
+      "note": "Windows 11 23H2+ (build 22631+). Sign out/in to apply fully. Re-enable anytime in Settings > Personalization > Dynamic Lighting.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Lighting",
+          "name": "AmbientLightingEnabled",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Lighting",
+          "name": "AmbientLightingEnabled",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Lighting preference only; devices fall back to their own default behavior."
+    },
+    {
       "id": "hide-copilot",
       "name": "Turn off Copilot",
       "description": "Hides the Copilot button and disables Windows Copilot via policy for the current user.",

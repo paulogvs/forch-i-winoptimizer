@@ -158,8 +158,8 @@ describe('safe tweaks', () => {
   it('ships the 10 P1.2 tweaks with unique ids and reversible safe definitions', () => {
     // The curated list is DATA (catalogs/tweaks-catalog.json); v0.8.0 reconciled
     // the stale 10-entry winutil import into this native catalog (19 + Lot 1:
-    // A1 preset + 5 children, A5 3 sound tweaks = 28).
-    expect(TWEAKS.length).toBe(28);
+    // A1 preset + 5 children, A5 3 sound tweaks = 28 + Lot 2: A2 6 taskbar tweaks = 34).
+    expect(TWEAKS.length).toBe(34);
     const ids = TWEAKS.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of P12_IDS) {

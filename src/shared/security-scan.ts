@@ -39,9 +39,14 @@ export interface SecurityCheckDefinition {
    *
    * v0.10.0 ships auto-fix for exactly four checks — `smb1`, `guest-account`,
    * `remote-desktop` and `smb-signing` — because each has a standard,
-   * admin-only, reversible remediation. Every other check remains read-only and
-   * offers guidance, since its candidate repair (BitLocker, Secure Boot, ...)
-   * can lock a user out or is not reversible through a single value.
+   * admin-only, reversible remediation. v0.18.0 adds `smart-app-control` and
+   * `powershell-exec-policy` (same guarantees). UAC is repaired through five
+   * dedicated level fixes (see `UAC_LEVEL_FIX_IDS` in `@shared/security-fix`),
+   * so the `uac` check itself stays non-fixable and `bitlocker-guard` stays
+   * read-only by design: this app never encrypts anything. Every other check
+   * remains read-only and offers guidance, since its candidate repair
+   * (BitLocker, Secure Boot, ...) can lock a user out or is not reversible
+   * through a single value.
    */
   autoFixable: boolean;
   /**
@@ -328,6 +333,49 @@ export const SECURITY_CHECK_CATALOG: readonly SecurityCheckDefinition[] = [
     requiresAdmin: true,
     guidance:
       'If you do not use remote management, stop the WinRM service and remove its listeners (or restrict them with the firewall).',
+  },
+  // ============ v0.18.0 additions (Lote 2 / A4: OS hardening toggles) ============
+  // `smart-app-control` and `powershell-exec-policy` are admin-only reversible
+  // remediations with preview + confirm + revert. `bitlocker-guard` is
+  // advisory only: it warns when the system drive is unprotected but offers
+  // NO repair, because this app never encrypts anything.
+  {
+    id: 'smart-app-control',
+    title: 'Smart App Control',
+    category: 'platform',
+    severity: 'high',
+    reads:
+      'HKLM\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy => VerifiedAndReputablePolicyState (0=Off, 1=Enforce, 2=Evaluation)',
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: true,
+    requiresAdmin: true,
+    guidance:
+      'Enforce Smart App Control for stronger app control (Windows Security => App & browser control => Smart App Control). Best enabled on a clean install; turning it off afterwards requires reinstalling Windows or the registry.',
+  },
+  {
+    id: 'powershell-exec-policy',
+    title: 'PowerShell execution policy',
+    category: 'platform',
+    severity: 'medium',
+    reads:
+      'HKLM\\SOFTWARE\\Microsoft\\PowerShell\\1\\ShellIds\\Microsoft.PowerShell => ExecutionPolicy (machine policy; a Group Policy can override it)',
+    possibleStatuses: ['pass', 'warn', 'fail', 'requires-admin', 'unknown'],
+    autoFixable: true,
+    guidance:
+      'Set the machine execution policy to RemoteSigned (local scripts run, downloaded scripts must be signed). Verify with `Get-ExecutionPolicy -List`.',
+  },
+  {
+    id: 'bitlocker-guard',
+    title: 'System drive encryption guard (advisory)',
+    category: 'encryption',
+    severity: 'high',
+    reads:
+      'Get-BitLockerVolume -MountPoint %SystemDrive% => ProtectionStatus (warns when Off; never encrypts)',
+    possibleStatuses: ['pass', 'warn', 'requires-admin', 'unknown'],
+    autoFixable: false,
+    requiresAdmin: true,
+    guidance:
+      'This app will never encrypt your drive automatically. If the system drive is unprotected, turn on BitLocker / Device encryption yourself in Settings => Privacy & security => Device encryption, and save the recovery key somewhere safe.',
   },
 ];
 

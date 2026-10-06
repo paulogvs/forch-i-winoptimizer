@@ -335,6 +335,34 @@ export const SECURITY_SCRIPTS: Readonly<Record<string, string>> = {
     } catch { $listeners = $null }
     @{ kind = $kind; service = $service; startType = $startType; listeners = $listeners; message = $message } | ConvertTo-Json -Compress
   `,
+
+  // ---- v0.18.0 additions (Lote 2 / A4: OS hardening toggles, read-only) ----
+  'smart-app-control': `
+    $kind = 'sac'; $state = $null; $message = '';
+    try {
+      $v = (Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy' -Name 'VerifiedAndReputablePolicyState' -ErrorAction Stop).VerifiedAndReputablePolicyState;
+      $state = [int]$v;
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    @{ kind = $kind; state = $state; message = $message } | ConvertTo-Json -Compress
+  `,
+
+  'powershell-exec-policy': `
+    $kind = 'exec'; $policy = ''; $message = '';
+    try {
+      $v = (Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\PowerShell\\1\\ShellIds\\Microsoft.PowerShell' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue).ExecutionPolicy;
+      if ($v -ne $null) { $policy = [string]$v }
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    @{ kind = $kind; policy = $policy; message = $message } | ConvertTo-Json -Compress
+  `,
+
+  'bitlocker-guard': `
+    $kind = 'blg'; $protection = ''; $message = '';
+    try {
+      $v = Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop;
+      $protection = [string]$v.ProtectionStatus;
+    } catch { $kind = 'unreadable'; $message = [string]$_.Exception.Message }
+    @{ kind = $kind; protection = $protection; message = $message } | ConvertTo-Json -Compress
+  `,
 };
 
 /** Build the single batched script (env + every catalog check, in order). */
@@ -1440,6 +1468,110 @@ function winrmExposure(p: Obj | null): SecurityCheckResult {
   };
 }
 
+// ---- v0.18.0 builders (Lote 2 / A4: OS hardening toggles, read-only) ----
+
+function smartAppControl(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  const state = asNumber(p?.state);
+  if (!p || kind === 'exception' || kind === 'unreadable' || state === null) {
+    return {
+      id: 'smart-app-control',
+      status: 'unknown',
+      evidence: 'VerifiedAndReputablePolicyState=unreadable',
+      reason: 'Smart App Control state could not be read.',
+    };
+  }
+  const evidence = `VerifiedAndReputablePolicyState=${state}`;
+  if (state === 1) {
+    return {
+      id: 'smart-app-control',
+      status: 'pass',
+      evidence,
+      reason: 'Smart App Control is enforced: only signed or reputable apps run.',
+    };
+  }
+  if (state === 2) {
+    return {
+      id: 'smart-app-control',
+      status: 'warn',
+      evidence,
+      reason: 'Smart App Control is in evaluation mode; enforce it for full protection.',
+    };
+  }
+  return {
+    id: 'smart-app-control',
+    status: 'fail',
+    evidence,
+    reason: 'Smart App Control is off: unsigned apps run without reputation checks.',
+  };
+}
+
+function powershellExecPolicy(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  const policy = asString(p?.policy);
+  if (!p || kind === 'exception' || kind === 'unreadable') {
+    return {
+      id: 'powershell-exec-policy',
+      status: 'unknown',
+      evidence: 'ExecutionPolicy=unreadable',
+      reason: 'The machine execution policy could not be read.',
+    };
+  }
+  const evidence = `ExecutionPolicy=${policy || 'not configured (defaults to Restricted)'}`;
+  if (policy === 'RemoteSigned' || policy === 'AllSigned') {
+    return {
+      id: 'powershell-exec-policy',
+      status: 'pass',
+      evidence,
+      reason: `The machine execution policy is ${policy}.`,
+    };
+  }
+  if (policy === 'Unrestricted' || policy === 'Bypass' || policy === 'Undefined') {
+    return {
+      id: 'powershell-exec-policy',
+      status: 'fail',
+      evidence,
+      reason: `The machine execution policy is ${policy || 'not configured'}: scripts run without the recommended signature check.`,
+    };
+  }
+  return {
+    id: 'powershell-exec-policy',
+    status: 'warn',
+    evidence,
+    reason: `The machine execution policy is ${policy || 'not configured'}; RemoteSigned is recommended.`,
+  };
+}
+
+function bitlockerGuard(p: Obj | null): SecurityCheckResult {
+  const kind = asString(p?.kind);
+  const protection = asString(p?.protection);
+  if (!p || kind === 'exception' || kind === 'unreadable') {
+    return {
+      id: 'bitlocker-guard',
+      status: 'unknown',
+      evidence: 'ProtectionStatus=unreadable',
+      reason: 'BitLocker protection state could not be read.',
+    };
+  }
+  const evidence = `ProtectionStatus=${protection || 'unknown'}`;
+  if (/on/i.test(protection)) {
+    return {
+      id: 'bitlocker-guard',
+      status: 'pass',
+      evidence,
+      reason: 'The system drive reports BitLocker protection on.',
+    };
+  }
+  // Advisory only: warn at worst, never fail, and never offer to encrypt.
+  return {
+    id: 'bitlocker-guard',
+    status: 'warn',
+    evidence,
+    reason:
+      'The system drive is not reporting BitLocker protection. This app will never encrypt it automatically: turn BitLocker on yourself in Settings if you want it.',
+  };
+}
+
 const BUILDERS: Readonly<Record<string, (payload: Obj | null) => SecurityCheckResult>> = {
   antivirus,
   firewall,
@@ -1463,6 +1595,9 @@ const BUILDERS: Readonly<Record<string, (payload: Obj | null) => SecurityCheckRe
   'admin-accounts': adminAccounts,
   'firewall-inbound-rules': firewallInboundRules,
   'winrm-exposure': winrmExposure,
+  'smart-app-control': smartAppControl,
+  'powershell-exec-policy': powershellExecPolicy,
+  'bitlocker-guard': bitlockerGuard,
 };
 
 /**

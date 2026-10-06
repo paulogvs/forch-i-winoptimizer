@@ -36,15 +36,22 @@ describe('security-scan contract', () => {
     }
   });
 
-  it('auto-fixes exactly the four reversible checks and nothing else', () => {
+  it('auto-fixes exactly the reversible checks and nothing else', () => {
     // v0.10.0 ships auto-fix for smb1, guest-account, remote-desktop and
-    // smb-signing. This guards against silently adding a fifth (every other
-    // candidate can lock a user out or is not reversible through a single
-    // value).
+    // smb-signing; v0.18.0 adds smart-app-control and powershell-exec-policy.
+    // This guards against silently adding another (every other candidate can
+    // lock a user out or is not reversible through a single value).
     const autoFixable = SECURITY_CHECK_CATALOG.filter((definition) => definition.autoFixable).map(
       (definition) => definition.id
     );
-    expect(autoFixable.sort()).toEqual(['guest-account', 'remote-desktop', 'smb-signing', 'smb1']);
+    expect(autoFixable.sort()).toEqual([
+      'guest-account',
+      'powershell-exec-policy',
+      'remote-desktop',
+      'smart-app-control',
+      'smb-signing',
+      'smb1',
+    ]);
   });
 
   it('v0.9.0 admin-gated controls are present, read-only and flagged requiresAdmin', () => {
@@ -64,9 +71,12 @@ describe('security-scan contract', () => {
       expect(definition?.possibleStatuses, id).toContain('requires-admin');
       expect((definition?.reads ?? '').length, id).toBeGreaterThan(0);
     }
-    // No other check gained the admin flag by accident.
+    // No other check gained the admin flag by accident, beyond the deliberate
+    // v0.18.0 additions (smart-app-control fix + bitlocker-guard advisory).
     const adminGated = SECURITY_CHECK_CATALOG.filter((d) => d.requiresAdmin).map((d) => d.id);
-    expect(adminGated.sort()).toEqual([...ids].sort());
+    expect(adminGated.sort()).toEqual(
+      [...ids, 'bitlocker-guard', 'smart-app-control'].sort()
+    );
   });
 
   describe('computeSecurityScore', () => {

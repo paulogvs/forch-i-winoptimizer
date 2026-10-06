@@ -4,9 +4,13 @@ import { runPowerShell, parsePowerShellJson } from './powershell';
 import {
   SECURITY_FIX_DESCRIPTIONS,
   SECURITY_FIX_TITLES,
+  UAC_LEVEL_LABELS,
+  UAC_LEVEL_TRIPLES,
   isSecurityFixId,
   type SecurityFixBlockedReason,
   type SecurityFixId,
+  type UacFixId,
+  type UacTriple,
   type SecurityFixOutcome,
   type SecurityFixPreview,
 } from '@shared/security-fix';
@@ -62,12 +66,71 @@ export interface SmbSigningObservation {
   /** EnableSecuritySignature: the client signs when the peer asks. */
   enable: boolean | null;
 }
+/**
+ * UAC level observation (v0.18.0). The three DWORDs fully determine the
+ * level; any of them may be unreadable (null) on a locked-down machine.
+ */
+export interface UacObservation {
+  checkId: UacFixId;
+  available: boolean;
+  lua: number | null;
+  consent: number | null;
+  secure: number | null;
+}
+/** Smart App Control state: 0=Off, 1=Enforce, 2=Evaluation, null=not configured. */
+export interface SmartAppControlObservation {
+  checkId: 'smart-app-control';
+  available: boolean;
+  state: number | null;
+}
+/** Machine execution policy (null when not configured; defaults to Restricted). */
+export interface ExecPolicyObservation {
+  checkId: 'powershell-exec-policy';
+  available: boolean;
+  policy: string | null;
+}
 export type FixObservation =
-  Smb1Observation | GuestObservation | RdpObservation | SmbSigningObservation;
+  | Smb1Observation
+  | GuestObservation
+  | RdpObservation
+  | SmbSigningObservation
+  | UacObservation
+  | SmartAppControlObservation
+  | ExecPolicyObservation;
 
 // ---------------------------------------------------------------------------
 // Live read scripts (one JSON object each)
 // ---------------------------------------------------------------------------
+
+const RDP_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server';
+const SMB1_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
+const SMB_SIGNING_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
+const UAC_REG_PATH = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System';
+const SAC_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy';
+const EXECPOL_REG_PATH =
+  'HKLM:\\SOFTWARE\\Microsoft\\PowerShell\\1\\ShellIds\\Microsoft.PowerShell';
+
+/** Shared live-read for all five UAC levels (same triple, different target). */
+const UAC_READ_SCRIPT = `
+    $p = '${UAC_REG_PATH}';
+    $lua = (Get-ItemProperty -Path $p -Name 'EnableLUA' -ErrorAction SilentlyContinue).EnableLUA;
+    $consent = (Get-ItemProperty -Path $p -Name 'ConsentPromptBehaviorAdmin' -ErrorAction SilentlyContinue).ConsentPromptBehaviorAdmin;
+    $secure = (Get-ItemProperty -Path $p -Name 'PromptOnSecureDesktop' -ErrorAction SilentlyContinue).PromptOnSecureDesktop;
+    $available = ($lua -ne $null);
+    @{ available = $available; lua = $lua; consent = $consent; secure = $secure } | ConvertTo-Json -Compress
+  `;
+
+function uacApplyScript(triple: UacTriple): string {
+  return `
+    try {
+      Set-ItemProperty -Path '${UAC_REG_PATH}' -Name 'EnableLUA' -Value ${triple.lua} -Type DWord -Force -ErrorAction Stop;
+      Set-ItemProperty -Path '${UAC_REG_PATH}' -Name 'ConsentPromptBehaviorAdmin' -Value ${triple.consent} -Type DWord -Force -ErrorAction Stop;
+      Set-ItemProperty -Path '${UAC_REG_PATH}' -Name 'PromptOnSecureDesktop' -Value ${triple.secure} -Type DWord -Force -ErrorAction Stop;
+      Write-Output 'OK'
+    }
+    catch { Write-Output 'FAILED' }
+  `;
+}
 
 const READ_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
   smb1: `
@@ -123,11 +186,28 @@ const READ_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
     }
     @{ available = $available; require = $require; enable = $enable } | ConvertTo-Json -Compress
   `,
+  'uac-always': UAC_READ_SCRIPT,
+  'uac-credentials': UAC_READ_SCRIPT,
+  'uac-default': UAC_READ_SCRIPT,
+  'uac-nodim': UAC_READ_SCRIPT,
+  'uac-never': UAC_READ_SCRIPT,
+  'smart-app-control': `
+    $available = $true; $state = $null;
+    try {
+      $v = (Get-ItemProperty -Path '${SAC_REG_PATH}' -Name 'VerifiedAndReputablePolicyState' -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState;
+      if ($v -ne $null) { $state = [int]$v }
+    } catch { $available = $false }
+    @{ available = $available; state = $state } | ConvertTo-Json -Compress
+  `,
+  'powershell-exec-policy': `
+    $available = $true; $policy = $null;
+    try {
+      $v = (Get-ItemProperty -Path '${EXECPOL_REG_PATH}' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue).ExecutionPolicy;
+      if ($v -ne $null) { $policy = [string]$v }
+    } catch { $available = $false }
+    @{ available = $available; policy = $policy } | ConvertTo-Json -Compress
+  `,
 };
-
-const RDP_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server';
-const SMB1_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
-const SMB_SIGNING_REG_PATH = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters';
 
 const APPLY_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
   smb1: `
@@ -168,6 +248,19 @@ const APPLY_SCRIPTS: Readonly<Record<SecurityFixId, string>> = {
     }
     if ($ok) { Write-Output 'OK' } else { Write-Output 'FAILED' }
   `,
+  'uac-always': uacApplyScript(UAC_LEVEL_TRIPLES['uac-always']),
+  'uac-credentials': uacApplyScript(UAC_LEVEL_TRIPLES['uac-credentials']),
+  'uac-default': uacApplyScript(UAC_LEVEL_TRIPLES['uac-default']),
+  'uac-nodim': uacApplyScript(UAC_LEVEL_TRIPLES['uac-nodim']),
+  'uac-never': uacApplyScript(UAC_LEVEL_TRIPLES['uac-never']),
+  'smart-app-control': `
+    try { Set-ItemProperty -Path '${SAC_REG_PATH}' -Name 'VerifiedAndReputablePolicyState' -Value 1 -Type DWord -Force -ErrorAction Stop; Write-Output 'OK' }
+    catch { Write-Output 'FAILED' }
+  `,
+  'powershell-exec-policy': `
+    try { Set-ItemProperty -Path '${EXECPOL_REG_PATH}' -Name 'ExecutionPolicy' -Value 'RemoteSigned' -Type String -Force -ErrorAction Stop; Write-Output 'OK' }
+    catch { Write-Output 'FAILED' }
+  `,
 };
 
 /**
@@ -189,6 +282,65 @@ function restoreSmbSigningRegistryValue(name: string, value: SmbSigningTriState)
   return value === 'absent'
     ? `Remove-ItemProperty -Path $base -Name '${name}' -ErrorAction SilentlyContinue`
     : `Set-ItemProperty -Path $base -Name '${name}' -Value ${value} -Type DWord -Force -ErrorAction Stop`;
+}
+
+/**
+ * Canonical token for the UAC original: the exact triple that was in place
+ * before the change, e.g. `lua=1;consent=5;secure=1`. A part is `absent`
+ * when the value was not present, and the revert restores that by REMOVING
+ * the value instead of inventing a default.
+ */
+type UacTokenPart = 'absent' | string;
+
+function parseUacToken(token: string): { lua: string; consent: string; secure: string } | null {
+  const match = /^lua=(\d+|absent);consent=(\d+|absent);secure=(\d+|absent)$/.exec(token);
+  if (!match) return null;
+  return {
+    lua: match[1] as UacTokenPart,
+    consent: match[2] as UacTokenPart,
+    secure: match[3] as UacTokenPart,
+  };
+}
+
+function restoreUacRegistryValue(name: string, value: string): string {
+  return value === 'absent'
+    ? `Remove-ItemProperty -Path $base -Name '${name}' -ErrorAction SilentlyContinue`
+    : `Set-ItemProperty -Path $base -Name '${name}' -Value ${value} -Type DWord -Force -ErrorAction Stop`;
+}
+
+/** Plain-language label for a UAC triple (used in previews and outcomes). */
+export function uacLevelLabel(
+  lua: number | null,
+  consent: number | null,
+  secure: number | null
+): string {
+  if (lua === 0) return 'Off (UAC disabled)';
+  if (lua === 1 && consent === 2 && secure === 1) return 'Always notify';
+  if (lua === 1 && consent === 1 && secure === 1) return 'Always notify + credentials';
+  if (lua === 1 && consent === 5 && secure === 1) return 'Default';
+  if (lua === 1 && consent === 5 && secure === 0) return 'Notify without dimming';
+  if (lua === 1 && consent === 0) return 'Never notify';
+  if (lua === null || consent === null) return 'unknown';
+  return 'Custom';
+}
+
+/** Display label for a Smart App Control state value. */
+export function smartAppControlLabel(state: number | null): string {
+  if (state === 1) return 'Smart App Control enforced';
+  if (state === 2) return 'Smart App Control in evaluation';
+  if (state === 0) return 'Smart App Control off';
+  return 'Smart App Control not configured';
+}
+
+/** Narrow any observation to the shared UAC shape (all five levels). */
+function isUacObservation(observation: FixObservation): observation is UacObservation {
+  return (
+    observation.checkId === 'uac-always' ||
+    observation.checkId === 'uac-credentials' ||
+    observation.checkId === 'uac-default' ||
+    observation.checkId === 'uac-nodim' ||
+    observation.checkId === 'uac-never'
+  );
 }
 
 /**
@@ -264,6 +416,41 @@ export function buildRevertCommand(checkId: SecurityFixId, previous: string): st
         if ($ok) { Write-Output 'OK' } else { Write-Output 'FAILED' }
       `;
     }
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      const parsed = parseUacToken(previous) ?? { lua: '1', consent: '5', secure: '1' };
+      const restoreLua = restoreUacRegistryValue('EnableLUA', parsed.lua);
+      const restoreConsent = restoreUacRegistryValue('ConsentPromptBehaviorAdmin', parsed.consent);
+      const restoreSecure = restoreUacRegistryValue('PromptOnSecureDesktop', parsed.secure);
+      return `
+        $base = '${UAC_REG_PATH}';
+        try { ${restoreLua}; ${restoreConsent}; ${restoreSecure}; Write-Output 'OK' }
+        catch { Write-Output 'FAILED' }
+      `;
+    }
+    case 'smart-app-control': {
+      const restore =
+        previous === 'absent'
+          ? `Remove-ItemProperty -Path '${SAC_REG_PATH}' -Name 'VerifiedAndReputablePolicyState' -ErrorAction SilentlyContinue`
+          : `Set-ItemProperty -Path '${SAC_REG_PATH}' -Name 'VerifiedAndReputablePolicyState' -Value ${previous} -Type DWord -Force -ErrorAction Stop`;
+      return `
+        try { ${restore}; Write-Output 'OK' }
+        catch { Write-Output 'FAILED' }
+      `;
+    }
+    case 'powershell-exec-policy': {
+      const restore =
+        previous === 'absent'
+          ? `Remove-ItemProperty -Path '${EXECPOL_REG_PATH}' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue`
+          : `Set-ItemProperty -Path '${EXECPOL_REG_PATH}' -Name 'ExecutionPolicy' -Value '${previous.replace(/'/g, "''")}' -Type String -Force -ErrorAction Stop`;
+      return `
+        try { ${restore}; Write-Output 'OK' }
+        catch { Write-Output 'FAILED' }
+      `;
+    }
   }
 }
 
@@ -292,6 +479,27 @@ export function formatObservation(observation: FixObservation): string {
         observation.enable === null ? 'unknown' : observation.enable ? 'True' : 'False';
       return `RequireSecuritySignature=${require}, EnableSecuritySignature=${enable}`;
     }
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      if (!observation.available || observation.lua === null) return 'unknown';
+      const level = uacLevelLabel(observation.lua, observation.consent, observation.secure);
+      return (
+        `UAC level: ${level} (EnableLUA=${observation.lua}, ` +
+        `ConsentPromptBehaviorAdmin=${observation.consent ?? 'not set'}, ` +
+        `PromptOnSecureDesktop=${observation.secure ?? 'not set'})`
+      );
+    }
+    case 'smart-app-control':
+      if (!observation.available) return 'unknown';
+      return smartAppControlLabel(observation.state);
+    case 'powershell-exec-policy':
+      if (!observation.available) return 'unknown';
+      return observation.policy === null
+        ? 'ExecutionPolicy not configured (defaults to Restricted)'
+        : `ExecutionPolicy=${observation.policy}`;
   }
 }
 
@@ -313,6 +521,18 @@ export function encodeOriginal(observation: FixObservation): string {
         value === null ? 'absent' : value ? '1' : '0';
       return `require=${tri(observation.require)};enable=${tri(observation.enable)}`;
     }
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      const part = (value: number | null): string => (value === null ? 'absent' : String(value));
+      return `lua=${part(observation.lua)};consent=${part(observation.consent)};secure=${part(observation.secure)}`;
+    }
+    case 'smart-app-control':
+      return observation.state === null ? 'absent' : String(observation.state);
+    case 'powershell-exec-policy':
+      return observation.policy ?? 'absent';
   }
 }
 
@@ -335,6 +555,23 @@ export function formatOriginal(checkId: SecurityFixId, token: string | null): st
         parsed.enable
       )}`;
     }
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      const parsed = parseUacToken(token);
+      if (!parsed) return token;
+      const num = (value: string): number | null => (value === 'absent' ? null : Number(value));
+      return `UAC level: ${uacLevelLabel(num(parsed.lua), num(parsed.consent), num(parsed.secure))}`;
+    }
+    case 'smart-app-control':
+      if (token === 'absent') return 'Smart App Control not configured';
+      return smartAppControlLabel(Number(token));
+    case 'powershell-exec-policy':
+      return token === 'absent'
+        ? 'ExecutionPolicy not configured (defaults to Restricted)'
+        : `ExecutionPolicy=${token}`;
   }
 }
 
@@ -374,6 +611,26 @@ export function decodeFixObservation(
         require: asBool(payload?.require),
         enable: asBool(payload?.enable),
       };
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never':
+      return {
+        checkId,
+        available,
+        lua: asNum(payload?.lua),
+        consent: asNum(payload?.consent),
+        secure: asNum(payload?.secure),
+      };
+    case 'smart-app-control':
+      return { checkId, available, state: asNum(payload?.state) };
+    case 'powershell-exec-policy':
+      return {
+        checkId,
+        available,
+        policy: typeof payload?.policy === 'string' ? payload.policy : null,
+      };
   }
 }
 
@@ -402,6 +659,31 @@ export function isTargetObservation(checkId: SecurityFixId, observation: FixObse
         observation.checkId === 'smb-signing' &&
         observation.available &&
         observation.require === true
+      );
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      if (!isUacObservation(observation) || !observation.available) return false;
+      const triple = UAC_LEVEL_TRIPLES[checkId];
+      return (
+        observation.lua === triple.lua &&
+        observation.consent === triple.consent &&
+        observation.secure === triple.secure
+      );
+    }
+    case 'smart-app-control':
+      return (
+        observation.checkId === 'smart-app-control' &&
+        observation.available &&
+        observation.state === 1
+      );
+    case 'powershell-exec-policy':
+      return (
+        observation.checkId === 'powershell-exec-policy' &&
+        observation.available &&
+        observation.policy === 'RemoteSigned'
       );
   }
 }
@@ -441,6 +723,26 @@ export function isOriginalObservation(
         matches(parsed.require, observation.require) && matches(parsed.enable, observation.enable)
       );
     }
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      if (!isUacObservation(observation) || !observation.available) return false;
+      return encodeOriginal(observation) === token;
+    }
+    case 'smart-app-control':
+      return (
+        observation.checkId === 'smart-app-control' &&
+        observation.available &&
+        encodeOriginal(observation) === token
+      );
+    case 'powershell-exec-policy':
+      return (
+        observation.checkId === 'powershell-exec-policy' &&
+        observation.available &&
+        encodeOriginal(observation) === token
+      );
   }
 }
 
@@ -538,6 +840,55 @@ export function buildFixPreview(
         return blocked('unavailable', current, target);
       }
       if (observation.require === true) {
+        return blocked('already-applied', current, target);
+      }
+      if (!options.isAdmin) return blocked('requires-admin', current, target);
+      return allowed(current, target);
+    }
+    case 'uac-always':
+    case 'uac-credentials':
+    case 'uac-default':
+    case 'uac-nodim':
+    case 'uac-never': {
+      const triple = UAC_LEVEL_TRIPLES[observation.checkId];
+      const current = formatObservation(observation);
+      const target =
+        `UAC ${UAC_LEVEL_LABELS[observation.checkId]} ` +
+        `(EnableLUA=${triple.lua}, ConsentPromptBehaviorAdmin=${triple.consent}, ` +
+        `PromptOnSecureDesktop=${triple.secure})`;
+      if (!observation.available || observation.lua === null) {
+        return blocked('unavailable', current, target);
+      }
+      if (
+        observation.lua === triple.lua &&
+        observation.consent === triple.consent &&
+        observation.secure === triple.secure
+      ) {
+        return blocked('already-applied', current, target);
+      }
+      if (!options.isAdmin) return blocked('requires-admin', current, target);
+      return allowed(current, target);
+    }
+    case 'smart-app-control': {
+      const current = formatObservation(observation);
+      const target = 'Smart App Control enforced';
+      if (!observation.available) {
+        return blocked('unavailable', current, target);
+      }
+      if (observation.state === 1) {
+        return blocked('already-applied', current, target);
+      }
+      if (!options.isAdmin) return blocked('requires-admin', current, target);
+      return allowed(current, target);
+    }
+    case 'powershell-exec-policy': {
+      const current = formatObservation(observation);
+      const target = 'ExecutionPolicy=RemoteSigned';
+      if (!observation.available) {
+        return blocked('unavailable', current, target);
+      }
+      // AllSigned is stricter than the target: never offer a downgrade.
+      if (observation.policy === 'RemoteSigned' || observation.policy === 'AllSigned') {
         return blocked('already-applied', current, target);
       }
       if (!options.isAdmin) return blocked('requires-admin', current, target);

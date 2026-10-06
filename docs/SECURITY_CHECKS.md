@@ -1,6 +1,6 @@
 ﻿# Security Checks Catalog
 
-> **FORCH.iA WinOptimizer v0.10.0** — live security scanner reference (22 read-only checks + four reversible auto-fixes).
+> **FORCH.iA WinOptimizer v0.18.0** — live security scanner reference (25 read-only checks + six reversible auto-fixes + five UAC level fixes + one advisory BitLocker guard).
 >
 > Built with FORCH.i by Paulo Velasco.
 
@@ -56,16 +56,31 @@ score = round(100 Ã— Î£(weight(check) Ã— statusScore) / Î£(weight(chec
 - If the denominator is zero, the score is **`null`** ("not scored") â€” never a
   magic number.
 
-## Auto-fix policy (v0.10.0)
+## Auto-fix policy (v0.10.0, extended in v0.18.0)
 
-Exactly **four** checks ship a real, reversible self-repair:
+Exactly **four** checks shipped a real, reversible self-repair in v0.10.0;
+v0.18.0 adds **two** more plus five dedicated UAC level fixes:
 
-| Check            | Apply does                                                                                                                         | Revert restores                                                                                                                        |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `smb1`           | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`)                       | the **exact previous value** captured before the change (`enabled` / `disabled`)                                                       |
-| `guest-account`  | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback)                    | re-enables it **only if it was enabled before**                                                                                        |
-| `remote-desktop` | sets `fDenyTSConnections = 1`                                                                                                      | the **exact previous numeric value** of `fDenyTSConnections`                                                                           |
-| `smb-signing`    | `Set-SmbServerConfiguration -RequireSecuritySignature $true -EnableSecuritySignature $true` (registry fallback writes both DWORDs) | the **exact previous values** of `RequireSecuritySignature` and `EnableSecuritySignature` (including removing a value that was absent) |
+| Check                              | Apply does                                                                                                                         | Revert restores                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `smb1`                             | `Set-SmbServerConfiguration -EnableSMB1Protocol $false` (registry fallback `LanmanServer\Parameters\SMB1=0`)                       | the **exact previous value** captured before the change (`enabled` / `disabled`)                                                       |
+| `guest-account`                    | disables the account whose SID ends in **RID 501** (`Disable-LocalUser`; `net user <name> /active:no` fallback)                    | re-enables it **only if it was enabled before**                                                                                        |
+| `remote-desktop`                   | sets `fDenyTSConnections = 1`                                                                                                      | the **exact previous numeric value** of `fDenyTSConnections`                                                                           |
+| `smb-signing`                      | `Set-SmbServerConfiguration -RequireSecuritySignature $true -EnableSecuritySignature $true` (registry fallback writes both DWORDs) | the **exact previous values** of `RequireSecuritySignature` and `EnableSecuritySignature` (including removing a value that was absent) |
+| `smart-app-control` (v0.18.0)      | sets `VerifiedAndReputablePolicyState = 1` (enforce) under `HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy`                       | the **exact previous value** (`0` / `1` / `2`, or removes the value when it was absent). Reboot/`CiTool.exe -r` afterwards             |
+| `powershell-exec-policy` (v0.18.0) | sets machine `ExecutionPolicy = RemoteSigned`                                                                                      | the **exact previous value**, or removes the value when it was not configured. Never offers a downgrade from `AllSigned`               |
+
+UAC is repaired through **five dedicated level fixes** (v0.18.0,
+`UAC_LEVEL_FIX_IDS` in `src/shared/security-fix.ts`): `uac-always` (1,2,1),
+`uac-credentials` (1,1,1), `uac-default` (1,5,1), `uac-nodim` (1,5,0) and
+`uac-never` (1,0,0) as `(EnableLUA, ConsentPromptBehaviorAdmin,
+PromptOnSecureDesktop)`. Each captures the exact triple before the write and
+restores it on revert. `uac-never` carries an explicit least-secure warning in
+its description **and** a blocking `confirm()` in the UI before apply.
+
+`bitlocker-guard` (v0.18.0) is **advisory only**: it warns when the system
+drive reports no BitLocker protection but offers no repair — this app never
+encrypts anything.
 
 Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
 
@@ -79,13 +94,17 @@ Rules enforced by code and tests (`src/main/services/security-fix.test.ts`):
    revert restores that captured value, never a hard-coded default.
 4. **Honest state.** After apply/revert the value is **re-read** from the machine;
    the returned `after` is measured, not assumed, and the UI re-runs the scan.
-5. **Everything else stays read-only.** BitLocker, Secure Boot, TPM, UAC, and any
+5. **Everything else stays read-only.** BitLocker, Secure Boot, TPM, and any
    account policy beyond Guest can lock a user out or are not reversible through a
-   single value, so those checks offer `guidance` only.
+   single value, so those checks offer `guidance` only. (UAC levels are the
+   deliberate v0.18.0 exception: five dedicated fixes, each restoring the exact
+   captured triple.)
 
 The unit test `security-scan.test.ts` asserts that the set of `autoFixable` checks
-is **exactly** `{smb1, guest-account, remote-desktop, smb-signing}` — adding a
-fifth fails CI.
+is **exactly** `{smb1, guest-account, remote-desktop, smb-signing,
+smart-app-control, powershell-exec-policy}` — adding another fails CI. UAC
+levels live outside `autoFixable` (the `uac` check stays non-fixable; its five
+level fixes are addressed directly).
 
 ## Check catalog
 
@@ -114,8 +133,22 @@ fifth fails CI.
 | `windows-update-service` | Windows Update service       | medium   | `Get-Service wuauserv` → `Status` + `StartType`                                                                                                                                      | pass, warn, fail, unknown                 | no        |
 
 Of these, `smb-signing` became a reversible auto-fix in **v0.10.0**; the other
-five remain read-only, so the `autoFixable` set is now exactly
-`{smb1, guest-account, remote-desktop, smb-signing}`.
+five remain read-only.
+
+### v0.18.0 additions (OS hardening toggles)
+
+Two admin-only reversible remediations plus one advisory guard. Every fix
+keeps the preview + confirm + revert contract and the `requires-admin` gate.
+
+| id                       | Title                                    | Severity | Live query                                                                                                                      | Possible statuses                         | Auto-fix?                |
+| ------------------------ | ---------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------ |
+| `smart-app-control`      | Smart App Control                        | high     | Registry `HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy` → `VerifiedAndReputablePolicyState` (0=Off, 1=Enforce, 2=Evaluation) | pass, warn, fail, requires-admin, unknown | **yes** (enforce)        |
+| `powershell-exec-policy` | PowerShell execution policy              | medium   | Registry `HKLM\...\ShellIds\Microsoft.PowerShell` → `ExecutionPolicy` (a Group Policy can override it)                          | pass, warn, fail, unknown                 | **yes** (`RemoteSigned`) |
+| `bitlocker-guard`        | System drive encryption guard (advisory) | high     | `Get-BitLockerVolume -MountPoint %SystemDrive%` → `ProtectionStatus` (warns when Off; **never encrypts**)                       | pass, warn, requires-admin, unknown       | no (by design)           |
+
+UAC keeps its read-only `uac` check and gains five level fixes
+(`uac-always`, `uac-credentials`, `uac-default`, `uac-nodim`, `uac-never`)
+surfaced as explicit buttons on the `uac` card in `Security.tsx`.
 
 ### v0.9.0 additions (admin-gated, read-only, dynamic)
 
@@ -134,10 +167,9 @@ catalog marks them with `requiresAdmin: true`.
 | `firewall-inbound-rules` | Enabled inbound firewall rules   | medium   | `Get-NetFirewallRule -Enabled True -Direction Inbound` → count + sample of non-block allow rules (a large inbound surface is flagged)                    | pass, warn, requires-admin, unknown                 | no        |
 | `winrm-exposure`         | WinRM remote management exposure | medium   | `Get-Service WinRM` (Status + StartType) + `WSMan:\localhost\Listener` count                                                                             | pass, warn, fail, requires-admin, unknown           | no        |
 
-All six are **read-only** and none is `autoFixable` (their remediation can lock a
-user out or is not reversible through a single value), so the `autoFixable` set
-remains exactly `{smb1, guest-account, remote-desktop, smb-signing}` — asserted by
-`security-scan.test.ts`. Because they carry `requiresAdmin: true`, an unelevated
+All six v0.9.0 controls are **read-only** and none is `autoFixable` (their
+remediation can lock a user out or is not reversible through a single value).
+Because they carry `requiresAdmin: true`, an unelevated
 scan reports them as `requires-admin` and leaves them out of the score.
 
 ## Anti-hardcoding guarantees
