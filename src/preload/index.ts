@@ -10,6 +10,7 @@ import type { DriverProgressEvent } from '../shared/driver-update';
 import type { ScanProgressEvent } from '../shared/scan-progress';
 import type { PresetMode, TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 import type { AppSettings } from '../shared/settings';
+import type { ConfigProfile } from '../shared/config-profile';
 import type { UpdateStatus } from '../shared/updater-status';
 import type { DiskRepairProgressEvent } from '../shared/disk-repair';
 
@@ -50,6 +51,10 @@ const api: ElectronAPI = {
   // Settings (main is the single source of truth)
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (patch: Partial<AppSettings>) => ipcRenderer.invoke('settings:update', patch),
+  // Configuration profile (A3): export + preview-first import.
+  exportProfile: () => ipcRenderer.invoke('settings:export-profile'),
+  previewProfile: (jsonText: string) => ipcRenderer.invoke('settings:preview-profile', jsonText),
+  applyProfile: (profile: ConfigProfile) => ipcRenderer.invoke('settings:apply-profile', profile),
 
   // Usage statistics
   getStats: () => ipcRenderer.invoke('stats:get'),

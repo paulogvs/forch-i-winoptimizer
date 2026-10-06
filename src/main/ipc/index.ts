@@ -99,6 +99,12 @@ import {
 } from '../services/operation-lock';
 import { getSettings, updateSettings, getScanPreferences } from '../services/settings';
 import {
+  applyConfigProfileObject,
+  exportConfigProfile,
+  previewConfigProfileImportText,
+} from '../services/config-profile';
+import type { ConfigProfile } from '@shared/config-profile';
+import {
   getStatsEvents,
   recordStatsEvent,
   defaultStatsFileName,
@@ -172,6 +178,9 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'tweaks:restore-many',
   'tweaks:apply-preset',
   'settings:update',
+  // A3: applying a profile mutates the machine (settings + tweaks), so it is
+  // serialized. Export and preview are read-only and stay out of the lock.
+  'settings:apply-profile',
   'tools:launch',
   'tools:disk-repair',
   'tools:relaunch-elevated',
@@ -690,6 +699,19 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     void import('../window-behavior').then(({ refreshWindowBehavior }) => refreshWindowBehavior());
     void import('../updater').then(({ syncAutoUpdateSchedule }) => syncAutoUpdateSchedule());
     return result;
+  });
+
+  // ===== Configuration profile (A3: export + preview-first import) =====
+  // Export and preview are pure reads. Apply re-validates in main and goes
+  // tweak-by-tweak through the existing engine — never a blind direct write.
+  handle('settings:export-profile', () => exportConfigProfile());
+  handle('settings:preview-profile', (_event: IpcMainInvokeEvent, jsonText: string) =>
+    previewConfigProfileImportText(String(jsonText ?? ''))
+  );
+  handle('settings:apply-profile', async (_event: IpcMainInvokeEvent, profile: ConfigProfile) => {
+    const outcome = await applyConfigProfileObject(profile);
+    cache.invalidateModule('health');
+    return outcome;
   });
 
   // ===== Usage statistics =====

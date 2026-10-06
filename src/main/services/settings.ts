@@ -122,9 +122,19 @@ export function setLoginItemState(enabled: boolean): { success: boolean; message
 
 // ===== Public API =====
 
+/**
+ * Deep snapshot of the persisted settings for configuration-profile export
+ * (A3). The effective `startWithWindows` value lives in the OS, so callers
+ * merge it via `getLoginItemState()` (as `getSettings()` does below).
+ */
+export function getPersistedSettingsSnapshot(): AppSettings {
+  const current = loadPersistedSettings();
+  return { ...current, excludePaths: [...current.excludePaths] };
+}
+
 /** Current settings with the effective login-item state merged in. */
 export function getSettings(): SettingsPayload {
-  const persisted = loadPersistedSettings();
+  const persisted = getPersistedSettingsSnapshot();
   const settings: AppSettings = {
     ...persisted,
     startWithWindows: getLoginItemState(),

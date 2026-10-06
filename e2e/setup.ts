@@ -358,6 +358,106 @@ export async function setupElectronMock(page: Page): Promise<void> {
             message: 'Settings saved.',
           });
         },
+        // Configuration profile (A3): export + preview-first import. The mock
+        // keeps honest behaviour: preview validates with zero side effects,
+        // apply reports real counts and only touches `window.__settings`.
+        exportProfile: () => {
+          const w = window as unknown as { __settings?: Record<string, unknown> };
+          return Promise.resolve({
+            kind: 'forchi-winoptimizer-profile',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            settings: {
+              accentColor: '#06B6D4',
+              startWithWindows: false,
+              minimizeToTrayOnClose: false,
+              enableNotifications: true,
+              automaticUpdates: false,
+              scanBrowserCache: true,
+              scanWindowsTempFiles: true,
+              scanRecycleBin: false,
+              excludePaths: [],
+              ...(w.__settings ?? {}),
+            },
+            appliedTweaks: [],
+          });
+        },
+        previewProfile: (jsonText: string) => {
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(jsonText);
+          } catch {
+            return Promise.resolve({
+              success: false,
+              error: 'Invalid profile: the file is not valid JSON.',
+            });
+          }
+          const candidate = parsed as Record<string, unknown>;
+          if (candidate['kind'] !== 'forchi-winoptimizer-profile') {
+            return Promise.resolve({
+              success: false,
+              error: 'Invalid profile: unrecognized profile kind.',
+            });
+          }
+          if (candidate['version'] !== 1) {
+            return Promise.resolve({
+              success: false,
+              error: `Unsupported profile version ${candidate['version']} (this app reads version 1).`,
+            });
+          }
+          const w = window as unknown as { __settings?: Record<string, unknown> };
+          const current = {
+            accentColor: '#06B6D4',
+            startWithWindows: false,
+            minimizeToTrayOnClose: false,
+            enableNotifications: true,
+            automaticUpdates: false,
+            scanBrowserCache: true,
+            scanWindowsTempFiles: true,
+            scanRecycleBin: false,
+            excludePaths: [],
+            ...(w.__settings ?? {}),
+          } as Record<string, unknown>;
+          const incoming = (candidate['settings'] ?? {}) as Record<string, unknown>;
+          const settingsChanges = Object.keys(incoming)
+            .filter((key) => JSON.stringify(current[key]) !== JSON.stringify(incoming[key]))
+            .map((key) => ({ key, from: current[key], to: incoming[key] }));
+          const wanted = ((candidate['appliedTweaks'] ?? []) as unknown[]).map(String);
+          return Promise.resolve({
+            success: true,
+            profile: candidate,
+            preview: {
+              settingsChanges,
+              tweaksToApply: wanted,
+              tweaksAlreadyApplied: [],
+              tweaksUnknown: [],
+              extrasKept: [],
+              counts: {
+                settingsChanges: settingsChanges.length,
+                toApply: wanted.length,
+                alreadyApplied: 0,
+                unknown: 0,
+              },
+            },
+          });
+        },
+        applyProfile: (profile: { appliedTweaks?: unknown; settings?: unknown }) => {
+          const w = window as unknown as { __settings?: Record<string, unknown> };
+          w.__settings = {
+            ...(w.__settings ?? {}),
+            ...((profile.settings ?? {}) as Record<string, unknown>),
+          };
+          const wanted = Array.isArray(profile.appliedTweaks) ? profile.appliedTweaks : [];
+          return Promise.resolve({
+            success: true,
+            applied: wanted,
+            failed: [],
+            skipped: [],
+            settingsUpdated: true,
+            settingsMessage: 'Settings saved.',
+            message: `Profile import: ${wanted.length} applied, 0 failed, 0 skipped.`,
+          });
+        },
         // Statistics (v0.5.0): seed real-looking events via `window.__statsEvents`.
         getStats: () => {
           const w = window as unknown as { __statsEvents?: unknown[] };

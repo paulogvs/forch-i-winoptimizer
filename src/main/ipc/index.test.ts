@@ -71,9 +71,20 @@ vi.mock('../services/yara-engine', () => ({
   getMalwareScanScopes: vi.fn(() => []),
 }));
 
+vi.mock('../services/config-profile', () => ({
+  exportConfigProfile: vi.fn(async () => ({ kind: 'forchi-winoptimizer-profile' })),
+  previewConfigProfileImportText: vi.fn(async () => ({ success: true })),
+  applyConfigProfileObject: vi.fn(async () => ({ success: true })),
+}));
+
 import { registerIpcHandlers, MUTATING_CHANNELS } from './index';
 import { withOperationLock, setOperationNotifier } from '../services/operation-lock';
 import { getMalwareScanScopes, getYaraEngine } from '../services/yara-engine';
+import {
+  applyConfigProfileObject,
+  exportConfigProfile,
+  previewConfigProfileImportText,
+} from '../services/config-profile';
 import { runSystemAudit } from '../services/system-audit';
 import { getPrivacySettings } from '../services/security-privacy';
 import { cleanTempQuick, flushDns } from '../services/quick-fixes';
@@ -274,6 +285,43 @@ describe('cache module isolation between channels', () => {
     await handlers.get('privacy:get-settings')?.({});
 
     expect(vi.mocked(getPrivacySettings)).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Configuration profile IPC (A3)', () => {
+  beforeEach(() => {
+    handlers.clear();
+    vi.mocked(withOperationLock).mockClear();
+    vi.mocked(exportConfigProfile).mockClear();
+    vi.mocked(previewConfigProfileImportText).mockClear();
+    vi.mocked(applyConfigProfileObject).mockClear();
+    registerIpcHandlers(null);
+  });
+
+  it('registers the export / preview / apply channels', () => {
+    expect(handlers.has('settings:export-profile')).toBe(true);
+    expect(handlers.has('settings:preview-profile')).toBe(true);
+    expect(handlers.has('settings:apply-profile')).toBe(true);
+  });
+
+  it('serves export and preview without the global lock (read-only)', async () => {
+    await handlers.get('settings:export-profile')?.({});
+    await handlers.get('settings:preview-profile')?.({}, '{}');
+
+    expect(vi.mocked(exportConfigProfile)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(previewConfigProfileImportText)).toHaveBeenCalledWith('{}');
+    expect(vi.mocked(withOperationLock)).not.toHaveBeenCalled();
+  });
+
+  it('serializes profile apply through the global lock (mutating)', async () => {
+    expect(MUTATING_CHANNELS.has('settings:apply-profile')).toBe(true);
+
+    const result = await handlers.get('settings:apply-profile')?.({}, { kind: 'x' });
+
+    expect(vi.mocked(withOperationLock)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(withOperationLock).mock.calls[0]?.[0]).toBe('settings:apply-profile');
+    expect(vi.mocked(applyConfigProfileObject)).toHaveBeenCalledWith({ kind: 'x' });
+    expect(result).toEqual({ success: true });
   });
 });
 

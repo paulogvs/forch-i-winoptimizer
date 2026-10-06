@@ -25,6 +25,7 @@ import type {
   DriverStorePreview,
 } from './driver-store';
 import type { SoftwareUpdateReport } from './software-update';
+import type { ConfigProfile, ProfileApplyOutcome, ProfilePreviewOutcome } from './config-profile';
 
 export interface SystemInfo {
   platform: string;
@@ -498,6 +499,12 @@ export interface ElectronAPI {
   // Settings (single source of truth in main)
   getSettings: () => Promise<SettingsPayload>;
   updateSettings: (patch: Partial<AppSettings>) => Promise<UpdateSettingsResult>;
+  // Configuration profile (A3): export/import the full setup as a JSON file.
+  // Import is always preview-first: `previewProfile` validates + diffs with
+  // zero side effects, and `applyProfile` only runs after the user confirms.
+  exportProfile: () => Promise<ConfigProfile>;
+  previewProfile: (jsonText: string) => Promise<ProfilePreviewOutcome>;
+  applyProfile: (profile: ConfigProfile) => Promise<ProfileApplyOutcome>;
   // Usage statistics (real recorded events)
   getStats: () => Promise<StatsEvent[]>;
   exportStats: () => Promise<StatsExportResult>;

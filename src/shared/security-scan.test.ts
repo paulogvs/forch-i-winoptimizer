@@ -74,9 +74,7 @@ describe('security-scan contract', () => {
     // No other check gained the admin flag by accident, beyond the deliberate
     // v0.18.0 additions (smart-app-control fix + bitlocker-guard advisory).
     const adminGated = SECURITY_CHECK_CATALOG.filter((d) => d.requiresAdmin).map((d) => d.id);
-    expect(adminGated.sort()).toEqual(
-      [...ids, 'bitlocker-guard', 'smart-app-control'].sort()
-    );
+    expect(adminGated.sort()).toEqual([...ids, 'bitlocker-guard', 'smart-app-control'].sort());
   });
 
   describe('computeSecurityScore', () => {

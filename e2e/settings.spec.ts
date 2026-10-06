@@ -45,4 +45,49 @@ test.describe('Settings', () => {
     const isChecked = await toggle.getAttribute('aria-checked');
     expect(isChecked).not.toBe(wasChecked);
   });
+
+  test('should show configuration profile actions', async ({ page }) => {
+    await expect(page.getByTestId('profile-export')).toBeVisible();
+    await expect(page.getByTestId('profile-import')).toBeVisible();
+  });
+
+  test('should reject an invalid profile file without applying anything', async ({ page }) => {
+    await page.setInputFiles('[data-testid="profile-file"]', {
+      name: 'bad.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from('{nope'),
+    });
+    await expect(page.getByTestId('profile-error')).toContainText(/not valid JSON/i);
+    await expect(page.getByTestId('profile-preview')).toHaveCount(0);
+  });
+
+  test('should preview a valid profile and apply it after confirmation', async ({ page }) => {
+    const profile = {
+      kind: 'forchi-winoptimizer-profile',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: {
+        accentColor: '#06B6D4',
+        startWithWindows: false,
+        minimizeToTrayOnClose: false,
+        enableNotifications: false,
+        automaticUpdates: false,
+        scanBrowserCache: true,
+        scanWindowsTempFiles: true,
+        scanRecycleBin: false,
+        excludePaths: [],
+      },
+      appliedTweaks: [],
+    };
+    await page.setInputFiles('[data-testid="profile-file"]', {
+      name: 'profile.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(profile)),
+    });
+    await expect(page.getByTestId('profile-preview')).toBeVisible();
+    await page.getByTestId('profile-apply-confirm').click();
+    await expect(page.getByTestId('profile-result')).toContainText(
+      /0 applied, 0 failed, 0 skipped/
+    );
+  });
 });
