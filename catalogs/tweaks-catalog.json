@@ -919,6 +919,415 @@
       ],
       "risk": "medium",
       "safetyNote": "Turns off Sticky Keys and its shortcut prompt. Reversible in Accessibility settings."
+    },
+    {
+      "id": "ads-start-suggestions",
+      "name": "Start menu suggestions",
+      "description": "Turns off suggested apps and tips in the Start menu for the current user. Your pinned and installed apps are untouched.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SystemPaneSuggestionsEnabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338388Enabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SilentInstalledAppsEnabled",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SystemPaneSuggestionsEnabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-338388Enabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SilentInstalledAppsEnabled",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Hides Start suggestions only; installed apps are untouched."
+    },
+    {
+      "id": "ads-lock-screen-spotlight",
+      "name": "Lock screen spotlight & tips",
+      "description": "Turns off Windows Spotlight pictures and fun facts on the lock screen for the current user.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Re-enable anytime in Settings > Personalization > Lock screen.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "RotatingLockScreenOverlayEnabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsSpotlightFeatures",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "RotatingLockScreenOverlayEnabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+          "name": "DisableWindowsSpotlightFeatures",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Lock-screen display preference; re-enable in Settings."
+    },
+    {
+      "id": "ads-settings-tips",
+      "name": "Settings suggestions",
+      "description": "Turns off suggested content and tips inside the Settings app for the current user.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement",
+          "name": "ScoobeSystemSettingEnabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-310093Enabled",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement",
+          "name": "ScoobeSystemSettingEnabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+          "name": "SubscribedContent-310093Enabled",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Hides tips inside Settings; no setting is changed."
+    },
+    {
+      "id": "ads-ai-pins",
+      "name": "Copilot & Recall presence",
+      "description": "Hides the Copilot taskbar button and opts the current user out of Recall AI data analysis. Neither app is uninstalled.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "requiresBuild": 22631,
+      "note": "Windows 11 23H2+ (build 22631+). Does not uninstall any app.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowCopilotButton",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+          "name": "DisableAIDataAnalysis",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+          "name": "ShowCopilotButton",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+          "name": "DisableAIDataAnalysis",
+          "type": "DWORD",
+          "value": null,
+          "removeOnRevert": true
+        }
+      ],
+      "risk": "medium",
+      "safetyNote": "Hides Copilot and opts out of Recall analysis; apps stay installed. Reversible."
+    },
+    {
+      "id": "ads-telemetry-hkcu",
+      "name": "Ad ID & tailored experiences",
+      "description": "Turns off the advertising ID and tailored experiences with diagnostic data for the current user.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
+          "name": "Enabled",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Privacy",
+          "name": "TailoredExperiencesWithDiagnosticDataEnabled",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
+          "name": "Enabled",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Privacy",
+          "name": "TailoredExperiencesWithDiagnosticDataEnabled",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Current-user ad personalization only; system telemetry policies are untouched."
+    },
+    {
+      "id": "ads-suggestions-preset",
+      "name": "Ads & Suggestions (master)",
+      "description": "Master switch for all ad and suggestion tweaks: Deny turns every child off, Allow restores them, Custom applies only the children you pick.",
+      "category": "privacy",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "kind": "preset",
+      "children": [
+        "ads-start-suggestions",
+        "ads-lock-screen-spotlight",
+        "ads-settings-tips",
+        "ads-ai-pins",
+        "ads-telemetry-hkcu"
+      ],
+      "note": "Deny applies all 5 children; Allow restores all 5; Custom applies only the selected children and restores the rest.",
+      "apply": [
+        {
+          "kind": "info",
+          "detail": "Master switch: Deny applies all 5 ad/suggestion children; Custom applies only the selected ones."
+        }
+      ],
+      "revert": [
+        {
+          "kind": "info",
+          "detail": "Master switch: Allow restores all 5 ad/suggestion children to their previous state."
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Applies or restores its 5 children together; every child is reversible."
+    },
+    {
+      "id": "sound-ducking-off",
+      "name": "Stop lowering sounds during calls",
+      "description": "Stops Windows from lowering other sounds while you are in a call (communications ducking set to Do nothing).",
+      "category": "system",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Change it back anytime in Settings > System > Sound > Communications.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Multimedia\\Audio",
+          "name": "UserDuckingPreference",
+          "type": "DWORD",
+          "value": 3
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Multimedia\\Audio",
+          "name": "UserDuckingPreference",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Audio preference only; restore brings back ducking."
+    },
+    {
+      "id": "startup-sound-off",
+      "name": "Silence the startup sound",
+      "description": "Switches the current user's sound scheme to No Sounds so Windows starts silently.",
+      "category": "system",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Change it back anytime in Settings > System > Sound > More sound settings > Sounds.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "AppEvents\\Schemes",
+          "name": "(default)",
+          "type": "String",
+          "value": ".None"
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "AppEvents\\Schemes",
+          "name": "(default)",
+          "type": "String",
+          "value": ".Default"
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Sound-scheme preference only; restore brings sounds back."
+    },
+    {
+      "id": "voice-activation-off",
+      "name": "Turn off voice activation",
+      "description": "Turns off voice activation above the lock screen and on this device for the current user.",
+      "category": "system",
+      "safety": "safe",
+      "reversible": true,
+      "impact": "low",
+      "requiresAdmin": false,
+      "note": "Re-enable anytime in Settings > Privacy & security > Voice activation.",
+      "apply": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Speech_OneCore\\Settings",
+          "name": "VoiceActivationEnableAboveLockscreen",
+          "type": "DWORD",
+          "value": 0
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Speech_OneCore\\Settings",
+          "name": "VoiceActivationEnable",
+          "type": "DWORD",
+          "value": 0
+        }
+      ],
+      "revert": [
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Speech_OneCore\\Settings",
+          "name": "VoiceActivationEnableAboveLockscreen",
+          "type": "DWORD",
+          "value": 1
+        },
+        {
+          "kind": "registry",
+          "hive": "HKCU",
+          "path": "Software\\Microsoft\\Speech_OneCore\\Settings",
+          "name": "VoiceActivationEnable",
+          "type": "DWORD",
+          "value": 1
+        }
+      ],
+      "risk": "low",
+      "safetyNote": "Disables hands-free voice activation; push-to-talk and typing are unaffected."
     }
   ]
 }

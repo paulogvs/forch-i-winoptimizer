@@ -3,10 +3,12 @@
 // Every tweak is *reversible* and *previewable*. Only `safe` tweaks are enabled
 // by default; `advanced` tweaks must be opted into explicitly by the user.
 
-export type TweakCategory = 'performance' | 'privacy' | 'explorer' | 'accessibility';
+export type TweakCategory = 'performance' | 'privacy' | 'explorer' | 'accessibility' | 'system';
 export type TweakSafety = 'safe' | 'advanced';
 export type TweakImpact = 'low' | 'medium' | 'high';
 export type TweakRisk = 'low' | 'medium' | 'high' | 'critical';
+export type TweakKind = 'tweak' | 'preset';
+export type PresetMode = 'allow' | 'deny' | 'custom';
 
 export type RegistryHive = 'HKCU' | 'HKLM';
 export type RegistryValueType = 'DWORD' | 'String';
@@ -52,6 +54,13 @@ export interface TweakDefinition {
   reversible: true;
   impact: TweakImpact;
   requiresAdmin: boolean;
+  /**
+   * Optional discriminator: 'preset' marks a master switch whose apply/revert
+   * is the union of its children (see `children`). Plain tweaks omit it.
+   */
+  kind?: TweakKind;
+  /** Preset only: atomic child tweak ids applied/restored together. */
+  children?: string[];
   /**
    * Safety KB (Fase 4.8): how risky the change is and a short user-facing
    * explanation shown as a warning. Optional for backwards compatibility; the

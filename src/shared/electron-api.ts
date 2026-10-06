@@ -1,6 +1,6 @@
 import type { ScanProgressEvent } from './scan-progress';
 import type { AuditCategory } from './types';
-import type { TweakApplyResult, TweakPreview, TweakView } from './tweaks';
+import type { PresetMode, TweakApplyResult, TweakPreview, TweakView } from './tweaks';
 import type { AppSettings, SettingsPayload, UpdateSettingsResult } from './settings';
 import type { StatsEvent, StatsExportResult } from './stats';
 import type { UpdateStatus } from './updater-status';
@@ -681,6 +681,8 @@ export interface WinOptimizerAPI {
     restore: (id: string) => Promise<TweakApplyResult>;
     applyMany: (ids: string[]) => Promise<TweakApplyResult[]>;
     restoreMany: (ids: string[]) => Promise<TweakApplyResult[]>;
+    previewPreset: (id: string, mode: PresetMode, selection: string[]) => Promise<TweakPreview>;
+    applyPreset: (id: string, mode: PresetMode, selection: string[]) => Promise<TweakApplyResult[]>;
   };
 }
 

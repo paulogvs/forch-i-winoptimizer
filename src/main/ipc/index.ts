@@ -9,11 +9,14 @@ import { createProgressReporter } from '../services/scan-progress';
 import {
   getTweaks,
   previewTweak,
+  previewPreset,
   applyTweak,
   restoreTweak,
   applyTweaks,
   restoreTweaks,
+  applyPreset,
 } from '../services/tweaks';
+import type { PresetMode } from '@shared/tweaks';
 import type { JunkScanResult } from '../services/junk-scanner';
 import { scanForJunkFiles, deleteJunkFiles } from '../services/junk-scanner';
 import { junkSession } from '../services/junk-cache';
@@ -167,6 +170,7 @@ export const MUTATING_CHANNELS: ReadonlySet<string> = new Set([
   'tweaks:restore',
   'tweaks:apply-many',
   'tweaks:restore-many',
+  'tweaks:apply-preset',
   'settings:update',
   'tools:launch',
   'tools:disk-repair',
@@ -779,6 +783,19 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     cache.invalidateModule('health');
     return result;
   });
+  handle(
+    'tweaks:preview-preset',
+    (_event: IpcMainInvokeEvent, id: string, mode: PresetMode, selection: string[]) =>
+      previewPreset(id, mode, selection ?? [])
+  );
+  handle(
+    'tweaks:apply-preset',
+    async (_event: IpcMainInvokeEvent, id: string, mode: PresetMode, selection: string[]) => {
+      const result = await applyPreset(id, mode, selection ?? []);
+      cache.invalidateModule('health');
+      return result;
+    }
+  );
 }
 
 export type { JunkScanResult, StartupApp, InstalledApp, SystemService, UpdateInfo };

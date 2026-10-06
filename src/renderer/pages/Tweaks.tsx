@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { SkeletonList } from '../components/ui/Skeleton';
-import type { TweakCategory, TweakOperation, TweakView } from '@shared/tweaks';
+import type { PresetMode, TweakCategory, TweakOperation, TweakView } from '@shared/tweaks';
 import { safetyWarning } from '@shared/safety';
 import { useOperationStatus } from '../hooks/useOperationStatus';
 
@@ -15,9 +15,16 @@ const CATEGORY_LABELS: Record<TweakCategory, string> = {
   privacy: 'Privacy',
   explorer: 'Explorer',
   accessibility: 'Accessibility',
+  system: 'System',
 };
 
-const CATEGORY_ORDER: TweakCategory[] = ['performance', 'privacy', 'explorer', 'accessibility'];
+const CATEGORY_ORDER: TweakCategory[] = [
+  'performance',
+  'privacy',
+  'explorer',
+  'accessibility',
+  'system',
+];
 
 function describeOperation(op: TweakOperation): string {
   switch (op.kind) {
@@ -37,6 +44,116 @@ function describeOperation(op: TweakOperation): string {
       return 'Unknown operation';
   }
 }
+
+interface PresetControlsProps {
+  preset: TweakView;
+  children: TweakView[];
+  busy: boolean;
+  onResult: (results: { id: string; success: boolean; message: string }[]) => void;
+  onBanner: (message: string) => void;
+}
+
+const PRESET_MODES: { value: PresetMode; label: string; hint: string }[] = [
+  { value: 'deny', label: 'Deny all', hint: 'Applies every child tweak.' },
+  { value: 'allow', label: 'Allow all', hint: 'Restores every child tweak.' },
+  { value: 'custom', label: 'Custom', hint: 'Applies only the selected children.' },
+];
+
+/** Allow/Deny/Custom controls for a master preset (A1). */
+const PresetControls: React.FC<PresetControlsProps> = ({
+  preset,
+  children,
+  busy,
+  onResult,
+  onBanner,
+}) => {
+  const [mode, setMode] = useState<PresetMode>('deny');
+  const [selection, setSelection] = useState<Set<string>>(
+    () => new Set((preset.children ?? []).filter((id) => children.some((c) => c.id === id)))
+  );
+  const [working, setWorking] = useState(false);
+
+  const toggleChild = useCallback((id: string) => {
+    setSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const run = useCallback(async () => {
+    setWorking(true);
+    try {
+      const picked = mode === 'custom' ? Array.from(selection) : [];
+      const results = await window.winoptimizer.tweaks.applyPreset(preset.id, mode, picked);
+      onResult(results);
+      const failed = results.filter((r) => !r.success).length;
+      onBanner(
+        failed === 0
+          ? `Preset "${preset.name}" processed (${results.length} tweak(s)).`
+          : `${failed} preset tweak(s) failed.`
+      );
+    } catch (error) {
+      onBanner(`Preset action failed: ${String(error)}`);
+    } finally {
+      setWorking(false);
+    }
+  }, [mode, selection, preset.id, preset.name, onResult, onBanner]);
+
+  return (
+    <div className="tweak-preset" data-testid={`preset-controls-${preset.id}`}>
+      <div className="tweak-preset-modes" role="radiogroup" aria-label={`${preset.name} mode`}>
+        {PRESET_MODES.map((option) => (
+          <label key={option.value} className="tweak-preset-mode" title={option.hint}>
+            <input
+              type="radio"
+              name={`preset-mode-${preset.id}`}
+              value={option.value}
+              checked={mode === option.value}
+              onChange={() => setMode(option.value)}
+              aria-label={option.label}
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+      {mode === 'custom' ? (
+        <ul className="tweak-preset-children">
+          {children.map((child) => (
+            <li key={child.id}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={selection.has(child.id)}
+                  onChange={() => toggleChild(child.id)}
+                  aria-label={`Preset child ${child.name}`}
+                />
+                {child.name}
+                <Badge variant={child.applied ? 'success' : 'neutral'}>
+                  {child.applied ? 'Applied' : 'Not applied'}
+                </Badge>
+              </label>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="tweak-note">
+          {children.length} child tweak(s): {children.map((c) => c.name).join(', ')}
+        </p>
+      )}
+      <Button
+        variant="primary"
+        size="sm"
+        loading={working}
+        disabled={busy || (mode === 'custom' && children.length === 0)}
+        onClick={run}
+      >
+        {mode === 'allow' ? 'Allow all' : mode === 'deny' ? 'Deny all' : 'Apply custom'}
+      </Button>
+    </div>
+  );
+};
 
 export const Tweaks: React.FC = () => {
   const operation = useOperationStatus();
@@ -156,8 +273,42 @@ export const Tweaks: React.FC = () => {
     [selected, tweaks, isInfoOnly, loadTweaks]
   );
 
+  const handlePresetResult = useCallback(
+    (results: { id: string; success: boolean; message: string }[]) => {
+      setActionState((prev) => {
+        const next = { ...prev };
+        for (const r of results) next[r.id] = r.success ? 'done' : 'error';
+        return next;
+      });
+      setMessages((prev) => {
+        const next = { ...prev };
+        for (const r of results) next[r.id] = r.message;
+        return next;
+      });
+      loadTweaks();
+    },
+    [loadTweaks]
+  );
+
+  const previewOps = useMemo(() => {
+    if (!preview) return null;
+    // A preset previews as the union of its children's operations.
+    if (preview.kind === 'preset' && preview.children) {
+      const kids = preview.children
+        .map((id) => tweaks.find((t) => t.id === id))
+        .filter((t): t is TweakView => Boolean(t));
+      return {
+        apply: kids.flatMap((k) => k.apply),
+        revert: kids.flatMap((k) => k.revert),
+        names: kids.map((k) => k.name),
+      };
+    }
+    return { apply: preview.apply, revert: preview.revert, names: [] as string[] };
+  }, [preview, tweaks]);
+
   const renderTweak = (tweak: TweakView) => {
-    const infoOnly = isInfoOnly(tweak);
+    const preset = tweak.kind === 'preset';
+    const infoOnly = !preset && isInfoOnly(tweak);
     const state = actionState[tweak.id] ?? 'idle';
     const warning = tweak.risk
       ? safetyWarning({
@@ -190,8 +341,20 @@ export const Tweaks: React.FC = () => {
               <Badge variant="info">Reversible: Yes</Badge>
               <Badge variant="neutral">{tweak.impact} impact</Badge>
               {infoOnly && <Badge variant="info">Informational</Badge>}
+              {preset && <Badge variant="info">Preset</Badge>}
             </div>
             <p className="tweak-description">{tweak.description}</p>
+            {preset && (
+              <PresetControls
+                preset={tweak}
+                children={(tweak.children ?? [])
+                  .map((id) => tweaks.find((t) => t.id === id))
+                  .filter((t): t is TweakView => Boolean(t))}
+                busy={operation.busy}
+                onResult={handlePresetResult}
+                onBanner={setBanner}
+              />
+            )}
             {tweak.note && <p className="tweak-note">{tweak.note}</p>}
             {warning && (
               <p
@@ -292,17 +455,20 @@ export const Tweaks: React.FC = () => {
         onClose={() => setPreview(null)}
         title={`Preview — ${preview?.name ?? ''}`}
       >
-        {preview && (
+        {preview && previewOps && (
           <div className="tweak-preview">
+            {previewOps.names.length > 0 && (
+              <p className="tweak-preview-label">Preset children: {previewOps.names.join(', ')}</p>
+            )}
             <p className="tweak-preview-label">This will apply:</p>
             <ul className="tweak-preview-list">
-              {preview.apply.map((op, i) => (
+              {previewOps.apply.map((op, i) => (
                 <li key={`a-${i}`}>{describeOperation(op)}</li>
               ))}
             </ul>
             <p className="tweak-preview-label">Restore will revert with:</p>
             <ul className="tweak-preview-list">
-              {preview.revert.map((op, i) => (
+              {previewOps.revert.map((op, i) => (
                 <li key={`r-${i}`}>{describeOperation(op)}</li>
               ))}
             </ul>

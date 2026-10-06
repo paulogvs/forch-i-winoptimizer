@@ -5,6 +5,7 @@ import { runPowerShell, parsePowerShellJson, type PowerShellResult } from './pow
 import { getStorageDir } from '../source-updater/paths';
 import { loadTweakCatalog } from './tweak-catalog';
 import type {
+  PresetMode,
   TweakApplyResult,
   TweakDefinition,
   TweakOperation,
@@ -107,7 +108,25 @@ function getWindowsBuild(): number {
   return Number.isFinite(build) ? build : 0;
 }
 
+function isPreset(tweak: TweakDefinition): boolean {
+  return tweak.kind === 'preset';
+}
+
+function resolvePresetChildren(preset: TweakDefinition): TweakDefinition[] {
+  if (!isPreset(preset) || !preset.children) {
+    throw new Error(`Not a preset: ${preset.id}`);
+  }
+  return preset.children.map((id) => findTweak(id));
+}
+
+function unionOperations(defs: TweakDefinition[], side: 'apply' | 'revert'): TweakOperation[] {
+  return defs.flatMap((def) => def[side]);
+}
+
 function isInfoOnly(tweak: TweakDefinition): boolean {
+  // Presets carry informational apply/revert ops as documentation; the engine
+  // always expands them to their children instead of treating them as no-ops.
+  if (isPreset(tweak)) return false;
   return tweak.apply.every((op) => op.kind === 'info');
 }
 
@@ -364,14 +383,30 @@ function propertyAccess(name: string): string {
 
 export async function getTweaks(): Promise<TweakView[]> {
   const state = readState();
+  const appliedIds = new Set(Object.keys(state.applied));
   return TWEAKS.map((tweak) => ({
     ...tweak,
-    applied: Boolean(state.applied[tweak.id]),
+    // A preset reads as applied only when every child is applied.
+    applied:
+      isPreset(tweak) && tweak.children
+        ? tweak.children.every((childId) => appliedIds.has(childId))
+        : Boolean(state.applied[tweak.id]),
   }));
 }
 
 export async function previewTweak(id: string): Promise<TweakPreview> {
   const tweak = findTweak(id);
+  // A preset previews as the union of its children's operations.
+  if (isPreset(tweak)) {
+    const children = resolvePresetChildren(tweak);
+    return {
+      id: tweak.id,
+      name: tweak.name,
+      reversible: true,
+      applyOperations: unionOperations(children, 'apply'),
+      revertOperations: unionOperations(children, 'revert'),
+    };
+  }
   return {
     id: tweak.id,
     name: tweak.name,
@@ -379,6 +414,85 @@ export async function previewTweak(id: string): Promise<TweakPreview> {
     applyOperations: tweak.apply,
     revertOperations: tweak.revert,
   };
+}
+
+/**
+ * Preview a preset under a given mode (A1).
+ *
+ * Deny/Allow preview the full union of children; Custom previews only the
+ * selected children. Unknown selection ids throw (nothing is executed).
+ */
+export async function previewPreset(
+  id: string,
+  mode: PresetMode,
+  selection: string[] = []
+): Promise<TweakPreview> {
+  const preset = findTweak(id);
+  if (!isPreset(preset) || !preset.children) {
+    throw new Error(`Not a preset: ${id}`);
+  }
+  let children = resolvePresetChildren(preset);
+  if (mode === 'custom') {
+    const selected = selection ?? [];
+    const unknown = selected.filter((childId) => !preset.children!.includes(childId));
+    if (unknown.length > 0) {
+      throw new Error(`Unknown preset child: ${unknown.join(', ')}`);
+    }
+    const picked = new Set(selected);
+    children = children.filter((child) => picked.has(child.id));
+  } else if (mode !== 'deny' && mode !== 'allow') {
+    throw new Error(`Unknown preset mode: ${mode as string}`);
+  }
+  return {
+    id: preset.id,
+    name: preset.name,
+    reversible: true,
+    applyOperations: unionOperations(children, 'apply'),
+    revertOperations: unionOperations(children, 'revert'),
+  };
+}
+
+/**
+ * Apply a preset under a given mode (A1).
+ *
+ * - `deny`: applies every child (block everything).
+ * - `allow`: restores every child (allow everything).
+ * - `custom`: applies the selected children and restores the rest, so the
+ *   machine ends up matching the selection exactly.
+ */
+export async function applyPreset(
+  id: string,
+  mode: PresetMode,
+  selection: string[] = []
+): Promise<TweakApplyResult[]> {
+  const preset = findTweak(id);
+  if (!isPreset(preset) || !preset.children) {
+    throw new Error(`Not a preset: ${id}`);
+  }
+  if (mode === 'deny') {
+    return applyTweaks(preset.children);
+  }
+  if (mode === 'allow') {
+    return restoreTweaks(preset.children);
+  }
+  if (mode === 'custom') {
+    const selected = selection ?? [];
+    const unknown = selected.filter((childId) => !preset.children!.includes(childId));
+    if (unknown.length > 0) {
+      return [
+        {
+          id,
+          success: false,
+          message: `Unknown preset child: ${unknown.join(', ')}`,
+        },
+      ];
+    }
+    const picked = new Set(selected);
+    const toApply = preset.children.filter((childId) => picked.has(childId));
+    const toRestore = preset.children.filter((childId) => !picked.has(childId));
+    return [...(await applyTweaks(toApply)), ...(await restoreTweaks(toRestore))];
+  }
+  throw new Error(`Unknown preset mode: ${mode as string}`);
 }
 
 async function runOperations(ops: TweakOperation[]): Promise<string> {
@@ -396,6 +510,24 @@ async function runOperations(ops: TweakOperation[]): Promise<string> {
 
 export async function applyTweak(id: string): Promise<TweakApplyResult> {
   const tweak = findTweak(id);
+
+  // A preset applied directly behaves as Deny (apply every child).
+  if (isPreset(tweak)) {
+    const results = await applyPreset(id, 'deny');
+    const failed = results.filter((r) => !r.success);
+    if (failed.length === 0) {
+      return {
+        id,
+        success: true,
+        message: `Preset applied (${results.length} tweaks). You can restore them from the Tweaks page.`,
+      };
+    }
+    return {
+      id,
+      success: false,
+      message: `Preset partially applied: ${failed.map((r) => `${r.id}: ${r.message}`).join('; ')}`,
+    };
+  }
 
   // Gate before ANY side effect (capture reads the registry too).
   if (tweak.requiresBuild) {
@@ -443,6 +575,20 @@ export async function applyTweak(id: string): Promise<TweakApplyResult> {
 
 export async function restoreTweak(id: string): Promise<TweakApplyResult> {
   const tweak = findTweak(id);
+
+  // A preset restored directly behaves as Allow (restore every child).
+  if (isPreset(tweak)) {
+    const results = await applyPreset(id, 'allow');
+    const failed = results.filter((r) => !r.success);
+    if (failed.length === 0) {
+      return { id, success: true, message: 'Preset restored to the previous state.' };
+    }
+    return {
+      id,
+      success: false,
+      message: `Preset partially restored: ${failed.map((r) => `${r.id}: ${r.message}`).join('; ')}`,
+    };
+  }
 
   if (isInfoOnly(tweak)) {
     return { id, success: true, message: 'Informational tweak: nothing to restore.' };

@@ -11,8 +11,9 @@ import type { TweakDefinition, TweakOperation } from '@shared/tweaks';
  */
 
 const TWEAK_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
-const CATEGORIES = new Set(['performance', 'privacy', 'explorer', 'accessibility']);
+const CATEGORIES = new Set(['performance', 'privacy', 'explorer', 'accessibility', 'system']);
 const SAFETIES = new Set(['safe', 'advanced']);
+const KINDS = new Set(['tweak', 'preset']);
 const IMPACTS = new Set(['low', 'medium', 'high']);
 const RISKS = new Set(['low', 'medium', 'high', 'critical']);
 const HIVES = new Set(['HKCU', 'HKLM']);
@@ -67,6 +68,16 @@ function isValidOperation(op: unknown): op is TweakOperation {
 
 function isValidTweak(raw: unknown): raw is TweakDefinition {
   if (!isRecord(raw)) return false;
+  const kind = (raw as Record<string, unknown>).kind;
+  const children = (raw as Record<string, unknown>).children;
+  if (kind !== undefined && (typeof kind !== 'string' || !KINDS.has(kind))) return false;
+  const isPreset = kind === 'preset';
+  if (isPreset) {
+    if (!Array.isArray(children) || children.length === 0) return false;
+    if (!children.every((c) => typeof c === 'string' && TWEAK_ID_PATTERN.test(c))) return false;
+  } else if (children !== undefined) {
+    return false;
+  }
   return (
     typeof raw.id === 'string' &&
     TWEAK_ID_PATTERN.test(raw.id) &&
@@ -106,5 +117,14 @@ export function loadTweakCatalog(): TweakDefinition[] {
     seen.add(raw.id);
     tweaks.push(raw);
   }
-  return tweaks;
+  // Second pass: a preset is only valid when every child exists and is atomic.
+  const byId = new Map(tweaks.map((t) => [t.id, t]));
+  return tweaks.filter((t) => {
+    if (t.kind !== 'preset' || !t.children) return true;
+    if (t.children.includes(t.id)) return false;
+    return t.children.every((childId) => {
+      const child = byId.get(childId);
+      return child !== undefined && child.kind !== 'preset';
+    });
+  });
 }

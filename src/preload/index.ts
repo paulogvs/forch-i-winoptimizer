@@ -8,7 +8,7 @@ import type {
 } from '../shared/electron-api';
 import type { DriverProgressEvent } from '../shared/driver-update';
 import type { ScanProgressEvent } from '../shared/scan-progress';
-import type { TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
+import type { PresetMode, TweakApplyResult, TweakPreview, TweakView } from '../shared/tweaks';
 import type { AppSettings } from '../shared/settings';
 import type { UpdateStatus } from '../shared/updater-status';
 import type { DiskRepairProgressEvent } from '../shared/disk-repair';
@@ -254,6 +254,10 @@ const winoptimizer: WinOptimizerAPI = {
       ipcRenderer.invoke('tweaks:apply-many', ids),
     restoreMany: (ids: string[]): Promise<TweakApplyResult[]> =>
       ipcRenderer.invoke('tweaks:restore-many', ids),
+    previewPreset: (id: string, mode: PresetMode, selection: string[]): Promise<TweakPreview> =>
+      ipcRenderer.invoke('tweaks:preview-preset', id, mode, selection),
+    applyPreset: (id: string, mode: PresetMode, selection: string[]): Promise<TweakApplyResult[]> =>
+      ipcRenderer.invoke('tweaks:apply-preset', id, mode, selection),
   },
 };
 
