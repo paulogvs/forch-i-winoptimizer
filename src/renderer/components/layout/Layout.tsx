@@ -2,6 +2,7 @@ import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { StatusBar } from './StatusBar';
+import { GlobalBusyOverlay } from './GlobalBusyOverlay';
 import type { PageId, Theme } from '@shared/types';
 
 interface LayoutProps {
@@ -45,6 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({
         />
         <main className="main-content">{children}</main>
         <StatusBar version={version} windowsVersion={windowsVersion} lastScan={lastScan} />
+        <GlobalBusyOverlay />
       </div>
     </div>
   );

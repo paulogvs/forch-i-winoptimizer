@@ -314,6 +314,89 @@
   color: var(--color-fg-secondary);
 }
 
+/* Operation badge spinner (Fase C): 14px GPU ring, accent on muted badge */
+.op-badge {
+  gap: var(--space-2);
+}
+
+.op-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-accent-muted);
+  border-top-color: var(--color-info-content);
+  animation: spin 0.7s linear infinite;
+}
+
+/* Global thinking veil (Fase C): non-blocking by design — it can only
+   ever inform, never trap pointer input. */
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.busy-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  animation: slideUp var(--duration-normal) var(--ease-out);
+}
+
+.busy-spinner {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 3px solid var(--color-accent-muted);
+  border-top-color: var(--color-accent);
+  animation: spin 0.7s linear infinite;
+}
+
+.busy-label {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busy-overlay,
+  .busy-card {
+    animation: none;
+  }
+  .op-spinner,
+  .busy-spinner {
+    animation-duration: 1.4s;
+  }
+}
+
+/* Entrance stagger (Fase C): apply .stagger to a grid; children rise in
+   50ms steps, capped at 8 (400ms max, ecosystem motion rule). */
+.stagger > * {
+  animation: slideUp var(--duration-normal) var(--ease-out) backwards;
+}
+
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 50ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 250ms; }
+.stagger > *:nth-child(7) { animation-delay: 300ms; }
+.stagger > *:nth-child(n + 8) { animation-delay: 350ms; }
+
 /* === Modal/Dialog === */
 .modal-overlay {
   position: fixed;

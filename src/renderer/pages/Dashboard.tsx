@@ -84,7 +84,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 mb-6 stagger">
         <Card>
           <div className="kpi-card">
             <span className="kpi-label">CPU Usage</span>

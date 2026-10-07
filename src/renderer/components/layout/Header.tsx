@@ -156,12 +156,12 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-right no-drag">
         {operation.busy && (
           <div
-            className="badge badge-info"
+            className="badge badge-info op-badge"
             role="status"
             aria-live="polite"
             data-testid="op-status"
           >
-            <span className="status-dot status-dot-online" aria-hidden="true" />
+            <span className="op-spinner" aria-hidden="true" />
             <span>{operationLabel(operation.current)}</span>
             {operation.queued > 0 && <span>+{operation.queued} queued</span>}
           </div>
