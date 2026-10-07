@@ -14,6 +14,12 @@ describe('StatusBar (Fase B: honest state)', () => {
     expect(screen.getByText('Windows 11')).toBeInTheDocument();
   });
 
+  it('carries the FORCH.i brand badge in the footer', () => {
+    render(<StatusBar version="0.18.0" windowsVersion="Windows 11" lastScan={null} />);
+    const badge = screen.getByTitle('Built with FORCH.i by Paulo Velasco');
+    expect(badge).toHaveAttribute('href', 'https://github.com/forchia-ecosystem');
+  });
+
   it('shows Ready when idle (no bridge)', () => {
     render(<StatusBar version="0.18.0" windowsVersion="Windows 11" lastScan={null} />);
     expect(screen.getByText('Ready')).toBeInTheDocument();

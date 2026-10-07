@@ -20,6 +20,15 @@ export const StatusBar: React.FC<StatusBarProps> = ({ version, windowsVersion, l
       <div className="status-bar-left">
         <span>v{version}</span>
         <span>{windowsVersion}</span>
+        <a
+          className="brand-badge"
+          href="https://github.com/forchia-ecosystem"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Built with FORCH.i by Paulo Velasco"
+        >
+          FORCH.i
+        </a>
       </div>
       <div className="status-bar-right">
         <div className="status-indicator" data-state={operation.busy ? 'working' : 'ready'}>
