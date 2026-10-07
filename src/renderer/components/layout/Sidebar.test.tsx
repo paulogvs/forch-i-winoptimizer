@@ -17,14 +17,19 @@ describe('Sidebar (Fase B: sections + search filter)', () => {
   });
 
   it('renders inline SVG icons instead of emoji', () => {
-    const { container } = render(<Sidebar currentPage="dashboard" onNavigate={vi.fn()} searchQuery="" />);
+    const { container } = render(
+      <Sidebar currentPage="dashboard" onNavigate={vi.fn()} searchQuery="" />
+    );
     expect(container.querySelectorAll('svg.ui-icon').length).toBeGreaterThanOrEqual(14);
     expect(container.textContent).not.toMatch(/📊|🧹|🚀|🔧/);
   });
 
   it('marks the current page with aria-current', () => {
     renderSidebar();
-    expect(screen.getByRole('button', { name: /Dashboard/ })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /Dashboard/ })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
   });
 
   it('filters items by the header search query', () => {

@@ -60,7 +60,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
       triggerRef.current.focus();
       triggerRef.current = null;
     }
-  }, [open ]);
+  }, [open]);
 
   if (!open) return null;
 

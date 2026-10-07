@@ -97,6 +97,23 @@ Cada fase: TDD → gates frescos → release con `checksums.sha256` + `latest.ym
 
 ## Apéndice — evidencia de las auditorías (solo lectura, 0 archivos tocados)
 
-- Rendimiento: 12 hallazgos con `archivo:línea` + mediciones frescas (`measure-system-info.mjs`, `measure-ipc-channels.mjs --runs 3`): degradación +54–311% vs doc; `dns:benchmark` sin caché; 19 y 3 spawns seriales; Cleaner sin virtualizar (tope 5000).
+- Rendimiento: 12 hallazgos con `archivo:línea` + mediciones frescas (`measure-system-info.mjs`, `measure-ipc-channels.mjs --runs 3`): degradación +54—311% vs doc; `dns:benchmark` sin caché; 19 y 3 spawns seriales; Cleaner sin virtualizar (tope 5000).
 - Utilidades: inventario de ~19 acciones; drivers = `openExternal(URL genérica)` + `success:true`; ⚙️ sin `onClick`; Rollback = solo restart; Cleaner oculta fallos; progresos cosméticos.
 - Kudu v3.6.0 (3748 ⭐, MIT, Electron 44 + React 19): sin liberador de RAM (solo monitor + game-mode); drivers vía WU COM + `pnputil` seguro; ~20 cleaners scan→clean con receipts; `CooperativeScheduler`, `scan-cache`, workers, `perf-monitor`, `file-utils`, `software-updater`, safety KBs, disk repair.
+
+## Track UX elite (2026-10-07, rama `winopt-ux-elite`) — ver `DESIGN_AUDIT.md`
+
+Auditoría UI/UX solo-lectura (@f.design): total 72/100 (visual 78, consistencia 72,
+accesibilidad 60, marca 80, UX 70). Todas las correcciones son tokens/CSS/a11y —
+cero cambios de API, cero dependencias nuevas (motion 100% CSS-only).
+
+| Fase | Alcance                                                                                                                                                                                     | Estado            |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| A    | Contraste AA (`--color-on-accent` + `contrastOn()`, danger-strong, badge `*-content`, nav-active `accent-content`) + CSS faltante (progress-indeterminate GPU, presets Tweaks, `.btn-icon`) | ✅ 18/18 pares AA |
+| B    | Nav en 4 secciones + set SVG `Icon` + búsqueda real (filtra + Enter/Esc) + StatusBar honesto + KPI sin doble borde + Dashboard conciso                                                      | ✅                |
+| C    | Thinking elite: badge con spinner + `GlobalBusyOverlay` (800ms, non-blocking) + stagger de entrada                                                                                          | ✅                |
+| D    | Modal focus trap/restore/`useId`, Toast con una sola live region, Tooltip con `position` real                                                                                               | ✅                |
+| E    | Favicon de marca + badge en footer; fuentes remotas con fallback (decisión: sin peso extra)                                                                                                 | ✅                |
+| F    | `DESIGN.md` sincronizado (tokens, Icon, thinking, motion, responsive honesto)                                                                                                               | ✅                |
+
+Verificación por fase: `typecheck` + `lint` + `vitest` + `format:check` en verde antes de commitear.

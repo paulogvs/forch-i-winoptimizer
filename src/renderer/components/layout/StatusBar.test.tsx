@@ -35,7 +35,12 @@ describe('StatusBar (Fase B: honest state)', () => {
   it('shows Working while an operation owns the lock', async () => {
     (window as unknown as Record<string, unknown>).electronAPI = {
       getOperationStatus: () =>
-        Promise.resolve({ busy: true, current: 'cleaner:delete', queued: 2, startedAt: Date.now() }),
+        Promise.resolve({
+          busy: true,
+          current: 'cleaner:delete',
+          queued: 2,
+          startedAt: Date.now(),
+        }),
       onOperationStatus: () => () => {},
     };
     render(<StatusBar version="0.18.0" windowsVersion="Windows 11" lastScan={null} />);

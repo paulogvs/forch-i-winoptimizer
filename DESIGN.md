@@ -38,22 +38,32 @@
   --color-accent: #06b6d4; /* Primary accent */
   --color-accent-hover: #22d3ee; /* Accent hover */
   --color-accent-muted: rgba(6, 182, 212, 0.15); /* Accent background */
+  --color-accent-content: #22d3ee; /* Bright text on muted accent (nav-active) */
+  --color-on-accent: #0a0e1a; /* AA text on accent fills (Fase A: white-on-cyan fails) */
 
   /* Semantic — Success */
   --color-success: #10b981;
   --color-success-muted: rgba(16, 185, 129, 0.15);
+  --color-success-content: #10b981; /* Badge text (AA on muted) */
 
   /* Semantic — Warning */
   --color-warning: #f59e0b;
   --color-warning-muted: rgba(245, 158, 11, 0.15);
+  --color-warning-content: #f59e0b; /* Badge text (AA on muted) */
 
   /* Semantic — Error/Danger */
   --color-error: #ef4444;
   --color-error-muted: rgba(239, 68, 68, 0.15);
+  --color-error-content: #f87171; /* Badge text (AA on muted) */
+  --color-danger: #ef4444;
+  --color-danger-foreground: #ffffff;
+  --color-danger-strong: #b91c1c; /* Button fill (AA with white text) */
+  --color-danger-strong-hover: #991b1b;
 
   /* Semantic — Info */
   --color-info: #3b82f6;
   --color-info-muted: rgba(59, 130, 246, 0.15);
+  --color-info-content: #60a5fa; /* Badge text (AA on muted) */
 
   /* Borders */
   --color-border: #374151;
@@ -83,24 +93,34 @@
 
   /* Accent — Cyan (darker for light mode contrast) */
   --color-accent: #0891b2;
-  --color-accent-hover: #0e7490;
+  --color-accent-hover: #06b6d4; /* Brighter on hover so dark on-accent text stays AA */
   --color-accent-muted: rgba(8, 145, 178, 0.12);
+  --color-accent-content: #0e7490; /* Dark text on muted accent (nav-active) */
+  --color-on-accent: #0a0e1a;
 
   /* Semantic — Success */
   --color-success: #059669;
   --color-success-muted: rgba(5, 150, 105, 0.12);
+  --color-success-content: #047857;
 
   /* Semantic — Warning */
   --color-warning: #d97706;
   --color-warning-muted: rgba(217, 119, 6, 0.12);
+  --color-warning-content: #92400e;
 
   /* Semantic — Error/Danger */
   --color-error: #dc2626;
   --color-error-muted: rgba(220, 38, 38, 0.12);
+  --color-error-content: #b91c1c;
+  --color-danger: #dc2626;
+  --color-danger-foreground: #ffffff;
+  --color-danger-strong: #991b1b;
+  --color-danger-strong-hover: #7f1d1d;
 
   /* Semantic — Info */
   --color-info: #2563eb;
   --color-info-muted: rgba(37, 99, 235, 0.12);
+  --color-info-content: #1d4ed8;
 
   /* Borders */
   --color-border: #cbd5e1;
@@ -236,10 +256,10 @@
   min-height: 36px;
 }
 
-/* Variants */
+/* Variants (Fase A: AA text via on-accent / danger-strong tokens) */
 .btn-primary {
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
 }
 .btn-primary:hover {
   background: var(--color-accent-hover);
@@ -265,11 +285,18 @@
 }
 
 .btn-danger {
-  background: var(--color-error);
-  color: #ffffff;
+  background: var(--color-danger-strong);
+  color: var(--color-danger-foreground);
 }
 .btn-danger:hover {
-  background: #dc2626;
+  background: var(--color-danger-strong-hover);
+}
+
+/* Icon slot inside Button (Fase A) */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
 }
 
 /* Sizes */
@@ -422,7 +449,7 @@
 
 .toggle[aria-checked='true']::after {
   transform: translateX(20px);
-  background: #ffffff;
+  background: var(--color-on-accent); /* AA knob on the accent track (Fase A) */
 }
 
 .toggle:focus-visible {
@@ -448,22 +475,22 @@
 
 .badge-success {
   background: var(--color-success-muted);
-  color: var(--color-success);
+  color: var(--color-success-content); /* AA text, not the raw semantic (Fase A) */
 }
 
 .badge-warning {
   background: var(--color-warning-muted);
-  color: var(--color-warning);
+  color: var(--color-warning-content);
 }
 
 .badge-error {
   background: var(--color-error-muted);
-  color: var(--color-error);
+  color: var(--color-error-content);
 }
 
 .badge-info {
   background: var(--color-info-muted);
-  color: var(--color-info);
+  color: var(--color-info-content);
 }
 
 .badge-neutral {
@@ -556,6 +583,12 @@
 .progress-bar-error {
   background: var(--color-error);
 }
+
+/* Honest indeterminate mode (Fase A): GPU transform sweep, no fake percent */
+.progress-indeterminate .progress-bar-animated {
+  width: 40%;
+  animation: progressIndeterminate 1.4s var(--ease-in-out) infinite;
+}
 ```
 
 ### 6.8 Tooltip
@@ -574,7 +607,21 @@
   pointer-events: none;
   box-shadow: var(--shadow-md);
 }
+
+/* Position variants (Fase D): .tooltip-top (default) | -bottom | -left | -right */
 ```
+
+### 6.9 Icon (Fase B)
+
+Inline SVG set (`components/ui/Icon.tsx`): 16 names, 24px grid, `stroke="currentColor"`,
+`aria-hidden` by default. Replaces emoji in nav/header. Class `.ui-icon` inherits text color.
+
+### 6.10 Thinking indicators (Fase C, CSS-only)
+
+- `.op-spinner`: 14px GPU ring in the header operation badge.
+- `.busy-overlay` + `.busy-card` + `.busy-spinner`: non-blocking global veil
+  (`pointer-events: none`) for operations longer than 800ms (`GlobalBusyOverlay.tsx`).
+- `.stagger > *`: entrance rise in 50ms steps, capped at 8 children.
 
 ---
 
@@ -642,10 +689,16 @@ useEffect(() => {
 
 ### 9.1 WCAG AA Compliance
 
-- **Contrast ratio:** Minimum 4.5:1 for normal text, 3:1 for large text
-- **Focus indicators:** Visible focus rings on all interactive elements
+- **Contrast ratio:** Minimum 4.5:1 for normal text, 3:1 for large text.
+  Verified by script over real token pairs (Fase A: 18/18 AA, incl. buttons,
+  badges, nav-active, toggle knob). Rules: text on accent fills uses
+  `--color-on-accent` (derived per user accent via `contrastOn()`); badge text
+  uses `--color-*-content`; danger buttons use `--color-danger-strong`.
+- **Focus indicators:** Visible focus rings on all interactive elements.
+  Modal traps Tab/Shift+Tab, restores focus to the trigger, unique title id (Fase D).
 - **Touch targets:** Minimum 44x44px for interactive elements
-- **Keyboard navigation:** All functionality accessible via keyboard
+- **Keyboard navigation:** All functionality accessible via keyboard.
+  Header search: Enter jumps to first match, Esc clears (Fase B).
 
 ### 9.2 ARIA Patterns
 
@@ -702,13 +755,17 @@ useEffect(() => {
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 10.2 Sidebar
+### 10.2 Sidebar (Fase B)
 
 - **Width:** 240px (fixed)
 - **Background:** `var(--color-bg-secondary)`
 - **Border-right:** `1px solid var(--color-border)`
-- **Navigation items:** Icon + Label, hover/active states
-- **Active indicator:** Left border accent or background highlight
+- **Sections:** System health (Dashboard, Boost, Cleaner, Cleaning) · System
+  (Tweaks, Tools, Drivers, Network, Security) · Analysis (Audit, Benchmark,
+  Statistics, Bundles) · App (Settings). Source of truth: `layout/nav.ts`.
+- **Navigation items:** Inline SVG `Icon` + Label, hover/active states.
+  Active text uses `--color-accent-content` (AA on muted).
+- **Live filter:** header search filters sections; honest empty note + Esc to clear.
 
 ### 10.3 Main Content
 
@@ -717,6 +774,9 @@ useEffect(() => {
 - **Background:** `var(--color-bg-primary)`
 
 ### 10.4 Responsive Breakpoints
+
+> Desktop-only app (`main/index.ts` `minWidth: 960`; H11). The ≤768px rules in
+> `layout.css` are aspirational and currently unreachable — do not rely on them.
 
 | Breakpoint | Width  | Layout                      |
 | ---------- | ------ | --------------------------- |
@@ -750,13 +810,18 @@ useEffect(() => {
 
 ### 11.3 Animations
 
-| Animation | Duration | Easing      | Usage            |
-| --------- | -------- | ----------- | ---------------- |
-| `fadeIn`  | 150ms    | ease-out    | Modal overlay    |
-| `slideUp` | 200ms    | ease-out    | Modal content    |
-| `slideIn` | 200ms    | ease-out    | Sidebar          |
-| `spin`    | 600ms    | linear      | Loading spinner  |
-| `pulse`   | 2s       | ease-in-out | Status indicator |
+| Animation               | Duration                | Easing      | Usage                                        |
+| ----------------------- | ----------------------- | ----------- | -------------------------------------------- |
+| `fadeIn`                | 100ms (`fast`)          | ease-out    | Modal overlay, busy veil                     |
+| `slideUp`               | 200ms (`normal`)        | ease-out    | Modal content, busy card, stagger entrance   |
+| `slideIn`               | 200ms                   | ease-out    | Sidebar                                      |
+| `spin`                  | 600–700ms               | linear      | Loading spinner, op-badge ring, busy spinner |
+| `pulse`                 | 2s (idle) / 0.9s (busy) | ease-in-out | Status indicator                             |
+| `skeletonShimmer`       | 1.6s                    | —           | Skeleton screens                             |
+| `progressIndeterminate` | 1.4s                    | ease-in-out | Honest indeterminate bar (GPU transform)     |
+
+Rules (Fase C): animate `transform`/`opacity` only; functional motion ≤400ms;
+stagger 50ms steps capped at 8; every animation honours `prefers-reduced-motion`.
 
 ---
 
@@ -802,9 +867,12 @@ Every page/screen must include the brand badge:
 └─────────────────────────────────────┘
 ```
 
-- **Location:** Footer or sidebar bottom
+- **Location:** Footer (StatusBar, compact "FORCH.i" link) + sidebar bottom + Settings/About
 - **Style:** Subtle, `var(--color-fg-tertiary)`, `var(--text-xs)`
 - **Link:** https://github.com/forchia-ecosystem
+- **Favicon:** `public/favicon.png` (from `assets/icons/icon-256.png`, Fase E)
+- **Fonts:** Google Fonts (Inter + JetBrains Mono, `display=swap`) with system
+  fallback stacks in tokens; kept remote to avoid bundle weight (H13 decision, Fase E)
 
 ---
 
