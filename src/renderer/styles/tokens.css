@@ -22,6 +22,8 @@
   --color-accent: #06b6d4;
   --color-accent-hover: #22d3ee;
   --color-accent-muted: rgba(6, 182, 212, 0.15);
+  /* Bright text for muted accent surfaces (nav-active dark: 7.65) */
+  --color-accent-content: #22d3ee;
   /* Readable text on accent fills (Fase A: white-on-cyan fails AA) */
   --color-on-accent: #0a0e1a;
 
@@ -133,6 +135,8 @@
   --color-accent: #0891b2;
   --color-accent-hover: #06b6d4;
   --color-accent-muted: rgba(8, 145, 178, 0.12);
+  /* Dark text for muted accent surfaces (nav-active light: 4.65) */
+  --color-accent-content: #0e7490;
   /* Dark text stays readable on both accent and hover (5.2+/7.9+) */
   --color-on-accent: #0a0e1a;
 

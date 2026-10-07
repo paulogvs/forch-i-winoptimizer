@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOperationStatus } from '../../hooks/useOperationStatus';
 
 interface StatusBarProps {
   version: string;
@@ -6,7 +7,14 @@ interface StatusBarProps {
   lastScan: Date | null;
 }
 
+/**
+ * Honest status bar (Fase B): the indicator derives from the real global
+ * operation lock instead of a hardcoded "Ready/online". Shows Working while
+ * an operation owns the lock, Ready when idle, plus the last scan when known.
+ */
 export const StatusBar: React.FC<StatusBarProps> = ({ version, windowsVersion, lastScan }) => {
+  const operation = useOperationStatus();
+
   return (
     <footer className="status-bar">
       <div className="status-bar-left">
@@ -14,11 +22,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({ version, windowsVersion, l
         <span>{windowsVersion}</span>
       </div>
       <div className="status-bar-right">
-        <div className="status-indicator">
-          <span className="status-dot status-dot-online" />
-          <span>Ready</span>
+        <div className="status-indicator" data-state={operation.busy ? 'working' : 'ready'}>
+          <span
+            className={`status-dot ${operation.busy ? 'status-dot-busy' : 'status-dot-online'}`}
+            aria-hidden="true"
+          />
+          <span role="status">
+            {operation.busy
+              ? `Working${operation.queued > 0 ? ` (+${operation.queued})` : ''}…`
+              : 'Ready'}
+          </span>
         </div>
-        {lastScan && <span>Last scan: {lastScan.toLocaleDateString()}</span>}
+        {lastScan && !operation.busy && <span>Last scan: {lastScan.toLocaleDateString()}</span>}
       </div>
     </footer>
   );

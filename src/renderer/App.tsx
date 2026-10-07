@@ -17,6 +17,7 @@ import { Security } from './pages/Security';
 import { Settings } from './pages/Settings';
 import { useScanningIndicator } from './hooks/useScanProgress';
 import { applyAccentColor } from './utils/accent';
+import { matchNavItems } from './components/layout/nav';
 import type { PageId, Theme } from '@shared/types';
 
 const App: React.FC = () => {
@@ -53,6 +54,15 @@ const App: React.FC = () => {
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
+  }, []);
+
+  /** Enter in search: jump to the first matching page and clear (Fase B). */
+  const handleSearchSubmit = useCallback(() => {
+    setSearchQuery((query) => {
+      const [first] = matchNavItems(query);
+      if (first) setCurrentPage(first);
+      return '';
+    });
   }, []);
 
   const renderPage = () => {
@@ -98,6 +108,7 @@ const App: React.FC = () => {
         theme={theme}
         onThemeToggle={handleThemeToggle}
         onSearch={handleSearch}
+        onSearchSubmit={handleSearchSubmit}
         searchQuery={searchQuery}
         version={__APP_VERSION__}
         windowsVersion="Windows 11"

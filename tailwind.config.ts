@@ -24,6 +24,7 @@ export default {
           hover: 'var(--color-accent-hover)',
           muted: 'var(--color-accent-muted)',
           content: 'var(--color-on-accent)',
+          emphasis: 'var(--color-accent-content)',
         },
         success: {
           DEFAULT: 'var(--color-success)',

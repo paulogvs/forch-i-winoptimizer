@@ -10,6 +10,7 @@ interface LayoutProps {
   theme: Theme;
   onThemeToggle: () => void;
   onSearch: (query: string) => void;
+  onSearchSubmit: () => void;
   searchQuery: string;
   version: string;
   windowsVersion: string;
@@ -23,6 +24,7 @@ export const Layout: React.FC<LayoutProps> = ({
   theme,
   onThemeToggle,
   onSearch,
+  onSearchSubmit,
   searchQuery,
   version,
   windowsVersion,
@@ -31,12 +33,13 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   return (
     <div className="app-shell">
-      <Sidebar currentPage={currentPage} onNavigate={onNavigate} />
+      <Sidebar currentPage={currentPage} onNavigate={onNavigate} searchQuery={searchQuery} />
       <div className="main-area">
         <Header
           theme={theme}
           onThemeToggle={onThemeToggle}
           onSearch={onSearch}
+          onSearchSubmit={onSearchSubmit}
           searchQuery={searchQuery}
           onNavigate={onNavigate}
         />

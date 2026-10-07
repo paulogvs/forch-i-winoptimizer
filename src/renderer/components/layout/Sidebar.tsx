@@ -1,29 +1,28 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { PageId } from '@shared/types';
+import { NAV_SECTIONS, matchNavItems } from './nav';
+import { Icon } from '../ui/Icon';
 
 interface SidebarProps {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
+  /** Live filter from the header search (Fase B: search is real now). */
+  searchQuery: string;
 }
 
-const navItems: { id: PageId; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'cleaner', label: 'Cleaner', icon: '🧹' },
-  { id: 'boost', label: 'Boost', icon: '🚀' },
-  { id: 'tools', label: 'Tools', icon: '🔧' },
-  { id: 'drivers', label: 'Drivers', icon: '🔌' },
-  { id: 'network', label: 'Network', icon: '🌐' },
-  { id: 'audit', label: 'Audit', icon: '🔍' },
-  { id: 'benchmark', label: 'Benchmark', icon: '📊' },
-  { id: 'bundles', label: 'Bundles', icon: '📦' },
-  { id: 'cleaning', label: 'Cleaning', icon: '🗓️' },
-  { id: 'tweaks', label: 'Tweaks', icon: '🎛️' },
-  { id: 'statistics', label: 'Statistics', icon: '📈' },
-  { id: 'security', label: 'Security', icon: '🛡️' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
-];
+export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, searchQuery }) => {
+  const matches = useMemo(() => new Set(matchNavItems(searchQuery)), [searchQuery]);
+  const filtering = searchQuery.trim().length > 0;
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
+  const sections = useMemo(
+    () =>
+      NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.filter((item) => matches.has(item.id)),
+      })).filter((section) => section.items.length > 0),
+    [matches]
+  );
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -39,19 +38,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => 
         />
       </div>
       <nav className="sidebar-nav" aria-label="Main navigation">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
-            onClick={() => onNavigate(item.id)}
-            aria-current={currentPage === item.id ? 'page' : undefined}
-          >
-            <span className="nav-item-icon" aria-hidden="true">
-              {item.icon}
+        {sections.map((section) => (
+          <div key={section.title} className="nav-section" role="group" aria-label={section.title}>
+            <span className="nav-section-title" aria-hidden="true">
+              {section.title}
             </span>
-            <span>{item.label}</span>
-          </button>
+            {section.items.map((item) => (
+              <button
+                key={item.id}
+                className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
+                onClick={() => onNavigate(item.id)}
+                aria-current={currentPage === item.id ? 'page' : undefined}
+              >
+                <span className="nav-item-icon" aria-hidden="true">
+                  <Icon name={item.icon} size={18} />
+                </span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
         ))}
+        {filtering && sections.length === 0 && (
+          <p className="nav-empty" role="status">
+            No pages match “{searchQuery.trim()}”. Press Esc to clear.
+          </p>
+        )}
       </nav>
       <div className="sidebar-footer">
         <a

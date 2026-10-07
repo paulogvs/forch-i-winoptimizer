@@ -135,22 +135,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <span className="text-tertiary">Build:</span>
               <span className="text-primary">{systemInfo.windowsBuild}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-tertiary">Hostname:</span>
-              <span className="text-primary">{systemInfo.hostname}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-tertiary">Username:</span>
-              <span className="text-primary">{systemInfo.username}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-tertiary">Uptime:</span>
-              <span className="text-primary">{formatUptime(systemInfo.uptime)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-tertiary">CPU Cores:</span>
-              <span className="text-primary">{systemInfo.cpu.cores}</span>
-            </div>
+            <details className="sys-details">
+              <summary className="sys-details-summary">More details</summary>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between">
+                  <span className="text-tertiary">Hostname:</span>
+                  <span className="text-primary">{systemInfo.hostname}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-tertiary">Username:</span>
+                  <span className="text-primary">{systemInfo.username}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-tertiary">Uptime:</span>
+                  <span className="text-primary">{formatUptime(systemInfo.uptime)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-tertiary">CPU Cores:</span>
+                  <span className="text-primary">{systemInfo.cpu.cores}</span>
+                </div>
+              </div>
+            </details>
           </div>
         </Card>
 

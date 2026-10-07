@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PageId, Theme } from '@shared/types';
 import { WindowControls } from './WindowControls';
+import { Icon } from '../ui/Icon';
 import { useOperationStatus } from '../../hooks/useOperationStatus';
 import { useToast } from '../ui/toast-context';
 
@@ -8,6 +9,8 @@ interface HeaderProps {
   theme: Theme;
   onThemeToggle: () => void;
   onSearch: (query: string) => void;
+  /** Enter in the search box: jump to the first matching page. */
+  onSearchSubmit: () => void;
   searchQuery: string;
   onNavigate: (page: PageId) => void;
 }
@@ -59,6 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   onThemeToggle,
   onSearch,
+  onSearchSubmit,
   searchQuery,
   onNavigate,
 }) => {
@@ -115,12 +119,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   const ramLabel =
     ramState === 'working'
-      ? 'Freeing...'
+      ? 'Freeing…'
       : ramState === 'done'
-        ? `Freed ${freedMb} MB (this app: ${ramBeforeMb}→${ramAfterMb} MB)`
+        ? `Freed ${freedMb} MB`
         : ramState === 'error'
           ? 'Free failed'
           : 'Free RAM';
+  // Full before/after figures live in the result toast + title tooltip (Fase B:
+  // keep the button label to one short fact).
 
   // Fase 0.6: Free RAM only trims this app's own working set (main process +
   // direct children via EmptyWorkingSet). Windows owns system-wide memory
@@ -136,10 +142,14 @@ export const Header: React.FC<HeaderProps> = ({
           <input
             type="search"
             className="input"
-            placeholder="Search..."
+            placeholder="Search pages…"
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
-            aria-label="Search"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearchSubmit();
+              if (e.key === 'Escape') onSearch('');
+            }}
+            aria-label="Search pages"
           />
         </div>
       </div>
@@ -161,7 +171,11 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={handleFreeRam}
           disabled={ramState === 'working' || operation.busy}
           data-testid="free-ram"
-          title={ramScopeHint}
+          title={
+            ramState === 'done'
+              ? `${ramScopeHint} Last result: freed ${freedMb} MB (this app: ${ramBeforeMb}→${ramAfterMb} MB).`
+              : ramScopeHint
+          }
           aria-label={`Free RAM. ${ramScopeHint}`}
         >
           {ramLabel}
@@ -171,7 +185,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onThemeToggle}
           aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
         </button>
         <button
           className="btn btn-ghost btn-sm"
@@ -180,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({
           title="Open Settings"
           onClick={() => onNavigate('settings')}
         >
-          ⚙️
+          <Icon name="settings" size={16} />
         </button>
         <div className="user-avatar" aria-label="User profile">
           <span>PV</span>
