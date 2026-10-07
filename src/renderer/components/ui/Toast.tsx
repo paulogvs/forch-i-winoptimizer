@@ -5,9 +5,10 @@ import { ToastContext, type ToastInput } from './toast-context';
  * In-app toast notifications (Fase 3.4).
  *
  * Replaces the remaining `alert()` calls with a non-blocking, accessible
- * notification: the container is `aria-live="polite"` so screen readers
- * announce the real result, and an optional action link lets the user jump to
- * Statistics. Alerts are toast, never `window.alert`.
+ * notification: the container is the single `aria-live="polite"` region
+ * (items carry no role, so announcements are never doubled), and an optional
+ * action link lets the user jump to Statistics. Alerts are toast, never
+ * `window.alert`.
  *
  * This module exports ONLY the provider component; the context + `useToast`
  * hook live in `toast-context.ts` (react-refresh rule).
@@ -75,7 +76,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               className={`toast toast-${variant}`}
               data-testid="toast"
               data-variant={variant}
-              role="status"
             >
               <div className="toast-content">
                 <div className="toast-title">{toast.title}</div>

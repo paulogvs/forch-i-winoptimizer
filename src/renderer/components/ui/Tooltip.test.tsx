@@ -33,4 +33,24 @@ describe('Tooltip', () => {
     fireEvent.mouseLeave(wrapper);
     expect(screen.queryByText('Help text')).not.toBeInTheDocument();
   });
+
+  it('applies the position class (defaults to top)', () => {
+    render(
+      <Tooltip content="Help text">
+        <button>Hover me</button>
+      </Tooltip>
+    );
+    fireEvent.mouseEnter(screen.getByText('Hover me').parentElement!);
+    expect(screen.getByRole('tooltip')).toHaveClass('tooltip-top');
+  });
+
+  it('honours an explicit position', () => {
+    render(
+      <Tooltip content="Help text" position="right">
+        <button>Hover me</button>
+      </Tooltip>
+    );
+    fireEvent.mouseEnter(screen.getByText('Hover me').parentElement!);
+    expect(screen.getByRole('tooltip')).toHaveClass('tooltip-right');
+  });
 });
