@@ -14,6 +14,8 @@ export interface AccentTokens {
   hover: string;
   muted: string;
   focus: string;
+  /** Readable text colour on top of the accent (WCAG AA). */
+  onAccent: string;
 }
 
 export function normalizeHex(value: string): string | null {
@@ -72,6 +74,32 @@ export function luminance(hex: string): number {
   return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
 }
 
+/** WCAG 2.x contrast ratio between two hex colours (1 = same, 21 = black/white). */
+export function contrastRatio(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const ON_ACCENT_DARK = '#0A0E1A';
+const ON_ACCENT_LIGHT = '#FFFFFF';
+
+/**
+ * Pick readable text (near-black or white) on top of an accent background.
+ * Prefers the option reaching WCAG AA (≥4.5:1); falls back to the higher
+ * ratio when neither reaches it (extreme mid-tones).
+ */
+export function contrastOn(hex: string): string {
+  const bg = normalizeHex(hex) ?? '#06B6D4';
+  const darkRatio = contrastRatio(ON_ACCENT_DARK, bg);
+  const lightRatio = contrastRatio(ON_ACCENT_LIGHT, bg);
+  if (darkRatio >= 4.5 && darkRatio >= lightRatio) return ON_ACCENT_DARK;
+  if (lightRatio >= 4.5) return ON_ACCENT_LIGHT;
+  return darkRatio >= lightRatio ? ON_ACCENT_DARK : ON_ACCENT_LIGHT;
+}
+
 /** Derive the full accent token set from a single hex colour. */
 export function accentTokens(hex: string): AccentTokens {
   const accent = normalizeHex(hex) ?? '#06B6D4';
@@ -82,6 +110,7 @@ export function accentTokens(hex: string): AccentTokens {
     hover,
     muted: rgba(accent, 0.15),
     focus: accent,
+    onAccent: contrastOn(accent),
   };
 }
 
@@ -95,11 +124,12 @@ export function applyAccentColor(
 ): boolean {
   const tokens = normalizeHex(hex);
   if (!tokens) return false;
-  const { accent, hover, muted, focus } = accentTokens(tokens);
+  const { accent, hover, muted, focus, onAccent } = accentTokens(tokens);
   root.style.setProperty('--color-accent', accent);
   root.style.setProperty('--color-accent-hover', hover);
   root.style.setProperty('--color-accent-muted', muted);
   root.style.setProperty('--color-border-focus', focus);
+  root.style.setProperty('--color-on-accent', onAccent);
   root.style.setProperty('--color-chart-primary', accent);
   return true;
 }

@@ -174,7 +174,7 @@
   height: 32px;
   border-radius: var(--radius-full);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
   display: flex;
   align-items: center;
   justify-content: center;

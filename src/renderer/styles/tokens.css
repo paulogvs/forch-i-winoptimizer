@@ -22,24 +22,32 @@
   --color-accent: #06b6d4;
   --color-accent-hover: #22d3ee;
   --color-accent-muted: rgba(6, 182, 212, 0.15);
+  /* Readable text on accent fills (Fase A: white-on-cyan fails AA) */
+  --color-on-accent: #0a0e1a;
 
   /* Semantic — Success */
   --color-success: #10b981;
   --color-success-muted: rgba(16, 185, 129, 0.15);
+  --color-success-content: #10b981;
 
   /* Semantic — Warning */
   --color-warning: #f59e0b;
   --color-warning-muted: rgba(245, 158, 11, 0.15);
+  --color-warning-content: #f59e0b;
 
   /* Semantic — Error/Danger */
   --color-error: #ef4444;
   --color-error-muted: rgba(239, 68, 68, 0.15);
+  --color-error-content: #f87171;
   --color-danger: #ef4444;
   --color-danger-foreground: #ffffff;
+  --color-danger-strong: #b91c1c;
+  --color-danger-strong-hover: #991b1b;
 
   /* Semantic — Info */
   --color-info: #3b82f6;
   --color-info-muted: rgba(59, 130, 246, 0.15);
+  --color-info-content: #60a5fa;
 
   /* Borders */
   --color-border: #374151;
@@ -123,26 +131,34 @@
 
   /* Accent — Cyan (darker for light mode contrast) */
   --color-accent: #0891b2;
-  --color-accent-hover: #0e7490;
+  --color-accent-hover: #06b6d4;
   --color-accent-muted: rgba(8, 145, 178, 0.12);
+  /* Dark text stays readable on both accent and hover (5.2+/7.9+) */
+  --color-on-accent: #0a0e1a;
 
   /* Semantic — Success */
   --color-success: #059669;
   --color-success-muted: rgba(5, 150, 105, 0.12);
+  --color-success-content: #047857;
 
   /* Semantic — Warning */
   --color-warning: #d97706;
   --color-warning-muted: rgba(217, 119, 6, 0.12);
+  --color-warning-content: #92400e;
 
   /* Semantic — Error/Danger */
   --color-error: #dc2626;
   --color-error-muted: rgba(220, 38, 38, 0.12);
+  --color-error-content: #b91c1c;
   --color-danger: #dc2626;
   --color-danger-foreground: #ffffff;
+  --color-danger-strong: #991b1b;
+  --color-danger-strong-hover: #7f1d1d;
 
   /* Semantic — Info */
   --color-info: #2563eb;
   --color-info-muted: rgba(37, 99, 235, 0.12);
+  --color-info-content: #1d4ed8;
 
   /* Borders */
   --color-border: #cbd5e1;
@@ -227,6 +243,15 @@ body {
   }
   100% {
     background-position: 0 50%;
+  }
+}
+
+@keyframes progressIndeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
   }
 }
 
