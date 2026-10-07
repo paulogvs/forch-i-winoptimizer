@@ -71,6 +71,52 @@ test.describe('Tools', () => {
     await expect(protectedRow).toBeDisabled();
   });
 
+  test('should filter the debloat catalog through search (B3)', async ({ page }) => {
+    await page.click('button:has-text("Debloat")');
+    await expect(page.getByTestId('debloat-check-bingnews')).toBeVisible();
+    await page.getByTestId('debloat-search').fill('news');
+    await expect(page.getByTestId('debloat-check-bingnews')).toBeVisible();
+    await expect(page.getByTestId('debloat-check-todo')).toBeHidden();
+    await expect(page.getByTestId('debloat-check-xbox')).toBeHidden();
+  });
+
+  test('should select/clear selectable apps per category with a pre-removal summary (B3)', async ({
+    page,
+  }) => {
+    await page.click('button:has-text("Debloat")');
+    await expect(page.getByTestId('debloat-check-bingnews')).toBeVisible();
+
+    await page.getByTestId('debloat-select-all-bloatware').click();
+    await expect(page.getByTestId('debloat-check-bingnews')).toBeChecked();
+    await expect(page.getByTestId('debloat-check-todo')).toBeChecked();
+    await expect(page.getByTestId('debloat-check-xbox')).toBeChecked();
+    // Protected and not-installed rows are never taken by select-all.
+    await expect(page.getByTestId('debloat-check-windowsstore')).not.toBeChecked();
+    await expect(page.getByTestId('debloat-check-clipchamp')).not.toBeChecked();
+
+    const summary = page.getByTestId('debloat-summary');
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText('MSN News');
+    await expect(summary).toContainText('Xbox App');
+
+    await page.getByTestId('debloat-clear-bloatware').click();
+    await expect(page.getByTestId('debloat-check-bingnews')).not.toBeChecked();
+    await expect(summary).toBeHidden();
+  });
+
+  test('should show a receipt and a post-check note after removal (B3)', async ({ page }) => {
+    await page.click('button:has-text("Debloat")');
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByTestId('debloat-check-bingnews').check();
+    await page.click('button:has-text("Remove selected")');
+    await expect(page.getByTestId('debloat-result')).toHaveText(/Removed 1 app/);
+    const receipt = page.getByTestId('debloat-receipt');
+    await expect(receipt).toBeVisible();
+    await expect(receipt).toContainText('bingnews');
+    await expect(receipt).toContainText('removed');
+    await expect(page.getByTestId('debloat-verify')).toContainText(/Post-check/);
+  });
+
   test('should switch to app manager tab', async ({ page }) => {
     await page.click('button:has-text("App Manager")');
     await expect(page.locator('text=Installed Apps')).toBeVisible();

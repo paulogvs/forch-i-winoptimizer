@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-06
+
+Cuatro lotes de capacidad nueva visible (minor): preset maestro anti-ads,
+sonido, barra de tareas, toggles de seguridad del SO, export/import de perfil
+y debloat expandido con UI de selección total. Todo reversible, con preview y
+verificación post-cambio; ninguna remoción se ejecuta sola.
+
+### Added — Lote 1 (A1 preset Ads + A5 sonido)
+
+- **A1 — Preset maestro `ads-suggestions-preset` + 5 hijos atómicos HKCU**
+  (`ads-start-suggestions`, `ads-lock-screen-spotlight`, `ads-settings-tips`,
+  `ads-ai-pins`, `ads-telemetry-hkcu`): modos Allow/Deny/Custom en la tarjeta
+  preset de Tweaks (sección System), con modal de preview de la unión de hijos.
+  Nuevos canales `tweaks:apply-preset` (bajo lock) y `tweaks:preview-preset`;
+  el catálogo valida presets (hijos no vacíos, existentes y atómicos).
+- **A5 — Sonido (todo HKCU, reversible, sin admin):** `sound-ducking-off`,
+  `startup-sound-off` y `voice-activation-off`, con apply/revert espejo.
+
+### Added — Lote 2 (A2 taskbar/explorer + A4 toggles seguridad OS)
+
+- **A2 — 6 tweaks HKCU reversibles:** `taskbar-badges-off`,
+  `taskbar-never-combine`, `taskbar-end-task-on`, `desktop-icons-show`,
+  `shortcut-arrow-blank` (imageres.dll,197) y `dynamic-lighting-off`, con aviso
+  de reinicio de Explorer donde aplica (el motor nunca reinicia Explorer solo).
+- **A4 — UAC en 5 niveles** (`uac-always/credentials/default/nodim/never`) con
+  preview + confirmación + revert y `requires-admin` (`uac-never` con warning
+  explícito y confirmación bloqueante en UI); remediaciones admin reversibles
+  Smart App Control enforce y execution-policy RemoteSigned; `bitlocker-guard`
+  como aviso/guardia read-only (la app nunca cifra nada). Botones por nivel UAC
+  en la tarjeta uac de Security.
+
+### Added — Lote 3 (A3 export/import de perfil)
+
+- **Perfil de configuración** (`shared/config-profile` + servicio + IPC
+  `settings:export-profile` / `preview-profile` / `apply-profile`): exporta
+  settings + tweaks aplicados a un JSON descargable desde Settings, e importa
+  con validación estricta (corrupto / versión desconocida / campos inválidos =
+  rechazo con motivo, sin mutar), preview del diff y aplicación tweak-por-tweak
+  con conteo honesto (aplicados/fallados/omitidos). Nada se aplica sin
+  confirmación; `apply-profile` es el único mutante bajo el lock global.
+
+### Added — Lote 4 (B2 catálogo debloat + B3 UI de selección total)
+
+- **B2 — Catálogo `apps-catalog.json` v0.3.0: 30 → 62 apps
+  (safe 39 / caution 17 / protected 6)** en 6 categorías
+  (`entertainment`, `social`, `gaming`, `productivity`, `utilities`, `system`).
+  Cobertura aprendida del análisis previo (UWP + patrocinadas + componentes
+  Xbox + codecs/stubs), reimplementación 100% nativa en datos: cada entrada con
+  descripción de qué es la app y, en `caution`, qué se pierde al remover.
+  `protected` ampliado con Edge y WebView2: el guard server-side
+  (`debloat.ts`) los rechaza aunque se inyecte el id (test de inyección sobre
+  los 6 ids).
+- **B3 — Tools → Debloat con selección total:** buscador (nombre/id/descripción),
+  grupos por categoría con **Select all / Clear** (solo instaladas no protegidas),
+  contadores safe/caution/protected + seleccionadas por grupo, **resumen previo**
+  con las advertencias caution antes de confirmar, **recibo por app**
+  (removed/skipped/failed/protected + motivo) y **verificación post**
+  (relectura del catálogo desde `Get-AppxPackage` con nota visible).
+
+### Tests
+
+- Unit: `vitest` **894/894** (+6 del lote: 2 de catálogo/guard B2, 4 de UI B3).
+- E2E web: `playwright` **107/107** (+3 B3: búsqueda, select-all por categoría +
+  resumen, recibo + post-check). E2E Electron: ver Gates.
+- Ninguna remoción real ejecutada en tests (mocks + preview); sin `irm|iex` ni
+  scripts remotos en ningún punto.
+
 ## [0.17.0] - 2026-10-06
 
 Fase 4.4 del `PLAN_MEJORAS.md`: **motor YARA real en `worker_thread`, nunca en

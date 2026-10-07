@@ -14,6 +14,17 @@ import { runPowerShellScript, parsePowerShellJsonArray } from './powershell';
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
+// B2 (v0.18.0): curated taxonomy for the expanded catalog. Every entry must
+// carry one of these categories plus a human description of what the app is.
+const DEBLOAT_CATEGORIES = new Set([
+  'entertainment',
+  'social',
+  'gaming',
+  'productivity',
+  'utilities',
+  'system',
+]);
+
 describe('debloat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,6 +53,33 @@ describe('debloat', () => {
       // The UI must have visible protection guards to demo and test.
       expect(catalog.filter((a) => a.protection === 'protected').length).toBeGreaterThanOrEqual(3);
       expect(catalog.filter((a) => a.protection === 'caution').length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('B2: expanded catalog covers UWP + sponsored bloat with valid categories', async () => {
+      const catalog = await loadBloatwareCatalog();
+
+      // Learned coverage (Sycnex/WinUtil analysis, native reimplementation):
+      // well above the original 30 entries, with every protection level.
+      expect(catalog.length).toBeGreaterThanOrEqual(60);
+      expect(catalog.filter((a) => a.protection === 'safe').length).toBeGreaterThanOrEqual(30);
+      expect(catalog.filter((a) => a.protection === 'caution').length).toBeGreaterThanOrEqual(10);
+      expect(catalog.filter((a) => a.protection === 'protected').length).toBeGreaterThanOrEqual(5);
+
+      for (const entry of catalog) {
+        expect(
+          DEBLOAT_CATEGORIES.has(entry.category),
+          `${entry.id} has an invalid category: ${entry.category}`
+        ).toBe(true);
+        expect(entry.description.length, `${entry.id} needs a description`).toBeGreaterThan(0);
+      }
+
+      // Every taxonomy bucket is populated so per-category select-all is real.
+      for (const category of DEBLOAT_CATEGORIES) {
+        expect(
+          catalog.some((a) => a.category === category),
+          `empty category: ${category}`
+        ).toBe(true);
+      }
     });
 
     it('returns an empty list when the catalog file is missing', async () => {
@@ -103,6 +141,27 @@ describe('debloat', () => {
       expect(result.success).toBe(false);
       expect(result.results).toHaveLength(1);
       expect(result.results[0]!.status).toBe('protected');
+      expect(runPowerShellScript).not.toHaveBeenCalled();
+    });
+
+    it('B2: refuses EVERY protected entry, even injected by id', async () => {
+      const catalog = await loadBloatwareCatalog();
+      const protectedIds = catalog.filter((a) => a.protection === 'protected').map((a) => a.id);
+      expect(protectedIds.length).toBeGreaterThanOrEqual(5);
+
+      // Bulk injection: every protected id at once, mixed with an unknown id.
+      const result = await removeBloatware([...protectedIds, 'definitely-not-real']);
+
+      expect(result.success).toBe(false);
+      expect(result.refused).toBe(protectedIds.length);
+      expect(
+        result.results
+          .filter((r) => r.status === 'protected')
+          .map((r) => r.id)
+          .sort()
+      ).toEqual([...protectedIds].sort());
+      expect(result.results.find((r) => r.id === 'definitely-not-real')?.status).toBe('failed');
+      // The server-side guard refuses before any PowerShell is spawned.
       expect(runPowerShellScript).not.toHaveBeenCalled();
     });
 

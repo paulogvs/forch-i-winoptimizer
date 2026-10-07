@@ -16,15 +16,15 @@ authoritative and adds a test that fails if a product list ever returns to code.
 
 ## Files
 
-| File                                | Key               | Contents                                                                                           |
-| ----------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `catalogs/apps-catalog.json`        | `apps`            | Removable UWP bloatware (RID/package guarded, `protected` refused server-side)                     |
-| `catalogs/services-catalog.json`    | `services`        | Windows services metadata                                                                          |
-| `catalogs/cleaners-rules.json`      | `rules`           | Cleaner targets                                                                                    |
-| `catalogs/tweaks-catalog.json`      | `tweaks`          | **19** reversible, previewable tweaks                                                              |
-| `catalogs/app-bundles-catalog.json` | `bundles`         | **8** winget bundles / **48** apps                                                                 |
-| `catalogs/driver-catalog.json`      | `manufacturers`   | Driver vendors: silent install flags, vendor/name patterns, trusted signers, WU GPO keys (v0.12.0) |
-| `catalogs/driver-store-rules.json`  | `virtualPatterns` | Driver Store cleanup safety rules: virtual/shim drivers never removed (v0.15.0)                    |
+| File                                | Key               | Contents                                                                                                                                                                                                                                                      |
+| ----------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalogs/apps-catalog.json`        | `apps`            | Removable UWP bloatware: **62** apps (safe 39 / caution 17 / protected 6) in 6 categories (`entertainment`, `social`, `gaming`, `productivity`, `utilities`, `system`); RID/package guarded, `protected` refused server-side (v0.18.0, see `docs/DEBLOAT.md`) |
+| `catalogs/services-catalog.json`    | `services`        | Windows services metadata                                                                                                                                                                                                                                     |
+| `catalogs/cleaners-rules.json`      | `rules`           | Cleaner targets                                                                                                                                                                                                                                               |
+| `catalogs/tweaks-catalog.json`      | `tweaks`          | **19** reversible, previewable tweaks                                                                                                                                                                                                                         |
+| `catalogs/app-bundles-catalog.json` | `bundles`         | **8** winget bundles / **48** apps                                                                                                                                                                                                                            |
+| `catalogs/driver-catalog.json`      | `manufacturers`   | Driver vendors: silent install flags, vendor/name patterns, trusted signers, WU GPO keys (v0.12.0)                                                                                                                                                            |
+| `catalogs/driver-store-rules.json`  | `virtualPatterns` | Driver Store cleanup safety rules: virtual/shim drivers never removed (v0.15.0)                                                                                                                                                                               |
 
 Every catalog is a JSON object with `version`, `lastUpdated` and one array under
 a stable key. The reader picks the first array-valued key it finds.

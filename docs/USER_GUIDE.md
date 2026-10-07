@@ -884,3 +884,52 @@ regla+archivo, nunca borra ni pone en cuarentena.
 - **Un `Match` heurístico es sospechoso, no un veredicto**: revisá el archivo
   manualmente. Esto **no es un antivirus** ni reemplaza la protección en tiempo
   real de Windows Security. Detalle técnico en `docs/YARA_MALWARE_SCAN.md`.
+
+---
+
+## Novedades v0.18.0
+
+Cuatro lotes de capacidad nueva, toda reversible y con preview:
+
+- **Preset anti-ads (Tweaks, seccion System).** La tarjeta
+  **Ads and Suggestions** ofrece Allow (restaura todo), Deny (aplica los 5
+  hijos: sugerencias en Start, Spotlight en bloqueo, tips en Settings, pins de
+  IA y telemetria HKCU) o Custom (elegis hijo por hijo). El boton Preview
+  muestra la union exacta antes de aplicar.
+- **Sonido (Tweaks).** Ducking off, startup sound off y voice activation off:
+  todo HKCU, sin admin, revertible.
+- **Barra de tareas y Explorer (Tweaks).** Badges, never-combine, End Task con
+  clic derecho, iconos del escritorio, flecha de accesos directos y dynamic
+  lighting. Donde aplica, se avisa que hace falta reiniciar Explorer; la app
+  nunca lo reinicia sola.
+- **Seguridad del SO (Security).** UAC en 5 niveles con botones dedicados
+  (Never notifica con advertencia extra), Smart App Control enforce y
+  execution-policy RemoteSigned como remediaciones admin reversibles, y
+  BitLocker solo como aviso (la app nunca cifra).
+- **Perfil de configuracion (Settings).** Exporta tus settings + tweaks
+  aplicados a un JSON, e importalo en otra maquina con preview del diff y
+  confirmacion obligatoria. Un perfil corrupto o de version desconocida se
+  rechaza con el motivo, sin tocar nada.
+- **Debloat expandido (Tools, ver abajo).** 62 apps en 6 categorias con
+  buscador, seleccion por categoria, resumen previo, recibo y verificacion.
+
+## Debloat expandido (v0.18.0)
+
+En **Tools -> Debloat** ves el catalogo curado de paquetes UWP: **62 apps**
+(safe 39 / caution 17 / protected 6) en 6 categorias (entertainment, social,
+gaming, productivity, utilities, system). Detalle del modelo en
+docs/DEBLOAT.md.
+
+1. **Busca** (nombre, id o descripcion) y abre la categoria que te interese.
+2. Usa **Select all** por categoria (solo marca instaladas no protegidas) o
+   marca a mano; **Clear** limpia la categoria.
+3. El panel **Planned removal** resume que se va a remover y, en las
+   caution, que pierdes si sigues (ej. Game Bar -> sin Win+G ni captura).
+4. **Remove selected** pide confirmacion (con aviso si hay caution) y ejecuta.
+5. El **Removal receipt** lista cada app con su resultado real
+   (removed / skipped / failed / protected + motivo) y la nota **Post-check**
+   confirma que el catalogo se releyo desde Get-AppxPackage tras remover.
+
+Las protected (Store, Terminal, Copilot, winget, Edge, WebView2) aparecen
+deshabilitadas y **jamas se remueven**, ni siquiera si alguien manipula la UI:
+el proceso main las rechaza del lado servidor.

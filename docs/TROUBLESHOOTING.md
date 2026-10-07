@@ -690,3 +690,44 @@ Ese directorio está en `.gitignore` (es salida de máquina, nunca se commitea).
 > **Nota:** el kit es una **herramienta del repositorio**. Los binarios solo empaquetan
 > `dist/`, `assets/`, `catalogs/` y `sources/`, así que este script **no viaja al
 > producto**.
+
+---
+
+## Debloat (v0.18.0)
+
+### Una app protegida no se puede marcar
+
+**Sintomas:** El checkbox de Store, Terminal, Copilot, winget, Edge o WebView2
+esta deshabilitado; Select all no la marca.
+
+**Es por diseno.** Esas 6 apps son protected: el UI las bloquea y el proceso
+main las rechaza del lado servidor aunque se inyecte el id. Edge/WebView2 se
+gestionan desde Tweaks, no removiendo el paquete. Detalle en docs/DEBLOAT.md.
+
+### El recibo dice skipped para una app que marque
+
+**Sintomas:** Tras remover, una fila del receipt dice skipped.
+
+**Significa que ya no estaba instalada** (el script relee Get-AppxPackage
+antes de actuar). No es un fallo: la app no esta en tu imagen o ya la
+quitaste. El contador Post-check te muestra cuantas del catalogo siguen
+instaladas.
+
+### Una app caution volvio tras una actualizacion grande de Windows
+
+**Sintomas:** Quitaste p. ej. Clipchamp o Fotos y tras un feature update
+reaparecio.
+
+**Windows reaprovisiona algunos AppX en cada actualizacion mayor.** Vuelve a
+Tools -> Debloat, busca la app y remuevela de nuevo. Tus archivos nunca se
+tocan: la remocion es por usuario (Remove-AppxPackage), no borra datos.
+
+### El perfil importado reporta tweaks omitidos o fallados
+
+**Sintomas:** Tras importar un perfil, el resumen muestra skipped/failed.
+
+**Normal si las maquinas difieren.** unknown = el tweak no existe en esta
+version (perfil de otra version); ailed = el motor no pudo aplicarlo
+(revisa el mensaje: casi siempre es falta de admin o valor actual distinto).
+Nada se aplica a medias sin reportarlo: el resumen lista aplicados, fallados
+y omitidos uno por uno.

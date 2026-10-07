@@ -191,6 +191,9 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
   const [selectedBloatware, setSelectedBloatware] = useState<string[]>([]);
   const [removing, setRemoving] = useState(false);
   const [debloatResult, setDebloatResult] = useState<DebloatResult | null>(null);
+  // B3 (v0.18.0): search + per-category select-all + explicit post verification.
+  const [debloatQuery, setDebloatQuery] = useState('');
+  const [debloatVerifiedAt, setDebloatVerifiedAt] = useState<string | null>(null);
   const [launchingTool, setLaunchingTool] = useState<string | null>(null);
   const [toolFeedback, setToolFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   // Disk repair (Fase 4.9): live output + real result.
@@ -227,6 +230,8 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
     } else if (activeTab === 'debloat') {
       setDebloatResult(null);
       setSelectedBloatware([]);
+      setDebloatQuery('');
+      setDebloatVerifiedAt(null);
       void loadDebloatCatalog();
     }
   }, [activeTab]);
@@ -328,6 +333,60 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
     setSelectedBloatware((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
   };
 
+  // B3: the visible rows after the search filter (name, id or description).
+  const debloatFiltered = debloatQuery.trim()
+    ? debloatCatalog.filter((a) => {
+        const q = debloatQuery.trim().toLowerCase();
+        return (
+          a.name.toLowerCase().includes(q) ||
+          a.id.toLowerCase().includes(q) ||
+          a.description.toLowerCase().includes(q)
+        );
+      })
+    : debloatCatalog;
+
+  // B3: group the visible rows by catalog category (fixed taxonomy first,
+  // then any other category in first-seen order, so fixtures keep working).
+  const DEBLOAT_CATEGORY_ORDER = [
+    'entertainment',
+    'social',
+    'gaming',
+    'productivity',
+    'utilities',
+    'system',
+  ];
+  const debloatGroups: { category: string; apps: DebloatCandidate[] }[] = [];
+  for (const app of debloatFiltered) {
+    const group = debloatGroups.find((g) => g.category === app.category);
+    if (group) group.apps.push(app);
+    else debloatGroups.push({ category: app.category, apps: [app] });
+  }
+  debloatGroups.sort((a, b) => {
+    const ia = DEBLOAT_CATEGORY_ORDER.indexOf(a.category);
+    const ib = DEBLOAT_CATEGORY_ORDER.indexOf(b.category);
+    return (
+      (ia === -1 ? DEBLOAT_CATEGORY_ORDER.length : ia) -
+      (ib === -1 ? DEBLOAT_CATEGORY_ORDER.length : ib)
+    );
+  });
+
+  const isDebloatSelectable = (app: DebloatCandidate) =>
+    app.installed && app.protection !== 'protected';
+
+  const selectCategoryAll = (category: string) => {
+    const ids = debloatFiltered
+      .filter((a) => a.category === category && isDebloatSelectable(a))
+      .map((a) => a.id);
+    setSelectedBloatware((prev) => [...prev.filter((id) => !ids.includes(id)), ...ids]);
+  };
+
+  const clearCategory = (category: string) => {
+    const ids = new Set(debloatCatalog.filter((a) => a.category === category).map((a) => a.id));
+    setSelectedBloatware((prev) => prev.filter((id) => !ids.has(id)));
+  };
+
+  const selectedEntries = debloatCatalog.filter((a) => selectedBloatware.includes(a.id));
+
   const handleDebloat = async () => {
     if (selectedBloatware.length === 0) return;
 
@@ -342,11 +401,15 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
 
     setRemoving(true);
     setDebloatResult(null);
+    setDebloatVerifiedAt(null);
     try {
       const result = await window.electronAPI.removeBloatware(selectedBloatware);
       setDebloatResult(result);
       setSelectedBloatware([]);
       await loadDebloatCatalog();
+      // Post verification: the catalog above was re-read from a fresh
+      // Get-AppxPackage query, so installed flags reflect the removal.
+      setDebloatVerifiedAt(new Date().toLocaleTimeString());
     } catch (error) {
       console.error('Debloat failed:', error);
     } finally {
@@ -671,6 +734,64 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
             </div>
           )}
 
+          {/* B3: per-app receipt of what the removal actually did. */}
+          {debloatResult && debloatResult.results.length > 0 && (
+            <Card title="Removal receipt">
+              <div className="flex flex-col gap-2" data-testid="debloat-receipt">
+                {debloatResult.results.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-fg-primary truncate">{r.id}</span>
+                    <span className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          r.status === 'removed'
+                            ? 'success'
+                            : r.status === 'skipped'
+                              ? 'neutral'
+                              : r.status === 'protected'
+                                ? 'error'
+                                : 'warning'
+                        }
+                      >
+                        {r.status}
+                      </Badge>
+                      {r.error && (
+                        <span className="text-fg-tertiary truncate max-w-48">{r.error}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {debloatVerifiedAt && (
+                <p className="text-xs text-fg-tertiary mt-3" data-testid="debloat-verify">
+                  Post-check: catalog re-read from Get-AppxPackage at {debloatVerifiedAt} —{' '}
+                  {debloatCatalog.filter((a) => a.installed).length} installed of{' '}
+                  {debloatCatalog.length} cataloged.
+                </p>
+              )}
+            </Card>
+          )}
+
+          {/* B3: pre-removal summary — what is about to be removed, with the
+              caution warnings spelled out, before the confirmation runs. */}
+          {selectedEntries.length > 0 && (
+            <Card title={`Planned removal (${selectedEntries.length})`}>
+              <div className="flex flex-col gap-2" data-testid="debloat-summary">
+                {selectedEntries.map((a) => (
+                  <div key={a.id} className="text-xs">
+                    <span className="text-fg-primary font-medium">{a.name}</span>
+                    {a.protection === 'caution' && (
+                      <span className="text-fg-tertiary"> — {a.description}</span>
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-fg-tertiary mt-1">
+                  Protected apps are never removed, even from here.
+                </p>
+              </div>
+            </Card>
+          )}
+
           <Card
             title="Bloatware Removal"
             footer={
@@ -701,40 +822,83 @@ export const Tools: React.FC<ToolsProps> = ({ onNavigate }) => {
               Curated removable UWP packages. Protection is enforced server-side: protected apps can
               never be removed, even from here.
             </p>
-            {/* Fase 1.5: same VirtualList + threshold as the other machine-grown lists. */}
-            {debloatCatalog.length > VIRTUALIZE_THRESHOLD ? (
-              <VirtualList
-                items={debloatCatalog}
-                estimateSize={64}
-                getKey={(app) => app.id}
-                renderItem={(app) => (
-                  <DebloatRow
-                    app={app}
-                    checked={selectedBloatware.includes(app.id)}
-                    onToggle={toggleBloatware}
-                  />
-                )}
-                maxHeight={384}
-                testId="debloat-catalog"
+            <div className="mb-3">
+              <input
+                type="search"
+                placeholder="Search apps..."
+                aria-label="Search bloatware"
+                data-testid="debloat-search"
+                className="w-full px-3 py-2 rounded-lg bg-bg-input text-sm text-fg-primary border border-border"
+                value={debloatQuery}
+                onChange={(e) => setDebloatQuery(e.target.value)}
               />
-            ) : (
-              <div
-                className="flex flex-col gap-2 max-h-96 overflow-y-auto"
-                data-testid="debloat-catalog"
-              >
-                {debloatCatalog.map((app) => (
-                  <DebloatRow
-                    key={app.id}
-                    app={app}
-                    checked={selectedBloatware.includes(app.id)}
-                    onToggle={toggleBloatware}
-                  />
-                ))}
-                {debloatCatalog.length === 0 && (
-                  <div className="text-sm text-fg-tertiary">Catalog unavailable.</div>
-                )}
-              </div>
-            )}
+            </div>
+            {/* B3: grouped by catalog category so select-all/clear is per
+                category. The catalog is bounded (~tens of curated rows), so a
+                flat virtualizer would hide the group headers; the machine-grown
+                lists (Apps/Startup/Cleaner/Drivers) keep VirtualList. */}
+            <div
+              className="flex flex-col gap-4 max-h-96 overflow-y-auto"
+              data-testid="debloat-catalog"
+            >
+              {debloatGroups.map((group) => {
+                const selectable = group.apps.filter(isDebloatSelectable);
+                const selectedInGroup = group.apps.filter((a) =>
+                  selectedBloatware.includes(a.id)
+                ).length;
+                return (
+                  <div key={group.category}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-fg-secondary capitalize">
+                          {group.category}
+                        </span>
+                        <Badge variant="neutral">
+                          {selectedInGroup}/{selectable.length} selected
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid={`debloat-select-all-${group.category}`}
+                          disabled={selectable.length === 0}
+                          onClick={() => selectCategoryAll(group.category)}
+                        >
+                          Select all
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid={`debloat-clear-${group.category}`}
+                          disabled={selectedInGroup === 0}
+                          onClick={() => clearCategory(group.category)}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {group.apps.map((app) => (
+                        <DebloatRow
+                          key={app.id}
+                          app={app}
+                          checked={selectedBloatware.includes(app.id)}
+                          onToggle={toggleBloatware}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {debloatFiltered.length === 0 && (
+                <div className="text-sm text-fg-tertiary">
+                  {debloatCatalog.length === 0
+                    ? 'Catalog unavailable.'
+                    : 'No apps match the search.'}
+                </div>
+              )}
+            </div>
           </Card>
         </div>
       )}
