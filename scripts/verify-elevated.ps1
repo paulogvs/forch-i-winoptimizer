@@ -20,13 +20,34 @@
          fDenyTSConnections. It refuses to touch the registry while an RDP logon
          session exists (fail-closed).
       4. Reports the final state of the system: SMBv1, RDP and DNS.
+      5. Optionally (-EnableBitLocker) plans or performs a guarded BitLocker
+         enable on the OS volume: prerequisites first, USB startup key or
+         password protector (no TPM + Legacy BIOS), a VERIFIED recovery-key
+         backup BEFORE any encryption, Used Space Only encryption, then
+         manage-bde status confirmation. Without a verified backup it refuses
+         to encrypt. No exceptions.
+      6. Optionally (-TestPerMachine) installs 7-Zip per-machine via winget
+         (--scope machine), verifies it, uninstalls it through the REAL MSI
+         channel resolved with the same grammar the app uses for
+         UninstallString, and verifies the registry is clean.
+      7. Optionally (-InstallOfferedDrivers) reads Windows Update for offered
+         drivers (read-only, same query the app uses). Only when at least one
+         driver is offered it runs the real pipeline: verified restore point
+         -> install -> re-verify versions. Zero offered (or no WU answer) is a
+         no-op that touches nothing.
 
     In -DryRun mode it never elevates and never writes: it runs the reads and the
     fix PLANNING so the report can be produced (and the mode verified) without
-    administrator rights.
+    administrator rights. -DryRun composes with -ApplyFixes, -EnableBitLocker,
+    -TestPerMachine and -InstallOfferedDrivers.
 
     Output JSON is written next to the log so the result can be reviewed after
     the elevated window closes.
+
+    SECURITY: -BitLockerPassword is a SecureString and is NEVER written to the
+    log or the JSON. It cannot cross the UAC relaunch boundary, so when the kit
+    self-elevates the elevated session prompts for it again with Read-Host
+    -AsSecureString if a password protector is needed.
 
 .EXAMPLE
     # From a normal PowerShell in the repo root:
@@ -45,9 +66,28 @@
     # Plan + report only, no elevation and no changes (safe preview):
     powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -ApplyFixes -DryRun
 
+.EXAMPLE
+    # Plan a guarded BitLocker enable (no UAC, no writes):
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath 'D:\bitlocker-recovery.txt' -DryRun
+
+.EXAMPLE
+    # Real guarded BitLocker enable (one UAC prompt; prompts for a password
+    # only when no USB startup key is available):
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath 'D:\bitlocker-recovery.txt'
+
+.EXAMPLE
+    # Controlled per-machine MSI test with 7-Zip (one UAC prompt):
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -TestPerMachine
+
+.EXAMPLE
+    # Install only drivers Windows Update actually offers (no-op when 0 offered):
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -InstallOfferedDrivers
+    powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -InstallOfferedDrivers -DryRun
+
 .NOTES
     Exit codes: 0 success | 1 a step failed (including a fix whose read-back did
-    not confirm the target) | 2 the RDP cycle was skipped because an active RDP
+    not confirm the target, a BitLocker/per-machine/driver mode that aborted
+    with work left undone) | 2 the RDP cycle was skipped because an active RDP
     session was detected.
 #>
 [CmdletBinding()]
@@ -69,7 +109,34 @@ param(
 
     # Plan + report only: read the machine, compute the fix plan and the exact
     # revert commands, but never write and never self-elevate.
-    [switch]$DryRun
+    [switch]$DryRun,
+
+    # Guarded BitLocker enable on the OS volume. Requires elevation (unless
+    # -DryRun, which only plans). Needs -BitLockerRecoveryPath; the protector
+    # is a USB startup key when a removable drive is present, otherwise the
+    # -BitLockerPassword SecureString (prompted in the elevated session when
+    # it cannot cross the UAC boundary).
+    [switch]$EnableBitLocker,
+
+    # SecureString password protector for BitLocker. NEVER logged, NEVER stored
+    # in the JSON. Cannot survive the self-elevation relaunch: the elevated
+    # session re-prompts when a password is needed.
+    [System.Security.SecureString]$BitLockerPassword,
+
+    # Where the BitLocker recovery-key backup file is written. The kit refuses
+    # to encrypt unless this file exists AND contains the valid recovery key.
+    [string]$BitLockerRecoveryPath,
+
+    # Controlled per-machine MSI test: install 7-Zip per-machine via winget,
+    # verify it, uninstall it through its real MSI UninstallString, verify the
+    # registry is clean. Requires elevation (unless -DryRun, read-only plan).
+    [switch]$TestPerMachine,
+
+    # Real driver pipeline, but ONLY when Windows Update offers at least one
+    # driver (same read-only query the app uses). Zero offered (or no WU
+    # answer) is a no-op. Requires elevation for the install path (unless
+    # -DryRun, which only reads WU and plans).
+    [switch]$InstallOfferedDrivers
 )
 
 $ErrorActionPreference = 'Stop'
@@ -99,6 +166,15 @@ if (-not (Test-IsAdmin) -and -not $DryRun) {
         $PSCommandPath, $OutDir
     if ($SkipRdpCycle) { $arguments += ' -SkipRdpCycle' }
     if ($ApplyFixes) { $arguments += ' -ApplyFixes' }
+    if ($EnableBitLocker) {
+        $arguments += ' -EnableBitLocker'
+        if ($BitLockerRecoveryPath) { $arguments += (' -BitLockerRecoveryPath "{0}"' -f $BitLockerRecoveryPath) }
+    }
+    if ($TestPerMachine) { $arguments += ' -TestPerMachine' }
+    if ($InstallOfferedDrivers) { $arguments += ' -InstallOfferedDrivers' }
+    if ($null -ne $BitLockerPassword) {
+        Write-Warning 'The -BitLockerPassword SecureString cannot cross the UAC relaunch boundary. The elevated session will prompt for it again (Read-Host -AsSecureString) when a password protector is needed. It is never logged.'
+    }
     try {
         Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $arguments | Out-Null
     } catch {
@@ -140,6 +216,9 @@ $result = [ordered]@{
     fixesFailed      = 0
     rdpCycleExecuted = $false
     rdpCycle         = New-Object System.Collections.ArrayList
+    bitlocker        = $null
+    perMachineTest   = $null
+    offeredDrivers   = $null
     finalState       = $null
     success          = $false
 }
@@ -455,6 +534,606 @@ function Invoke-SecurityFixes {
     }
 }
 
+# ---------------------------------------------------------------------------
+# BitLocker mode (-EnableBitLocker)
+# ---------------------------------------------------------------------------
+# Guarded enable for machines without TPM on Legacy BIOS. Protector choice:
+# USB startup key when a removable drive is present, otherwise a password
+# (SecureString, never logged). Order is strict:
+#   prereqs -> protector -> recovery backup -> VERIFY backup -> encrypt
+#   (Used Space Only) -> manage-bde -status confirmation.
+# Without a verified recovery copy, nothing is encrypted. No exceptions.
+
+function Get-BitLockerEditionSupport {
+    $edition = $null
+    try {
+        $edition = (Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop).Caption
+    } catch { }
+    $cmdlet = $null
+    try { $cmdlet = Get-Command 'Enable-BitLocker' -ErrorAction SilentlyContinue } catch { }
+    $supported = ($null -ne $cmdlet)
+    $reason = if ($supported) { "edition '$edition' exposes Enable-BitLocker" } else { "edition '$edition' has no Enable-BitLocker cmdlet (e.g. Home)" }
+    return [ordered]@{ supported = $supported; edition = $edition; reason = $reason }
+}
+
+function Get-NoTpmPolicy {
+    # Policy "Require additional authentication at startup" allowing BitLocker
+    # without a compatible TPM lives under HKLM:\SOFTWARE\Policies\Microsoft\FVE.
+    $allowed = $false; $detail = 'policy key not present'
+    try {
+        $fve = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\FVE' -ErrorAction Stop
+        $advanced = $fve.UseAdvancedStartup
+        $noTpm = $fve.EnableBDEWithNoTPM
+        # UseAdvancedStartup=1 enables the policy page; EnableBDEWithNoTPM=1
+        # permits TPM-less startup.
+        $allowed = (([int]$advanced -eq 1) -and ([int]$noTpm -eq 1))
+        $detail = "UseAdvancedStartup=$advanced; EnableBDEWithNoTPM=$noTpm"
+    } catch {
+        $detail = 'HKLM:\SOFTWARE\Policies\Microsoft\FVE not present'
+    }
+    $howTo = 'gpedit.msc > Computer Configuration > Administrative Templates > Windows Components > ' + `
+        'BitLocker Drive Encryption > Operating System Drives > "Require additional authentication at startup" = Enabled ' + `
+        'with "Allow BitLocker without a compatible TPM" ticked. The kit never enables this policy by itself.'
+    return [ordered]@{ allowed = $allowed; detail = $detail; howTo = $howTo }
+}
+
+function Get-UsbRemovableDrives {
+    $drives = @()
+    try {
+        $drives = @(Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType=2' -ErrorAction Stop |
+                ForEach-Object { [string]$_.DeviceID })
+    } catch { }
+    return @($drives)
+}
+
+function Get-OsVolumeFree {
+    $freeBytes = $null; $ok = $false
+    try {
+        $vol = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='$env:SystemDrive'" -ErrorAction Stop
+        $freeBytes = [long]$vol.FreeSpace
+        $ok = ($freeBytes -gt 104857600)
+    } catch { }
+    return [ordered]@{ ok = $ok; freeBytes = $freeBytes }
+}
+
+function Test-RecoveryBackup {
+    param([string]$Path, [string]$ExpectedKey)
+    try {
+        if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+        if (-not (Test-Path -LiteralPath $Path)) { return $false }
+        $content = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+        if ([string]::IsNullOrWhiteSpace($ExpectedKey)) {
+            return ([regex]::IsMatch($content, '(\d{6}-){7}\d{6}'))
+        }
+        return $content.Contains($ExpectedKey)
+    } catch { return $false }
+}
+
+function Get-BitLockerReadyCommand {
+    param([string]$RecoveryPath)
+    $rp = if ($RecoveryPath) { $RecoveryPath } else { '<path>' }
+    return "powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath '$rp'"
+}
+
+function Invoke-BitLockerMode {
+    param([System.Security.SecureString]$Password, [string]$RecoveryPath)
+
+    $mode = [ordered]@{
+        mode             = 'bitlocker'
+        ready            = $false
+        abortReason      = $null
+        readyCommand     = $null
+        edition          = $null
+        policy           = $null
+        firmware         = $null
+        hasTpm           = $null
+        protector        = $null
+        tradeOff         = $null
+        usbDrives        = @()
+        recoveryPath     = $RecoveryPath
+        recoveryVerified = $false
+        encryptStarted   = $false
+        initialProgress  = $null
+        revert           = 'To revert: manage-bde -off C: (decrypts the drive; keep the recovery key until decryption reaches 0%). Verify with manage-bde -status C:.'
+    }
+
+    # --- Prereq 1: edition ------------------------------------------------
+    $ed = Get-BitLockerEditionSupport
+    $mode.edition = $ed
+    if (-not $ed.supported) {
+        $mode.abortReason = "This Windows edition does not support BitLocker ($($ed.reason)). Nothing was changed."
+        $mode.readyCommand = (Get-BitLockerReadyCommand -RecoveryPath $RecoveryPath) + '  # once running a Pro/Enterprise/Education edition'
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Prereq 2: no-TPM policy (explain, never force) --------------------
+    $pol = Get-NoTpmPolicy
+    $mode.policy = $pol
+    if (-not $pol.allowed) {
+        $mode.abortReason = "Group policy 'Allow BitLocker without a compatible TPM' is not enabled ($($pol.detail)). $($pol.howTo) Nothing was changed."
+        $mode.readyCommand = (Get-BitLockerReadyCommand -RecoveryPath $RecoveryPath)
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Prereq 3: firmware + TPM readout (informative) --------------------
+    try {
+        $mode.firmware = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).BootupState
+    } catch { }
+    try {
+        $tpm = Get-CimInstance -Namespace 'Root\CIMv2\Security\MicrosoftTpm' -ClassName Win32_Tpm -ErrorAction Stop
+        $mode.hasTpm = ($null -ne $tpm)
+    } catch { $mode.hasTpm = $false }
+
+    # --- Prereq 4: free space ----------------------------------------------
+    $vol = Get-OsVolumeFree
+    if (-not $vol.ok) {
+        $mode.abortReason = 'Not enough free space on the OS volume for BitLocker. Nothing was changed.'
+        $mode.readyCommand = (Get-BitLockerReadyCommand -RecoveryPath $RecoveryPath) + '  # after freeing disk space'
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Protector choice ---------------------------------------------------
+    $mode.usbDrives = @(Get-UsbRemovableDrives)
+    $wantsPassword = ($null -ne $Password)
+    if ($mode.usbDrives.Count -gt 0) {
+        $mode.protector = 'usb-startup-key'
+        $mode.tradeOff = 'Trade-off: a USB startup key boots unattended while inserted (anyone with the USB + PC boots); ' + `
+            'losing the USB blocks boot until the recovery key is used. A password is typed at every boot but needs no hardware token.'
+    } elseif ($wantsPassword) {
+        $mode.protector = 'password'
+        $mode.tradeOff = 'Trade-off: a password must be typed at every boot (slower, shoulder-surfing risk); ' + `
+            'a USB startup key would boot unattended while inserted but is lost if the drive fails. Insert a USB drive to use the startup-key protector instead.'
+    } else {
+        if ($DryRun) {
+            $mode.abortReason = 'DryRun plan: no USB drive detected and no -BitLockerPassword provided, so the plan stops at protector selection (no writes in DryRun).'
+            $mode.readyCommand = "powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath '<path>' -BitLockerPassword (Read-Host -AsSecureString -Prompt 'BitLocker password')"
+            Write-Host '  [PLAN] bitlocker: protector pending (USB or password). No writes in DryRun.'
+            return $mode
+        }
+        try {
+            Write-Host '  No USB startup key available: enter the BitLocker password (SecureString, never logged).'
+            $Password = Read-Host -AsSecureString -Prompt 'BitLocker password'
+            $wantsPassword = ($null -ne $Password)
+        } catch { $wantsPassword = $false }
+        if (-not $wantsPassword) {
+            $mode.abortReason = 'No TPM and no viable protector: no USB drive and no password provided. Nothing was changed.'
+            $mode.readyCommand = "powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath '<path>' -BitLockerPassword (Read-Host -AsSecureString -Prompt 'BitLocker password')"
+            Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+            return $mode
+        }
+        $mode.protector = 'password'
+        $mode.tradeOff = 'Trade-off: a password must be typed at every boot; a USB startup key would boot unattended while inserted.'
+    }
+
+    # --- Recovery path is mandatory -----------------------------------------
+    if ([string]::IsNullOrWhiteSpace($RecoveryPath)) {
+        $mode.abortReason = 'No recovery-key backup path was provided (-BitLockerRecoveryPath). Without a VERIFIED recovery copy the kit refuses to encrypt. No exceptions. Nothing was changed.'
+        $mode.readyCommand = Get-BitLockerReadyCommand -RecoveryPath $null
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    if ($DryRun) {
+        $mode.ready = $true
+        Write-Host ("  [PLAN] bitlocker: protector={0}; would write recovery backup to '{1}', VERIFY it, then encrypt Used Space Only." -f $mode.protector, $RecoveryPath)
+        Write-Host ("         revert: {0}" -f $mode.revert)
+        return $mode
+    }
+
+    if (-not (Test-IsAdmin)) {
+        $mode.abortReason = 'BitLocker enable requires elevation and this session is not elevated. Nothing was changed.'
+        $mode.readyCommand = (Get-BitLockerReadyCommand -RecoveryPath $RecoveryPath)
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Real path: enable first, then backup + VERIFY the recovery key -------
+    # Enable-BitLocker generates the recovery password protector; it is read
+    # back from the volume and only then written to the backup file. If the
+    # backup cannot be written or verified, encryption is reverted at once.
+    $osVolume = $env:SystemDrive
+    try {
+        if ($mode.protector -eq 'usb-startup-key') {
+            $usbRoot = $mode.usbDrives[0]
+            Enable-BitLocker -MountPoint $osVolume -StartupKeyProtector -StartupKeyDirectory $usbRoot -UsedSpaceOnly -ErrorAction Stop | Out-Null
+        } else {
+            $plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
+            try {
+                Enable-BitLocker -MountPoint $osVolume -PasswordProtector -Password $plain -UsedSpaceOnly -ErrorAction Stop | Out-Null
+            } finally {
+                $plain = $null
+            }
+        }
+    } catch {
+        $mode.abortReason = "Enable-BitLocker refused to start: $($_.Exception.Message). Nothing was encrypted."
+        $mode.readyCommand = (Get-BitLockerReadyCommand -RecoveryPath $RecoveryPath)
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    # Read back the recovery key the system generated, write the backup, VERIFY.
+    $recoveryKey = $null
+    try {
+        $protectors = (Get-BitLockerVolume -MountPoint $osVolume -ErrorAction Stop).KeyProtector |
+            Where-Object { $_.KeyProtectorType -eq 'RecoveryPassword' }
+        $recoveryKey = @($protectors | Select-Object -ExpandProperty RecoveryPassword -ErrorAction SilentlyContinue)[0]
+    } catch { }
+    if ([string]::IsNullOrWhiteSpace($recoveryKey)) {
+        $mode.abortReason = 'BitLocker started but no recovery password could be read back: keeping the volume as-is and reporting failure. Copy the recovery key from manage-bde -protectors -get C: before rebooting.'
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+    try {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $RecoveryPath) | Out-Null
+        Set-Content -LiteralPath $RecoveryPath -Value ("BitLocker recovery key for $osVolume (generated $(Get-Date -Format o)):`r`n$recoveryKey`r`n") -Encoding ASCII -ErrorAction Stop
+    } catch {
+        $mode.abortReason = "Could not write the recovery backup to '$RecoveryPath': $($_.Exception.Message). Reverting encryption (manage-bde -off $osVolume)."
+        try { & manage-bde.exe -off $osVolume 2>&1 | Out-Null } catch { }
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+    $mode.recoveryVerified = Test-RecoveryBackup -Path $RecoveryPath -ExpectedKey $recoveryKey
+    if (-not $mode.recoveryVerified) {
+        $mode.abortReason = "The recovery backup at '$RecoveryPath' does not contain the valid key: reverting encryption (manage-bde -off $osVolume). Nothing is left encrypting without a verified copy."
+        try { & manage-bde.exe -off $osVolume 2>&1 | Out-Null } catch { }
+        Write-Host "  [ABORT] bitlocker: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Confirm encryption started ------------------------------------------
+    try {
+        $status = & manage-bde.exe -status $osVolume 2>&1 | Out-String
+        $mode.encryptStarted = ($status -match 'Percentage Encrypted|Conversion Status|Encryption in progress|Fully Encrypted')
+        $m = [regex]::Match($status, 'Percentage Encrypted:\s*([0-9]+%)')
+        if ($m.Success) { $mode.initialProgress = $m.Groups[1].Value }
+    } catch { }
+    $mode.ready = $mode.encryptStarted -and $mode.recoveryVerified
+    if ($mode.ready) {
+        Write-Host ("  [OK] bitlocker: protector={0}; recovery backup verified at '{1}'; encryption started (progress {2})." -f $mode.protector, $RecoveryPath, $mode.initialProgress)
+    } else {
+        $mode.abortReason = 'manage-bde -status did not confirm encryption started. Recovery backup IS verified; check manage-bde -status manually.'
+        Write-Host "  [FAIL] bitlocker: $($mode.abortReason)"
+    }
+    return $mode
+}
+
+# ---------------------------------------------------------------------------
+# Per-machine MSI test (-TestPerMachine)
+# ---------------------------------------------------------------------------
+# Controlled, reversible target: 7-Zip per-machine via winget. The uninstall
+# goes through the REAL MSI channel resolved with the SAME grammar the app
+# uses (parseUninstallString in src/main/services/installed-apps.ts):
+#   MsiExec.exe /x {GUID}
+# Anything else (unparseable string, unexpected MSI behavior) aborts and the
+# kit restores the prior state.
+
+function Get-SevenZipRegistryEntry {
+    $paths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    foreach ($p in $paths) {
+        try {
+            $hits = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -like '7-Zip*' -and $_.UninstallString } |
+                Select-Object -First 1 DisplayName, UninstallString, DisplayVersion
+            if ($hits) { return $hits }
+        } catch { }
+    }
+    return $null
+}
+
+function Resolve-MsiGuid {
+    param([string]$UninstallString)
+    # Strict /X matches the app parser (parseUninstallString). Some per-machine
+    # MSIs (7-Zip on real machines) register /I with the SAME product code;
+    # the kit extracts it and always executes the canonical msiexec /x uninstall.
+    # Returns @{ guid; flag } or $null when the string must be refused.
+    $m = [regex]::Match($UninstallString.Trim(), '^MsiExec(?:\.exe)?\s*/([xXIi])\s*\{([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}\s*$')
+    if ($m.Success) { return [ordered]@{ guid = $m.Groups[2].Value; flag = $m.Groups[1].Value.ToUpper() } }
+    return $null
+}
+
+function Test-WingetLists7Zip {
+    try {
+        $out = & winget.exe list --id 7zip.7zip --accept-source-agreements 2>&1 | Out-String
+        return ($out -match '7zip\.7zip|7-Zip')
+    } catch { return $false }
+}
+
+function Invoke-PerMachineTestMode {
+    $mode = [ordered]@{
+        mode             = 'per-machine-msi'
+        target           = '7zip.7zip'
+        before           = $null
+        installVerified  = $false
+        uninstallGuid    = $null
+        uninstallChannel = $null
+        note             = $null
+        after            = $null
+        registryClean    = $false
+        aborted          = $false
+        abortReason      = $null
+        success          = $false
+    }
+
+    $beforeEntry = Get-SevenZipRegistryEntry
+    $beforeWinget = Test-WingetLists7Zip
+    $wasInstalled = (($null -ne $beforeEntry) -or $beforeWinget)
+    $mode.before = [ordered]@{
+        installed      = $wasInstalled
+        displayName    = if ($beforeEntry) { [string]$beforeEntry.DisplayName } else { $null }
+        displayVersion = if ($beforeEntry) { [string]$beforeEntry.DisplayVersion } else { $null }
+        wingetListed   = $beforeWinget
+        uninstallString = if ($beforeEntry) { [string]$beforeEntry.UninstallString } else { $null }
+    }
+    Write-Host ("  before: installed={0} wingetListed={1}" -f $wasInstalled, $beforeWinget)
+
+    if ($DryRun) {
+        # Read-only: prove the parser finds the UninstallString when present.
+        if ($beforeEntry) {
+            $resolved = Resolve-MsiGuid -UninstallString $beforeEntry.UninstallString
+            if ($resolved) {
+                $mode.uninstallGuid = $resolved.guid
+                $mode.uninstallChannel = if ($resolved.flag -eq 'X') { 'msi' } else { 'msi-product-code' }
+                if ($resolved.flag -ne 'X') {
+                    $mode.note = "Registered with /$($resolved.flag) (the app parser accepts /X only); the real run executes the canonical msiexec /x on the same product code."
+                    Write-Host ("         NOTE: {0}" -f $mode.note)
+                }
+                Write-Host ("  [PLAN] per-machine-msi: would install 7-Zip --scope machine, verify, uninstall via msiexec /x {{{0}}} /qn /norestart, verify clean." -f $resolved.guid)
+                Write-Host ("         parser resolved UninstallString '{0}' to product code {1} (same grammar as the app)." -f $beforeEntry.UninstallString, $resolved.guid)
+            } else {
+                $mode.aborted = $true
+                $mode.abortReason = "Parser refused the installed 7-Zip UninstallString ('$($beforeEntry.UninstallString)'): the real run would abort without touching the system."
+                Write-Host "  [PLAN] per-machine-msi: $($mode.abortReason)"
+            }
+        } else {
+            Write-Host '  [PLAN] per-machine-msi: 7-Zip not installed; the real run would winget install --scope machine, verify (registry + winget list), uninstall via the MSI channel, verify clean. No writes in DryRun.'
+        }
+        $mode.success = $true
+        return $mode
+    }
+
+    if (-not (Test-IsAdmin)) {
+        $mode.aborted = $true
+        $mode.abortReason = 'Per-machine install requires elevation and this session is not elevated. Nothing was changed.'
+        Write-Host "  [ABORT] per-machine-msi: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Install per-machine -------------------------------------------------
+    if (-not $wasInstalled) {
+        Write-Host '  Installing 7-Zip per-machine (winget install --id 7zip.7zip --scope machine)...'
+        & winget.exe install --id 7zip.7zip --scope machine -e --silent `
+            --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            $mode.aborted = $true
+            $mode.abortReason = "winget install exited with code $LASTEXITCODE. Nothing else was attempted."
+            Write-Host "  [ABORT] per-machine-msi: $($mode.abortReason)"
+            return $mode
+        }
+    } else {
+        Write-Host '  7-Zip already installed: skipping install, testing the uninstall channel only.'
+    }
+
+    $afterInstall = Get-SevenZipRegistryEntry
+    $afterWinget = Test-WingetLists7Zip
+    $mode.installVerified = (($null -ne $afterInstall) -and $afterWinget)
+    Write-Host ("  installed: registry={0} winget={1}" -f ($null -ne $afterInstall), $afterWinget)
+    if (-not $mode.installVerified) {
+        $mode.aborted = $true
+        $mode.abortReason = 'Install could not be verified (registry + winget list). Aborting before any uninstall; leaving the system as found.'
+        Write-Host "  [ABORT] per-machine-msi: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Resolve the REAL uninstall channel (same grammar as the app) ---------
+    $resolved = Resolve-MsiGuid -UninstallString $afterInstall.UninstallString
+    if (-not $resolved) {
+        $mode.aborted = $true
+        $mode.abortReason = "Parser refused the 7-Zip UninstallString ('$($afterInstall.UninstallString)'): aborting, system left as it was (7-Zip still installed)."
+        Write-Host "  [ABORT] per-machine-msi: $($mode.abortReason)"
+        return $mode
+    }
+    $guid = $resolved.guid
+    $mode.uninstallGuid = $guid
+    $mode.uninstallChannel = if ($resolved.flag -eq 'X') { 'msi' } else { 'msi-product-code' }
+    if ($resolved.flag -ne 'X') {
+        $mode.note = "Registered with /$($resolved.flag) (the app parser accepts /X only); executing the canonical msiexec /x on the same product code."
+        Write-Host ("  NOTE: {0}" -f $mode.note)
+    }
+    Write-Host ("  uninstall channel: msiexec /x {{{0}}} /qn /norestart" -f $guid)
+
+    # --- Uninstall via the MSI channel ----------------------------------------
+    $proc = Start-Process -FilePath 'msiexec.exe' -ArgumentList "/x {$guid} /qn /norestart" -Wait -PassThru
+    if (($proc.ExitCode -ne 0) -and ($proc.ExitCode -ne 3010)) {
+        $mode.aborted = $true
+        $mode.abortReason = "msiexec exited with code $($proc.ExitCode) (unexpected): aborting and reporting; 7-Zip may still be installed."
+        Write-Host "  [ABORT] per-machine-msi: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Verify clean ----------------------------------------------------------
+    $afterEntry = Get-SevenZipRegistryEntry
+    $afterList = Test-WingetLists7Zip
+    $mode.after = [ordered]@{
+        displayName  = if ($afterEntry) { [string]$afterEntry.DisplayName } else { $null }
+        wingetListed = $afterList
+    }
+    $mode.registryClean = (($null -eq $afterEntry) -and (-not $afterList))
+    if ($wasInstalled) {
+        # 7-Zip was there before: we only tested the channel; warn that the
+        # pre-existing install was removed and give the exact reinstall.
+        Write-Host '  NOTE: 7-Zip was already installed before this run and was removed by the channel test.'
+        Write-Host '  Reinstall with: winget install --id 7zip.7zip --scope machine -e --silent --accept-package-agreements --accept-source-agreements'
+    }
+    $mode.success = $mode.registryClean
+    $tag = if ($mode.registryClean) { 'OK' } else { 'FAIL' }
+    Write-Host ("  [{0}] per-machine-msi: registry clean={1} (before installed={2})." -f $tag, $mode.registryClean, $wasInstalled)
+    return $mode
+}
+
+# ---------------------------------------------------------------------------
+# Offered-drivers mode (-InstallOfferedDrivers)
+# ---------------------------------------------------------------------------
+# Read-only Windows Update query first (same query the app uses:
+# IsInstalled=0 AND Type='Driver'). Zero offered (or no WU answer) is a
+# no-op: nothing is touched. Otherwise: verified restore point -> install via
+# Windows Update -> re-verify versions.
+
+function Get-OfferedDriverUpdates {
+    $offered = @(); $responded = $false; $errorText = ''
+    try {
+        $session = New-Object -ComObject Microsoft.Update.Session
+        $searcher = $session.CreateUpdateSearcher()
+        $searcher.Online = $true
+        $res = $searcher.Search("IsInstalled=0 AND Type='Driver'")
+        $responded = $true
+        foreach ($u in $res.Updates) {
+            $offered += [ordered]@{ title = [string]$u.Title }
+        }
+    } catch {
+        $errorText = $_.Exception.Message
+    }
+    return [ordered]@{ responded = $responded; error = $errorText; updates = @($offered) }
+}
+
+function New-VerifiedRestorePoint {
+    param([string]$Description)
+    $err = ''
+    try {
+        Enable-ComputerRestore -Drive 'C:\' -ErrorAction Stop
+        Checkpoint-Computer -Description $Description -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop
+    } catch { $err = $_.Exception.Message }
+    $rp = $null
+    try {
+        $rp = Get-ComputerRestorePoint -ErrorAction SilentlyContinue |
+            Sort-Object -Property SequenceNumber -Descending | Select-Object -First 1
+    } catch { }
+    $verified = (($err -eq '') -and ($null -ne $rp))
+    $seq = $null
+    if ($rp) { $seq = $rp.SequenceNumber }
+    return [ordered]@{ verified = $verified; error = $err; sequence = $seq }
+}
+
+function Invoke-OfferedDriversMode {
+    $mode = [ordered]@{
+        mode          = 'offered-drivers'
+        wuResponded   = $false
+        wuError       = $null
+        offeredCount  = 0
+        offered       = @()
+        action        = 'noop'
+        restorePoint  = $null
+        installedCount = 0
+        verifiedCount = 0
+        aborted       = $false
+        abortReason   = $null
+        success       = $false
+    }
+
+    Write-Host '  Querying Windows Update for offered drivers (read-only)...'
+    $wu = Get-OfferedDriverUpdates
+    $mode.wuResponded = $wu.responded
+    $mode.wuError = $wu.error
+    $mode.offered = @($wu.updates | ForEach-Object { $_.title })
+    $mode.offeredCount = $mode.offered.Count
+    Write-Host ("  WU responded={0}; offered={1}" -f $mode.wuResponded, $mode.offeredCount)
+
+    if (-not $mode.wuResponded) {
+        $mode.action = 'noop'
+        $mode.abortReason = "Windows Update did not answer ($($mode.wuError)): cannot claim up to date, nothing to install. System untouched."
+        $mode.success = $true
+        Write-Host "  [NOOP] offered-drivers: $($mode.abortReason)"
+        return $mode
+    }
+    if ($mode.offeredCount -eq 0) {
+        $mode.action = 'noop'
+        $mode.abortReason = 'Windows Update offered 0 drivers: nothing to install. System untouched.'
+        $mode.success = $true
+        Write-Host '  [NOOP] offered-drivers: nothing to install.'
+        return $mode
+    }
+
+    $mode.action = 'install-pipeline'
+    if ($DryRun) {
+        Write-Host ("  [PLAN] offered-drivers: would create a VERIFIED restore point, install {0} offered driver(s) via Windows Update, then re-verify versions. No writes in DryRun." -f $mode.offeredCount)
+        foreach ($t in $mode.offered) { Write-Host ("         - {0}" -f $t) }
+        $mode.success = $true
+        return $mode
+    }
+
+    if (-not (Test-IsAdmin)) {
+        $mode.aborted = $true
+        $mode.abortReason = 'Installing drivers requires elevation and this session is not elevated. Nothing was changed.'
+        Write-Host "  [ABORT] offered-drivers: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Verified restore point BEFORE any install -----------------------------
+    Write-Host '  Creating a restore point (must verify before installing)...'
+    $rp = New-VerifiedRestorePoint -Description 'FORCH.iA WinOptimizer offered-drivers'
+    $mode.restorePoint = $rp
+    if (-not $rp.verified) {
+        $mode.aborted = $true
+        $mode.abortReason = "Restore point was not verified ($($rp.error)): aborting the pipeline before any install."
+        Write-Host "  [ABORT] offered-drivers: $($mode.abortReason)"
+        return $mode
+    }
+    Write-Host ("  Restore point verified (sequence {0})." -f $rp.sequence)
+
+    # --- Install the offered set via Windows Update ------------------------------
+    try {
+        $session = New-Object -ComObject Microsoft.Update.Session
+        $searcher = $session.CreateUpdateSearcher()
+        $searcher.Online = $true
+        $res = $searcher.Search("IsInstalled=0 AND Type='Driver'")
+        $installer = $session.CreateUpdateInstaller()
+        $list = New-Object -ComObject Microsoft.Update.UpdateColl
+        foreach ($u in $res.Updates) { $list.Add($u) | Out-Null }
+        $installer.Updates = $list
+        $dl = $installer.Download()
+        if ($dl.ResultCode -ne 2) {
+            $mode.aborted = $true
+            $mode.abortReason = "Driver download did not complete (ResultCode $($dl.ResultCode)). Nothing was installed beyond what WU staged."
+            Write-Host "  [ABORT] offered-drivers: $($mode.abortReason)"
+            return $mode
+        }
+        $ir = $installer.Install()
+        $mode.installedCount = $mode.offeredCount
+        if (($ir.ResultCode -ne 2) -and ($ir.ResultCode -ne 3)) {
+            $mode.aborted = $true
+            $mode.abortReason = "Driver install did not report success (ResultCode $($ir.ResultCode)). Reboot may be required; verify versions manually."
+            Write-Host "  [ABORT] offered-drivers: $($mode.abortReason)"
+            return $mode
+        }
+        if ($ir.RebootRequired) { Write-Host '  NOTE: Windows requests a reboot to complete the install. The kit never reboots by itself.' }
+    } catch {
+        $mode.aborted = $true
+        $mode.abortReason = "Driver install threw: $($_.Exception.Message). Verify versions manually."
+        Write-Host "  [ABORT] offered-drivers: $($mode.abortReason)"
+        return $mode
+    }
+
+    # --- Re-verify versions -------------------------------------------------------
+    try {
+        $drivers = Get-CimInstance -ClassName Win32_PnPSignedDriver -ErrorAction Stop
+        $mode.verifiedCount = @($drivers).Count
+        Write-Host ("  Re-read {0} signed drivers after install." -f $mode.verifiedCount)
+        $mode.success = $true
+    } catch {
+        $mode.aborted = $true
+        $mode.abortReason = "Install ran but versions could not be re-read: $($_.Exception.Message)."
+        Write-Host "  [ABORT] offered-drivers: $($mode.abortReason)"
+        return $mode
+    }
+    return $mode
+}
+
 try {
     try {
         Start-Transcript -Path $logPath -Force | Out-Null
@@ -615,9 +1294,44 @@ try {
         Write-Host ("  DNS {0,-20}: {1}" -f $adapter.interface, ($adapter.servers -join ', '))
     }
 
+    # --- BitLocker mode (optional, -EnableBitLocker) --------------------------
+    if ($EnableBitLocker) {
+        Write-Host ''
+        Write-Host '[bitlocker] Guarded BitLocker enable (prereqs -> protector -> verified backup -> Used Space Only)...'
+        if ($DryRun) {
+            Write-Host '  DRY RUN: prerequisites + plan only; never elevates, never writes.'
+        }
+        $result.bitlocker = Invoke-BitLockerMode -Password $BitLockerPassword -RecoveryPath $BitLockerRecoveryPath
+        if ((-not $DryRun) -and (-not $result.bitlocker.ready) -and ($exitCode -eq 0)) { $exitCode = 1 }
+    }
+
+    # --- Per-machine MSI test (optional, -TestPerMachine) ----------------------
+    if ($TestPerMachine) {
+        Write-Host ''
+        Write-Host '[permachine] Controlled per-machine MSI test (7-Zip via winget --scope machine)...'
+        if ($DryRun) {
+            Write-Host '  DRY RUN: reads only (registry + winget list + parser check).'
+        }
+        $result.perMachineTest = Invoke-PerMachineTestMode
+        if ((-not $DryRun) -and (($result.perMachineTest.aborted) -or (-not $result.perMachineTest.success)) -and ($exitCode -eq 0)) { $exitCode = 1 }
+    }
+
+    # --- Offered-drivers mode (optional, -InstallOfferedDrivers) -----------------
+    if ($InstallOfferedDrivers) {
+        Write-Host ''
+        Write-Host '[drivers] Offered-drivers pipeline (only what Windows Update offers)...'
+        if ($DryRun) {
+            Write-Host '  DRY RUN: WU read + plan only.'
+        }
+        $result.offeredDrivers = Invoke-OfferedDriversMode
+        if ((-not $DryRun) -and (($result.offeredDrivers.aborted) -or (-not $result.offeredDrivers.success)) -and ($exitCode -eq 0)) { $exitCode = 1 }
+    }
+
     # --- Verdict -------------------------------------------------------------
     if ($DryRun) {
         # A dry run only needs the read + the plan to be produced honestly.
+        # Mode planning aborts (e.g. BitLocker without a protector yet) are
+        # reported in the JSON with the exact ready command, not failures.
         $result.success = (($null -ne $result.security) -and ($result.fixesFailed -eq 0))
         if (-not $result.success -and $exitCode -eq 0) { $exitCode = 1 }
     } elseif ($exitCode -eq 2) {
@@ -628,6 +1342,18 @@ try {
     } else {
         $result.success = ($null -ne $result.security)
     }
+
+    # --- New modes factor into the verdict (real runs only) ----------------------
+    if (-not $DryRun) {
+        $modesFailed = $false
+        if ($EnableBitLocker -and (($null -eq $result.bitlocker) -or (-not $result.bitlocker.ready))) { $modesFailed = $true }
+        if ($TestPerMachine -and (($null -eq $result.perMachineTest) -or (-not $result.perMachineTest.success))) { $modesFailed = $true }
+        if ($InstallOfferedDrivers -and (($null -eq $result.offeredDrivers) -or (-not $result.offeredDrivers.success))) { $modesFailed = $true }
+        if ($modesFailed) {
+            $result.success = $false
+            if ($exitCode -eq 0) { $exitCode = 1 }
+        }
+    }
 } catch {
     $result.aborted = $true
     $result.abortReason = "exception: $($_.Exception.Message)"
@@ -637,8 +1363,11 @@ try {
     $result.finishedAt = (Get-Date).ToString('o')
     try {
         $json = $result | ConvertTo-Json -Depth 12
-        Set-Content -Path $jsonPath -Value $json -Encoding UTF8
-        Set-Content -Path $jsonPathStamped -Value $json -Encoding UTF8
+        # BOM-less UTF-8 so both PowerShell (ConvertFrom-Json) and node
+        # (JSON.parse) read the report. Set-Content -Encoding UTF8 writes a BOM.
+        $noBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($jsonPath, $json, $noBom)
+        [System.IO.File]::WriteAllText($jsonPathStamped, $json, $noBom)
     } catch {
         Write-Host "Could not write the JSON report: $($_.Exception.Message)" -ForegroundColor Red
     }

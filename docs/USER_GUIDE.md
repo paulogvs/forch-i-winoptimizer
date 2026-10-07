@@ -836,6 +836,41 @@ códigos de salida, variantes `-SkipRdpCycle`/`-DryRun`, **cómo revertir** y **
 (deshabilitar SMBv1 o requerir firma SMB puede afectar NAS/dispositivos antiguos) en
 `docs/TROUBLESHOOTING.md` → _Verificación elevada (kit para el usuario)_.
 
+### Tres modos nuevos (requieren admin; el usuario los corre con un UAC)
+
+Todos componen con `-DryRun` (planificación sin UAC ni escritura). Detalle,
+riesgos y cómo revertir en `docs/TROUBLESHOOTING.md`.
+
+- **BitLocker custodiado** — verifica edición, política "sin TPM" (la explica,
+  no la fuerza), espacio y protector viable (llave USB o contraseña
+  `SecureString`, nunca en texto plano); genera y **verifica** la copia de la
+  recovery key **antes** de cifrar con Used Space Only; sin copia verificada
+  no cifra. Revert: `manage-bde -off C:`.
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath 'D:\bitlocker-recovery.txt' -DryRun
+  powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath 'D:\bitlocker-recovery.txt'
+  ```
+
+- **Test per-machine MSI** — instala 7-Zip `--scope machine` vía winget, lo
+  verifica (registro + `winget list`), lo desinstala por el canal MSI real
+  (`msiexec /x {GUID}`, misma gramática que la app; documentada la
+  equivalencia `/I`→`/x`) y verifica que el registro quedó limpio.
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -TestPerMachine -DryRun
+  powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -TestPerMachine
+  ```
+
+- **Drivers ofrecidos solamente** — lee Windows Update (misma query de la
+  app); solo si hay ≥1 ofrecido corre restore point verificado → instalar →
+  re-verificar. Con 0 ofrecidos (o sin respuesta de WU) no toca nada.
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -InstallOfferedDrivers -DryRun
+  powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -InstallOfferedDrivers
+  ```
+
 > Es una herramienta de desarrollo: **no forma parte del binario** distribuido.
 
 ---

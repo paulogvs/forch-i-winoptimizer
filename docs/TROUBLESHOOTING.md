@@ -687,6 +687,104 @@ Ese directorio está en `.gitignore` (es salida de máquina, nunca se commitea).
 | `1`    | Algún paso no quedó confirmado por el read-back                       |
 | `2`    | Ciclo RDP **omitido**: había una sesión RDP activa (no se tocó nada)  |
 
+Con los modos nuevos, `1` también significa: BitLocker no quedó listo
+(`bitlocker.ready=false`), el test per-machine abortó o no quedó limpio, o el
+pipeline de drivers ofrecidos abortó. En `-DryRun`, los aborts de
+planificación se reportan en el JSON con el comando exacto para continuar y no
+fallan la corrida (no se intentó nada).
+
+### BitLocker custodiado (`-EnableBitLocker`)
+
+Para máquinas **sin TPM** (como la de desarrollo: sin TPM, firmware Legacy,
+BitLocker apagado). El kit **nunca cifra a ciegas**: verifica prerrequisitos y
+**aborta con el motivo + el comando exacto** si algo no cierra.
+
+```powershell
+# Planificar sin UAC ni escritura:
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath 'D:\bitlocker-recovery.txt' -DryRun
+
+# Ejecución real (un prompt de UAC):
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -EnableBitLocker -BitLockerRecoveryPath 'D:\bitlocker-recovery.txt'
+```
+
+**Qué verifica, en orden:**
+
+1. **Edición** que soporte BitLocker (existe el cmdlet `Enable-BitLocker`).
+2. **Política** "permitir BitLocker sin TPM" (`HKLM\SOFTWARE\Policies\Microsoft\FVE`).
+   Si falta, **explica cómo habilitarla** (gpedit) y **no la fuerza**.
+3. **Espacio** libre en el volumen del SO.
+4. **Protector viable**: llave USB de inicio si hay un removible insertado;
+   si no, **contraseña** por `-BitLockerPassword` (SecureString, **nunca** en
+   texto plano ni en logs/JSON). Sin USB y sin contraseña → no hace nada.
+   Sin TPM, el protector **nunca** es TPM: el trade-off USB vs contraseña se
+   reporta en el JSON (`tradeOff`).
+5. **ANTES de cifrar**: genera la clave de recuperación, la escribe en la ruta
+   indicada y **verifica que el archivo contiene la clave válida**. Sin copia
+   verificada, **revierte** (`manage-bde -off`) y **no cifra**. Sin excepciones.
+6. Habilita con **"Used Space Only"** (rápido) y confirma con
+   `manage-bde -status` (reporta el progreso inicial).
+
+**Qué NO hace:** no habilita la política de grupo por vos, no guarda la
+contraseña en ningún lado (no cruza el UAC: la sesión elevada la vuelve a
+pedir con `Read-Host -AsSecureString`), no cifra sin copia verificada.
+
+**Riesgos:** cifrar el disco del SO sin llave de recuperación te deja fuera;
+por eso la copia verificada es obligatoria. Guardá el archivo fuera de la PC.
+
+**Cómo revertir:** `manage-bde -off C:` (descifra; conservá la recovery key
+hasta que el progreso llegue a 0 %) y verificá con `manage-bde -status C:`.
+El JSON trae el mismo comando en `bitlocker.revert`.
+
+### Test per-machine MSI (`-TestPerMachine`)
+
+Target controlado y reversible: **7-Zip per-machine**.
+
+```powershell
+# Plan de solo lectura (parser + registry + winget list, sin instalar nada):
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -TestPerMachine -DryRun
+
+# Ejecución real (un prompt de UAC):
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -TestPerMachine
+```
+
+**Qué hace:** `winget install --id 7zip.7zip --scope machine` → verifica
+instalado (registro + `winget list`) → resuelve el `UninstallString` con la
+**misma gramática** que la app (`parseUninstallString` en
+`src/main/services/installed-apps.ts`) → desinstala por el canal real MSI
+(`msiexec /x {GUID} /qn /norestart`) → verifica registro limpio y reporta
+antes/después.
+
+**Equivalencia documentada `/I` vs `/X` (hallazgo real 2026-10-07):** 7-Zip
+per-machine registra `MsiExec.exe /I{GUID}` (modify), que el parser de la app
+(estricto `/X`) rechazaría. El product code es el mismo, así que el kit lo
+extrae y ejecuta siempre el canónico `msiexec /x {GUID}`; el JSON lo marca
+como canal `msi-product-code` con la nota de divergencia. La app no se tocó.
+
+**Qué NO hace:** no instala nada fuera de 7-Zip, no toca paquetes del usuario,
+no ejecuta el desinstalador si el parser lo rechaza (aborta dejando el
+sistema como estaba). Si 7-Zip **ya estaba instalado**, el test usa el canal
+real igual y al final avisa con el comando exacto para reinstalarlo.
+
+### Drivers ofrecidos solamente (`-InstallOfferedDrivers`)
+
+```powershell
+# Solo lectura WU + plan (sin UAC):
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -InstallOfferedDrivers -DryRun
+
+# Ejecución real (un prompt de UAC solo si hay algo que instalar):
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-elevated.ps1 -InstallOfferedDrivers
+```
+
+**Qué hace:** consulta Windows Update en solo lectura (la misma query de la
+app: `IsInstalled=0 AND Type='Driver'`). **Solo si hay al menos uno
+ofrecido** corre el pipeline real: punto de restauración **verificado** →
+instalar vía Windows Update → **re-verificar** versiones. Si WU **no responde**,
+no se declara "al día" (se reporta y no se toca nada); si ofrece **0** (como
+en la última medición), reporta "nothing to install" y no toca nada.
+
+**Qué NO hace:** no instala drivers fuera de este modo, no toca BIOS/firmware,
+no reinicia solo (si Windows pide reboot, lo avisa y lo hacés vos).
+
 > **Nota:** el kit es una **herramienta del repositorio**. Los binarios solo empaquetan
 > `dist/`, `assets/`, `catalogs/` y `sources/`, así que este script **no viaja al
 > producto**.
