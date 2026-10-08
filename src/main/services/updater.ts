@@ -24,7 +24,9 @@ interface GitHubRelease {
   }>;
 }
 
-const GITHUB_REPO = 'paulogvs/forch-i-winoptimizer';
+// Public releases repo (binaries only; code repo stays private) so the
+// in-app check works without a GitHub token on end-user PCs.
+const GITHUB_REPO = 'paulogvs/forch-i-winoptimizer-releases';
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
 export async function checkForUpdates(): Promise<UpdateInfo> {
